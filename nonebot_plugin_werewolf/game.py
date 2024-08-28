@@ -230,7 +230,7 @@ class Game:
             players = self.players.alive()
             await self.send("天黑请闭眼...")
 
-            # 狼人、预言家、守卫 先进行交互
+            # 狼人、预言家、守卫 同时交互，女巫在狼人后交互
             async def _interact(players: PlayerSet):
                 await asyncio.gather(
                     self.select_killed(),
