@@ -3,7 +3,7 @@ import asyncio.timeouts
 import contextlib
 from enum import Enum, auto
 from typing import TYPE_CHECKING, ClassVar, Literal
-from typing_extensions import override
+from typing_extensions import override, final
 
 from nonebot.adapters import Bot
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
@@ -24,6 +24,7 @@ class Role(Enum):
     女巫 = auto()
     猎人 = auto()
     守卫 = auto()
+    白痴 = auto()
 
     # 平民
     平民 = auto()
@@ -67,11 +68,14 @@ class Player:
             await self.send(prompt)
         return await store.fetch(self.user.id)
 
+    async def interact(self, game: "Game") -> None:
+        raise NotImplementedError
+
     async def notify_role(self):
         await self.send(f"你的身份: {self.role.name}")
 
-    async def interact(self, game: "Game") -> None:
-        raise NotImplementedError
+    def kill(self) -> None:
+        self.alive = False
 
     async def vote(self, players: "PlayerSet") -> "Player | None":
         players = players.exclude(self)
@@ -94,14 +98,12 @@ class Player:
         await self.send(f"投票的玩家: {player.name}")
         return player
 
-    def kill(self) -> None:
-        self.alive = False
-
     @property
     def user_id(self) -> str:
         return self.user.id
 
 
+@final
 class 狼人(Player):
     role: ClassVar[Role] = Role.狼人
 
@@ -148,6 +150,7 @@ class 狼人(Player):
         self.selected = players[selected]
 
 
+@final
 class 预言家(Player):
     role: ClassVar[Role] = Role.预言家
 
@@ -171,6 +174,7 @@ class 预言家(Player):
         await self.send(f"玩家 {player.name} 的阵营是『{result}』")
 
 
+@final
 class 女巫(Player):
     role: ClassVar[Role] = Role.女巫
     antidote: int = 1
@@ -200,7 +204,7 @@ class 女巫(Player):
             selected = check_index(text, 2)
             match (selected, self.antidote, self.poison):
                 case (None, _, _):
-                    await self.send("输入错误，请发送编号选择药水")
+                    await self.send("输入错误: 请发送编号选择药水")
                 case (1, 0, _):
                     await self.send("选择错误: 你已经用过解药了")
                 case (2, _, 0):
@@ -217,7 +221,9 @@ class 女巫(Player):
     ) -> Player | None:
         await self.send(
             f"当前选择药水: {self.potion_str(potion)}\n\n"
-            f"{players.show()}\n\n发送编号选择玩家\n发送 “/back” 回退到选择药水"
+            + players.show()
+            + "\n\n发送编号选择玩家"
+            + "\n发送 “/back” 回退到选择药水"
         )
 
         while True:
@@ -267,6 +273,7 @@ class 女巫(Player):
             self.poison = 0
 
 
+@final
 class 猎人(Player):
     role: ClassVar[Role] = Role.猎人
 
@@ -296,6 +303,7 @@ class 猎人(Player):
         await self.send(f"选择射杀的玩家: {self.selected.name}")
 
 
+@final
 class 守卫(Player):
     role: ClassVar[Role] = Role.守卫
 
@@ -326,6 +334,23 @@ class 守卫(Player):
         await self.send(f"本回合保护的玩家: {self.selected.name}")
 
 
+@final
+class 白痴(Player):
+    role: ClassVar[Role] = Role.白痴
+    voted: bool = False
+
+    @override
+    async def vote(self, players: "PlayerSet") -> "Player | None":
+        if self.voted:
+            return None
+        return await super().vote(players)
+
+    @override
+    async def interact(self, game: "Game") -> None:
+        return
+
+
+@final
 class 平民(Player):
     role: ClassVar[Role] = Role.平民
 

@@ -18,8 +18,8 @@ player_preset: dict[int, tuple[int, int, int]] = {
     8: (2, 3, 3),
     9: (2, 4, 3),
     10: (3, 4, 3),
-    11: (3, 4, 4),
-    12: (3, 4, 5),
+    11: (3, 5, 3),
+    12: (3, 5, 4),
 }
 
 
@@ -31,7 +31,7 @@ def init_players(bot: Bot, players: dict[str, str]) -> PlayerSet:
 
     roles = (
         [Role.狼人] * preset[0]
-        + [Role.预言家, Role.女巫, Role.守卫, Role.猎人][: preset[1]]
+        + [Role.预言家, Role.女巫, Role.守卫, Role.猎人, Role.白痴][: preset[1]]
         + [Role.平民] * preset[2]
     )
     random.shuffle(roles)
@@ -177,13 +177,32 @@ class Game:
             await self.send("猎人选择了取消技能")
             return None
 
+    async def handle_vote_idiot(self, player: Player) -> bool:
+        from .player import 白痴
+
+        assert isinstance(player, 白痴)
+
+        if player.voted:
+            return False
+
+        player.voted = True
+        await self.send(
+            UniMessage.at(player.user_id)
+            .text(" 的身份是白痴\n")
+            .text("免疫本次投票放逐，且接下来无法参与投票")
+        )
+        return True
+
     async def handle_vote(self, player: Player) -> None:
+        if player.role == Role.白痴 and await self.handle_vote_idiot(player):
+            return
+
         player.kill()
         await self.handle_new_dead(player)
         await self.send(
             UniMessage.text("玩家 ")
             .at(player.user_id)
-            .text(" 被票出, 请发表遗言\n限时1分钟, 发送 “/stop” 结束发言")
+            .text(" 被投票放逐, 请发表遗言\n限时1分钟, 发送 “/stop” 结束发言")
         )
         await self.wait_stop(player, 60)
 
