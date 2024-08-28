@@ -116,12 +116,13 @@ class 狼人(Player):
 
         await self.send(
             "你的队友:\n"
-            + "\n".join(p.name for p in partners)
+            + "\n".join(f"  {p.name}" for p in partners)
             + "\n所有私聊消息将被转发至队友"
-            + "\n\n请选择需要杀死的玩家:\n"
+            + "\n\n请选择今晚的目标:\n"
             + players.show()
             + "\n\n发送 “/kill <编号>” 选择玩家"
             + "\n发送 “/stop” 结束回合"
+            + "\n\n狼人阵营未统一意见将空刀"
         )
 
         selected: int | None = None
@@ -155,7 +156,7 @@ class 预言家(Player):
     async def interact(self, game: "Game") -> None:
         players = game.players.alive().exclude(self)
         await self.send(
-            f"请选择需要查验身份的玩家:\n{players.show()}\n\n发送编号选择玩家"
+            "请选择需要查验身份的玩家:\n" + players.show() + "\n\n发送编号选择玩家"
         )
 
         while True:

@@ -231,21 +231,27 @@ class Game:
             await self.send("天黑请闭眼...")
 
             # 狼人、预言家、守卫 先进行交互
+            async def _interact(players: PlayerSet):
+                await asyncio.gather(
+                    self.select_killed(),
+                    players.select(Role.女巫).broadcast("请等待狼人决定目标..."),
+                )
+                # 如果女巫存活，正常交互
+                if players.include(Role.女巫):
+                    await players.select(Role.女巫).interact(self)
+                # 否则等待 5-20s
+                else:
+                    await asyncio.sleep(random.uniform(5, 20))
+
             await asyncio.gather(
-                self.select_killed(),
+                _interact(players),
                 players.select(Role.预言家, Role.守卫).interact(self),
             )
+
             # 狼人击杀目标
             killed = self.state.killed
             # 守卫保护目标
             protected = self.state.protected
-
-            # 如果女巫存活，正常交互
-            if players.include(Role.女巫):
-                await players.select(Role.女巫).interact(self)
-            # 否则等待 5-10s
-            else:
-                await asyncio.sleep(random.uniform(5, 10))
             # 女巫的操作目标和内容
             potioned, (antidote, poison) = self.state.potion
 
