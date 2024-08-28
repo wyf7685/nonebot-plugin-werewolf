@@ -69,6 +69,7 @@ async def _(
         .text("成功创建游戏\n")
         .text("玩家请 @我 发送 “加入游戏”、“退出游戏”\n")
         .text("玩家 @我 发送 “当前玩家” 可查看玩家列表\n")
+        .text("游戏发起者 @我 发送 “结束游戏” 可结束当前游戏\n")
         .text("玩家均加入后，游戏发起者请 @我 发送 “开始游戏”")
         .send()
     )
@@ -91,24 +92,27 @@ async def _(
         text = text.extract_plain_text()
         msg = UniMessage.at(user)
 
-        if user == admin_id and text == "开始游戏":
-            if len(players) < min(player_preset):
-                await (
-                    msg.text(f"游戏至少需要 {min(player_preset)} 人, ")
-                    .text(f"当前已有 {len(players)} 人")
-                    .send()
-                )
-            elif len(players) > max(player_preset):
-                await (
-                    msg.text(f"游戏最多需要 {max(player_preset)} 人, ")
-                    .text(f"当前已有 {len(players)} 人")
-                    .send()
-                )
-            else:
-                await msg.text("游戏即将开始...").send()
-                break
+        if user == admin_id:
+            if text == "开始游戏":
+                if len(players) < min(player_preset):
+                    await (
+                        msg.text(f"游戏至少需要 {min(player_preset)} 人, ")
+                        .text(f"当前已有 {len(players)} 人")
+                        .send()
+                    )
+                elif len(players) > max(player_preset):
+                    await (
+                        msg.text(f"游戏最多需要 {max(player_preset)} 人, ")
+                        .text(f"当前已有 {len(players)} 人")
+                        .send()
+                    )
+                else:
+                    await msg.text("游戏即将开始...").send()
+                    break
+            elif text == "结束游戏":
+                await msg.text("已结束当前游戏").finish()
 
-        elif text == "加入游戏":
+        if text == "加入游戏":
             if user not in players:
                 players[user] = name
                 await msg.text("成功加入游戏").send()
@@ -122,7 +126,7 @@ async def _(
             else:
                 await msg.text("你还没有加入游戏").send()
 
-        elif text == "当前玩家":
+        if text == "当前玩家":
             msg.text("\n当前玩家:\n")
             for u in players:
                 msg.at(u)
