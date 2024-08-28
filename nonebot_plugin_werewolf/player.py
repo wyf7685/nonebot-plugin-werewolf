@@ -122,7 +122,7 @@ class 狼人(Player):
             + players.show()
             + "\n\n发送 “/kill <编号>” 选择玩家"
             + "\n发送 “/stop” 结束回合"
-            + "\n\n狼人阵营未统一意见将空刀"
+            + "\n\n限时2分钟，未统一意见将空刀"
         )
 
         selected: int | None = None

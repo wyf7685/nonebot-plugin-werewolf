@@ -7,6 +7,8 @@ from collections.abc import Callable
 from nonebot.adapters import Bot
 from nonebot_plugin_alconna import Target, UniMessage
 
+import asyncio.timeouts
+
 from .player import Player, PlayerSet, Role
 
 player_preset: dict[int, tuple[int, int, int]] = {
@@ -114,12 +116,18 @@ class Game:
 
     async def select_killed(self):
         w = self.players.alive().select(Role.狼人)
-        await w.interact(self)
-        if len(s := w.player_selected()) == 1:
+        try:
+            async with asyncio.timeouts.timeout(120):
+                await w.interact(self)
+        except TimeoutError:
+            await w.broadcast("狼人阵营交互时间结束")
+
+        if (s := w.player_selected()).size == 1:
             self.state.killed = s.pop()
+            await w.broadcast(f"今晚选择的目标为: {self.state.killed.name}")
         else:
-            await w.broadcast("狼人阵营意见未统一，此晚空刀")
             self.state.killed = None
+            await w.broadcast("狼人阵营意见未统一，此晚空刀")
 
     async def wait_stop(self, players: Player | PlayerSet, timeout: float) -> None:  # noqa: ASYNC109
         if isinstance(players, Player):
@@ -232,10 +240,9 @@ class Game:
 
             # 狼人、预言家、守卫 同时交互，女巫在狼人后交互
             async def _interact(players: PlayerSet):
-                await asyncio.gather(
-                    self.select_killed(),
-                    players.select(Role.女巫).broadcast("请等待狼人决定目标..."),
-                )
+                # 狼人在女巫前交互
+                await self.select_killed()
+
                 # 如果女巫存活，正常交互
                 if players.include(Role.女巫):
                     await players.select(Role.女巫).interact(self)
@@ -246,6 +253,7 @@ class Game:
             await asyncio.gather(
                 _interact(players),
                 players.select(Role.预言家, Role.守卫).interact(self),
+                players.select(Role.女巫).broadcast("请等待狼人决定目标..."),
             )
 
             # 狼人击杀目标
