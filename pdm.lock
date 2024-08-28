@@ -5,7 +5,7 @@
 groups = ["default", "dev"]
 strategy = ["inherit_metadata"]
 lock_version = "4.5.0"
-content_hash = "sha256:4a8b1c895da854ae5aac6980a110dbe7328dc88f646ac777914b6485b8774517"
+content_hash = "sha256:305beb4b299f43bcbff5f7b792fd9f928c883d027a18bc72ae9bdc50594ad236"
 
 [[metadata.targets]]
 requires_python = ">=3.10"
@@ -501,7 +501,7 @@ files = [
 
 [[package]]
 name = "nonebot-plugin-userinfo"
-version = "0.2.5"
+version = "0.2.6"
 requires_python = "<4.0,>=3.9"
 summary = "Nonebot2 用户信息获取插件"
 groups = ["default"]
@@ -513,8 +513,8 @@ dependencies = [
     "strenum<0.5.0,>=0.4.15",
 ]
 files = [
-    {file = "nonebot_plugin_userinfo-0.2.5-py3-none-any.whl", hash = "sha256:f80c7c3eca36ec9231a6c36951ad662d4f62ed44e08551e2621f4957d3e8313b"},
-    {file = "nonebot_plugin_userinfo-0.2.5.tar.gz", hash = "sha256:5ad93361d7fd9d3a3eaebd28a5b387a86004bd267e5985f82045e2eb31ddca49"},
+    {file = "nonebot_plugin_userinfo-0.2.6-py3-none-any.whl", hash = "sha256:79d2481af08a5ec77cf171c685eecd14eaf1ce4d5a1ec1fd22fbb0b85e06c260"},
+    {file = "nonebot_plugin_userinfo-0.2.6.tar.gz", hash = "sha256:0d1ce897e94a9d4c0b5300bc8f239a4676f9bb62c78a14e0f0527e5398ffc840"},
 ]
 
 [[package]]

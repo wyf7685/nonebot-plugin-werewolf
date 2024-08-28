@@ -32,22 +32,24 @@ class Role(Enum):
 class Player:
     bot: Bot
     user: Target
+    name: str
     role: ClassVar[Role]
     alive: bool
     selected: "Player | None"
 
-    def __init__(self, bot: Bot, user: Target) -> None:
+    def __init__(self, bot: Bot, user: Target, name: str) -> None:
         assert self.__class__ is not Player
         self.bot = bot
         self.user = user
+        self.name = name
         self.alive = True
         self.selected = None
 
     @classmethod
-    def new(cls, bot: Bot, user: Target, role: Role) -> "Player":
+    def new(cls, bot: Bot, user: Target, name: str, role: Role) -> "Player":
         for c in cls.__subclasses__():
             if c.role == role:
-                return c(bot, user)
+                return c(bot, user, name)
         else:
             raise ValueError(f"Unexpected role: {role!r}")
 
@@ -89,7 +91,7 @@ class Player:
             await self.send("输入错误，请发送编号选择玩家")
 
         player = players[selected]
-        await self.send(f"投票的玩家: {player.user_id}")
+        await self.send(f"投票的玩家: {player.name}")
         return player
 
     def kill(self) -> None:
@@ -105,8 +107,8 @@ class 狼人(Player):
 
     @override
     async def interact(self, game: "Game") -> None:
-        partners = game.players.alive().select(Role.狼人).exclude(self)
-        others = game.players.alive().exclude(Role.狼人)
+        players = game.players.alive()
+        partners = players.select(Role.狼人).exclude(self)
 
         # 避免阻塞
         def broadcast(msg: str | UniMessage):
@@ -114,10 +116,10 @@ class 狼人(Player):
 
         await self.send(
             "你的队友:\n"
-            + "\n".join(p.user_id for p in partners)
+            + "\n".join(p.name for p in partners)
             + "\n所有私聊消息将被转发至队友"
             + "\n\n请选择需要杀死的玩家:\n"
-            + others.show()
+            + players.show()
             + "\n\n发送 “/kill <编号>” 选择玩家"
             + "\n发送 “/stop” 结束回合"
         )
@@ -127,23 +129,23 @@ class 狼人(Player):
         while selected is None or not finished:
             input = await self.receive()
             text = input.extract_plain_text()
-            index = check_index(text.removeprefix("/kill").strip(), len(others))
+            index = check_index(text.removeprefix("/kill").strip(), len(players))
             if index is not None:
                 selected = index - 1
-                msg = f"当前选择玩家: {others[selected].user_id}"
+                msg = f"当前选择玩家: {players[selected].name}"
                 await self.send(msg)
-                broadcast(f"队友 {self.user_id} {msg}")
+                broadcast(f"队友 {self.name} {msg}")
             if text == "/stop":
-                if selected:
+                if selected is None:
                     finished = True
                     await self.send("你已结束当前回合")
-                    broadcast(f"队友 {self.user_id} 结束当前回合")
+                    broadcast(f"队友 {self.name} 结束当前回合")
                 else:
                     await self.send("当前未选择玩家，无法结束回合")
-            msg = UniMessage.text(f"队友 {self.user_id}:\n") + input
+            msg = UniMessage.text(f"队友 {self.name}:\n") + input
             broadcast(msg)
 
-        self.selected = others[selected]
+        self.selected = players[selected]
 
 
 class 预言家(Player):
@@ -166,17 +168,13 @@ class 预言家(Player):
 
         player = players[selected]
         result = "狼人" if player.role == Role.狼人 else "好人"
-        await self.send(f"玩家 {player.user_id} 的阵营是『{result}』")
+        await self.send(f"玩家 {player.name} 的阵营是『{result}』")
 
 
 class 女巫(Player):
     role: ClassVar[Role] = Role.女巫
-    antidote: int
-    poison: int
-
-    def __init__(self, bot: Bot, user: Target) -> None:
-        super().__init__(bot, user)
-        self.antidote = self.poison = 1
+    antidote: int = 1
+    poison: int = 1
 
     @staticmethod
     def potion_str(potion: int) -> str:
@@ -230,7 +228,7 @@ class 女巫(Player):
     @override
     async def interact(self, game: "Game") -> None:
         if game.state.killed is not None:
-            await self.send(f"今晚 {game.state.killed.user_id} 被刀了")
+            await self.send(f"今晚 {game.state.killed.name} 被刀了")
         else:
             await self.send("今晚没有人被刀")
 
@@ -239,18 +237,20 @@ class 女巫(Player):
             game.state.potion = (None, (False, False))
             return
 
-        players = game.players.alive().exclude(self)
+        players = game.players.alive()
         potion = await self.select_potion(players)
         if potion == 0:
             return
 
         while (player := await self.select_player(potion, players)) is None:
             potion = await self.select_potion(players)
+            if potion == 0:
+                return
 
         self.selected = player
         game.state.potion = (player, (potion == 1, potion == 2))
         await self.send(
-            f"当前回合选择对玩家 {player.user_id} 使用 {self.potion_str(potion)}"
+            f"当前回合选择对玩家 {player.name} 使用 {self.potion_str(potion)}"
             "\n回合结束"
         )
 
@@ -286,7 +286,7 @@ class 猎人(Player):
 
         self.selected = players[selected]
         game.state.shoot = players[selected]
-        await self.send(f"选择射杀的玩家: {self.selected.user_id}")
+        await self.send(f"选择射杀的玩家: {self.selected.name}")
 
 
 class 守卫(Player):
@@ -315,7 +315,7 @@ class 守卫(Player):
             await self.send("输入错误，请发送编号选择玩家")
 
         game.state.protected = self.selected = players[selected]
-        await self.send(f"本回合保护的玩家: {self.selected.user_id}")
+        await self.send(f"本回合保护的玩家: {self.selected.name}")
 
 
 class 平民(Player):
@@ -370,7 +370,7 @@ class PlayerSet(set[Player]):
                 await asyncio.gather(*[wait(p) for p in self])
 
     def show(self):
-        return "\n".join(f"{i}. {p.user_id}" for i, p in enumerate(self.sorted(), 1))
+        return "\n".join(f"{i}. {p.name}" for i, p in enumerate(self.sorted(), 1))
 
     def __getitem__(self, __index: int) -> Player:
         return self.sorted()[__index]

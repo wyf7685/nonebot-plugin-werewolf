@@ -1,13 +1,16 @@
 import asyncio
 
 from nonebot import on_command, on_message, require
-from nonebot.adapters import Event, Bot
+from nonebot.adapters import Bot, Event
 from nonebot.rule import to_me
+from typing import Annotated
 
 require("nonebot_plugin_alconna")
+require("nonebot_plugin_userinfo")
 require("nonebot_plugin_waiter")
 import nonebot_plugin_waiter as waiter
 from nonebot_plugin_alconna import MsgTarget, UniMessage, UniMsg
+from nonebot_plugin_userinfo import EventUserInfo, UserInfo
 
 from .game import Game, player_preset
 from .input_store import store
@@ -53,9 +56,14 @@ start_game = on_command("werewolf", rule=to_me() & is_group & user_not_in_game)
 
 
 @start_game.handle()
-async def _(bot: Bot, event: Event, target: MsgTarget) -> None:
+async def _(
+    bot: Bot,
+    event: Event,
+    target: MsgTarget,
+    admin_info: Annotated[UserInfo, EventUserInfo()],
+) -> None:
     admin_id = event.get_user_id()
-    players = [admin_id]
+    players = {admin_id: admin_info.user_name}
     await (
         UniMessage.at(admin_id)
         .text("成功创建游戏\n")
@@ -73,10 +81,10 @@ async def _(bot: Bot, event: Event, target: MsgTarget) -> None:
         keep_session=False,
         rule=to_me() & rule & user_not_in_game,
     )
-    def wait(event: Event, msg: UniMsg):
-        return event.get_user_id(), msg
+    def wait(info: Annotated[UserInfo, EventUserInfo()], msg: UniMsg):
+        return info.user_id, info.user_name, msg
 
-    async for user, text in wait(default=(None, UniMessage())):
+    async for user, name, text in wait(default=(None, "", UniMessage())):
         if user is None:
             continue
 
@@ -102,14 +110,14 @@ async def _(bot: Bot, event: Event, target: MsgTarget) -> None:
 
         elif text == "加入游戏":
             if user not in players:
-                players.append(user)
+                players[user] = name
                 await msg.text("成功加入游戏").send()
             else:
                 await msg.text("你已经加入游戏了").send()
 
         elif text == "退出游戏":
             if user in players:
-                players.remove(user)
+                del players[user]
                 await msg.text("成功退出游戏").send()
             else:
                 await msg.text("你还没有加入游戏").send()

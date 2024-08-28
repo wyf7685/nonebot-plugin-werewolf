@@ -21,7 +21,7 @@ player_preset: dict[int, tuple[int, int, int]] = {
 }
 
 
-def init_players(bot: Bot, players: list[str]) -> PlayerSet:
+def init_players(bot: Bot, players: dict[str, str]) -> PlayerSet:
     preset = player_preset.get(len(players))
     if preset is None:
         r = f"{min(player_preset)}-{max(player_preset)}"
@@ -41,14 +41,15 @@ def init_players(bot: Bot, players: list[str]) -> PlayerSet:
         Player.new(
             bot,
             Target(
-                player,
+                user_id,
                 private=True,
                 self_id=bot.self_id,
                 selector=selector,
             ),
+            players[user_id],
             role,
         )
-        for player, role in zip(players, roles)
+        for user_id, role in zip(players, roles)
     )
 
 
@@ -77,7 +78,7 @@ class Game:
         self,
         bot: Bot,
         group: Target,
-        players: list[str],
+        players: dict[str, str],
         on_exit: Callable[[], None],
     ) -> None:
         self.bot = bot
@@ -106,7 +107,7 @@ class Game:
             return GameStatus.Good
 
         p = self.players.alive().exclude(Role.狼人)
-        if w.size > p.size:
+        if w.size >= p.size:
             return GameStatus.Bad
 
         return GameStatus.Unset
@@ -193,7 +194,7 @@ class Game:
         async def send():
             while True:
                 player, msg = await queue.get()
-                msg = f"玩家 {player.user_id}:\n" + msg
+                msg = f"玩家 {player.name}:\n" + msg
                 await self.players.dead().exclude(player).broadcast(msg)
 
         async def recv(player: Player):
@@ -311,7 +312,7 @@ class Game:
 
             # 投票结果公示
             msg = UniMessage.text("投票结果:\n")
-            for p, v in sorted(vote_result.items(), key=lambda x: x[1]):
+            for p, v in sorted(vote_result.items(), key=lambda x: x[1], reverse=True):
                 if p is not None:
                     msg.at(p.user_id).text(f": {v} 票\n")
                     vote_reversed[v] = [*vote_reversed.get(v, []), p]
