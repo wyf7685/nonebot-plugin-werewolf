@@ -82,14 +82,20 @@ async def _(
         keep_session=False,
         rule=to_me() & rule & user_not_in_game,
     )
-    def wait(info: Annotated[UserInfo, EventUserInfo()], msg: UniMsg):
-        return info.user_id, info.user_name, msg
+    def wait(
+        event: Event,
+        info: Annotated[UserInfo | None, EventUserInfo()],
+        msg: UniMsg,
+    ):
+        return (
+            event.get_user_id(),
+            info.user_name if info is not None else event.get_user_id(),
+            msg.extract_plain_text(),
+        )
 
     async for user, name, text in wait(default=(None, "", UniMessage())):
         if user is None:
             continue
-
-        text = text.extract_plain_text()
         msg = UniMessage.at(user)
 
         if user == admin_id:
