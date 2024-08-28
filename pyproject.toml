@@ -2,9 +2,7 @@
 name = "nonebot-plugin-werewolf"
 version = "0.1.0"
 description = "Default template for PDM package"
-authors = [
-    {name = "wyf7685", email = "wyf7685@163.com"},
-]
+authors = [{ name = "wyf7685", email = "wyf7685@163.com" }]
 dependencies = [
     "nonebot2>=2.3.3",
     "nonebot-plugin-alconna>=0.52.1",
@@ -13,12 +11,69 @@ dependencies = [
 ]
 requires-python = ">=3.10"
 readme = "README.md"
-license = {text = "MIT"}
+license = { text = "MIT" }
 
 [build-system]
 requires = ["pdm-backend"]
 build-backend = "pdm.backend"
 
-
 [tool.pdm]
 distribution = true
+
+[tool.pdm.dev-dependencies]
+dev = [
+    "isort>=5.13.2",
+    "black>=24.8.0",
+    "ruff>=0.6.2",
+    "pyright>=1.1.377",
+    "nonebot2[fastapi]>=2.3.3",
+    "nonebot-adapter-onebot>=2.4.4",
+]
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+include = '\.pyi?$'
+extend-exclude = '''
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+skip_gitignore = true
+src_paths = ["nonebot_plugin_werewolf"]
+extra_standard_library = ["typing_extensions"]
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = [
+    "F",     # Pyflakes
+    "W",     # pycodestyle warnings
+    "E",     # pycodestyle errors
+    "UP",    # pyupgrade
+    "ASYNC", # flake8-async
+    "C4",    # flake8-comprehensions
+    "T10",   # flake8-debugger
+    "T20",   # flake8-print
+    "PYI",   # flake8-pyi
+    "PT",    # flake8-pytest-style
+    "Q",     # flake8-quotes
+    "RUF",   # Ruff-specific rules
+]
+ignore = [
+    "C408",   # unnecessary-collection-call
+    "E402",   # module-import-not-at-top-of-file
+    "RUF001", # ambiguous-unicode-character-string
+    "RUF002", # ambiguous-unicode-character-docstring
+    "RUF003", # ambiguous-unicode-character-comment
+]
+
+[tool.pyright]
+pythonVersion = "3.10"
+pythonPlatform = "All"
+typeCheckingMode = "standard"
+reportShadowedImports = false
+disableBytesTypePromotions = true
