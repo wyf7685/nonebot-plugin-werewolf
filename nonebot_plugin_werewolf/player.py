@@ -2,7 +2,7 @@ import asyncio
 import asyncio.timeouts
 import contextlib
 from enum import Enum, auto
-from typing import TYPE_CHECKING, ClassVar
+from typing import TYPE_CHECKING, ClassVar, Literal
 from typing_extensions import override
 
 from nonebot.adapters import Bot
@@ -122,11 +122,11 @@ class 狼人(Player):
             + players.show()
             + "\n\n发送 “/kill <编号>” 选择玩家"
             + "\n发送 “/stop” 结束回合"
-            + "\n\n限时2分钟，未统一意见将空刀"
+            + "\n\n限时2分钟，意见未统一将空刀"
         )
 
-        selected: int | None = None
-        finished: bool = False
+        selected = None
+        finished = False
         while selected is None or not finished:
             input = await self.receive()
             text = input.extract_plain_text()
@@ -143,8 +143,7 @@ class 狼人(Player):
                     broadcast(f"队友 {self.name} 结束当前回合")
                 else:
                     await self.send("当前未选择玩家，无法结束回合")
-            msg = UniMessage.text(f"队友 {self.name}:\n") + input
-            broadcast(msg)
+            broadcast(UniMessage.text(f"队友 {self.name}:\n") + input)
 
         self.selected = players[selected]
 
@@ -178,12 +177,13 @@ class 女巫(Player):
     poison: int = 1
 
     @staticmethod
-    def potion_str(potion: int) -> str:
+    def potion_str(potion: Literal[1, 2]) -> str:
         return "解药" if potion == 1 else "毒药"
 
-    async def select_potion(self, players: "PlayerSet") -> int:
+    async def select_potion(self, players: "PlayerSet") -> Literal[1, 2] | None:
         await self.send(
-            f"你当前拥有以下药水:\n1.解药x{self.antidote} | 2.毒药x{self.poison}"
+            "你当前拥有以下药水:"
+            + f"\n1.解药x{self.antidote} | 2.毒药x{self.poison}"
             + "\n发送编号选择药水"
             + "\n发送 “/list” 查看玩家列表"
             + "\n发送 “/stop” 结束回合(不使用药水)"
@@ -196,7 +196,7 @@ class 女巫(Player):
                 continue
             elif text == "/stop":
                 await self.send("你选择了取消，回合结束")
-                return 0
+                return
             selected = check_index(text, 2)
             match (selected, self.antidote, self.poison):
                 case (None, _, _):
@@ -204,11 +204,17 @@ class 女巫(Player):
                 case (1, 0, _):
                     await self.send("选择错误: 你已经用过解药了")
                 case (2, _, 0):
-                    await self.send("选择错误: 你已经用过解药了")
-                case _:
+                    await self.send("选择错误: 你已经用过毒药了")
+                case (1, 1, _) | (2, _, 1):
                     return selected
+                case x:
+                    await self.send(f"未知错误: {x}")
 
-    async def select_player(self, potion: int, players: "PlayerSet") -> Player | None:
+    async def select_player(
+        self,
+        potion: Literal[1, 2],
+        players: "PlayerSet",
+    ) -> Player | None:
         await self.send(
             f"当前选择药水: {self.potion_str(potion)}\n\n"
             f"{players.show()}\n\n发送编号选择玩家\n发送 “/back” 回退到选择药水"
@@ -240,12 +246,12 @@ class 女巫(Player):
 
         players = game.players.alive()
         potion = await self.select_potion(players)
-        if potion == 0:
+        if potion is None:
             return
 
         while (player := await self.select_player(potion, players)) is None:
             potion = await self.select_potion(players)
-            if potion == 0:
+            if potion is None:
                 return
 
         self.selected = player
@@ -298,7 +304,8 @@ class 守卫(Player):
         players = game.players.alive().exclude(self)
         await self.send(
             f"请选择需要保护的玩家:\n{players.show()}"
-            "\n\n发送编号选择玩家\n发送 “/stop” 结束回合"
+            + "\n\n发送编号选择玩家"
+            + "\n发送 “/stop” 结束回合"
         )
 
         while True:
@@ -359,7 +366,7 @@ class PlayerSet(set[Player]):
     async def broadcast(self, message: str | UniMessage) -> None:
         await asyncio.gather(*[p.send(message) for p in self])
 
-    async def wait_group_stop(self, group_id: str, timeout: float):  # noqa: ASYNC109
+    async def wait_group_stop(self, group_id: str, timeout: float) -> None:  # noqa: ASYNC109
         async def wait(p: Player):
             while True:
                 msg = await store.fetch(p.user_id, group_id)
@@ -370,7 +377,7 @@ class PlayerSet(set[Player]):
             async with asyncio.timeouts.timeout(timeout):
                 await asyncio.gather(*[wait(p) for p in self])
 
-    def show(self):
+    def show(self) -> str:
         return "\n".join(f"{i}. {p.name}" for i, p in enumerate(self.sorted(), 1))
 
     def __getitem__(self, __index: int) -> Player:
