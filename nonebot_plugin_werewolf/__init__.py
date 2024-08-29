@@ -55,8 +55,9 @@ async def is_group(target: MsgTarget) -> bool:
 
 
 @on_command(
-    ("werewolf", "狼人杀"),
+    "werewolf",
     rule=to_me() & is_group & user_not_in_game,
+    aliases={"狼人杀"},
 ).handle()
 async def handle_start(
     bot: Bot,
@@ -164,7 +165,7 @@ with contextlib.suppress(ImportError):
 
     OneBotV11Available = True
 
-    @on_type(PokeNotifyEvent, rule=user_in_game).handle()
+    @on_type(PokeNotifyEvent).handle()
     async def handle_poke(bot: Bot, event: PokeNotifyEvent):
         if str(event.target_id) == bot.self_id:
             InputStore.put(
