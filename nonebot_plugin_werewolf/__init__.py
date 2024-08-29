@@ -26,7 +26,7 @@ async def user_in_game(event: Event, target: MsgTarget) -> bool:
 
     if target.private:
         user_id = target.id
-        games = [*running_games.values()]
+        games = running_games.values()
     elif target.id in running_games:
         user_id = event.get_user_id()
         games = [running_games[target.id]]

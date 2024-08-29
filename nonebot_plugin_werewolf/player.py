@@ -2,7 +2,7 @@ import asyncio
 import asyncio.timeouts
 import contextlib
 from typing import TYPE_CHECKING, ClassVar, Literal
-from typing_extensions import final, override
+from typing_extensions import override
 
 from nonebot.adapters import Bot
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
@@ -13,24 +13,25 @@ from .utils import InputStore, check_index
 if TYPE_CHECKING:
     from .game import Game
 
+PlayerClass: dict[Role, type["Player"]] = {}
+
+
+def register_role(cls: type["Player"]) -> type["Player"]:
+    PlayerClass[cls.role] = cls
+    return cls
+
 
 class Player:
+    role: ClassVar[Role]
+    role_group: ClassVar[RoleGroup]
+
     bot: Bot
     user: Target
     name: str
-    role: ClassVar[Role]
-    role_group: ClassVar[RoleGroup]
     game: "Game"
     alive: bool = True
     kill_reason: KillReason | None = None
     selected: "Player | None" = None
-
-    def __init__(self, bot: Bot, game: "Game", user: Target, name: str) -> None:
-        assert self.__class__ is not Player
-        self.bot = bot
-        self.user = user
-        self.name = name
-        self.game = game
 
     @classmethod
     def new(
@@ -41,11 +42,16 @@ class Player:
         name: str,
         role: Role,
     ) -> "Player":
-        for c in cls.__subclasses__():
-            if c.role == role:
-                return c(bot, game, user, name)
-        else:
+        if role not in PlayerClass:
             raise ValueError(f"Unexpected role: {role!r}")
+
+        player = PlayerClass[role]()
+        player.bot = bot
+        player.game = game
+        player.user = user
+        player.name = name
+        player.game = game
+        return player
 
     def __repr__(self) -> str:
         return f"<{self.role.name}: user={self.user} alive={self.alive}>"
@@ -62,7 +68,7 @@ class Player:
         return await InputStore.fetch(self.user.id)
 
     async def interact(self) -> None:
-        raise NotImplementedError
+        return
 
     async def notify_role(self) -> None:
         await self.send(f"你的身份: {self.role.name}")
@@ -156,6 +162,7 @@ class CanShoot(Player):
         return players[selected]
 
 
+@register_role
 class 狼人(Player):
     role: ClassVar[Role] = Role.狼人
     role_group: ClassVar[RoleGroup] = RoleGroup.狼人
@@ -214,12 +221,13 @@ class 狼人(Player):
         self.selected = players[selected]
 
 
+@register_role
 class 狼王(CanShoot, 狼人):
     role: ClassVar[Role] = Role.狼王
     role_group: ClassVar[RoleGroup] = RoleGroup.狼人
 
 
-@final
+@register_role
 class 预言家(Player):
     role: ClassVar[Role] = Role.预言家
     role_group: ClassVar[RoleGroup] = RoleGroup.好人
@@ -246,7 +254,7 @@ class 预言家(Player):
         await self.send(f"玩家 {player.name} 的阵营是『{result}』")
 
 
-@final
+@register_role
 class 女巫(Player):
     role: ClassVar[Role] = Role.女巫
     role_group: ClassVar[RoleGroup] = RoleGroup.好人
@@ -347,17 +355,13 @@ class 女巫(Player):
             self.poison = 0
 
 
-@final
+@register_role
 class 猎人(CanShoot, Player):
     role: ClassVar[Role] = Role.猎人
     role_group: ClassVar[RoleGroup] = RoleGroup.好人
 
-    @override
-    async def interact(self) -> None:
-        return
 
-
-@final
+@register_role
 class 守卫(Player):
     role: ClassVar[Role] = Role.守卫
     role_group: ClassVar[RoleGroup] = RoleGroup.好人
@@ -389,7 +393,7 @@ class 守卫(Player):
         await self.send(f"本回合保护的玩家: {self.selected.name}")
 
 
-@final
+@register_role
 class 白痴(Player):
     role: ClassVar[Role] = Role.白痴
     role_group: ClassVar[RoleGroup] = RoleGroup.好人
@@ -414,19 +418,11 @@ class 白痴(Player):
             return None
         return await super().vote(players)
 
-    @override
-    async def interact(self) -> None:
-        return
 
-
-@final
+@register_role
 class 平民(Player):
     role: ClassVar[Role] = Role.平民
     role_group: ClassVar[RoleGroup] = RoleGroup.好人
-
-    @override
-    async def interact(self) -> None:
-        return
 
 
 class PlayerSet(set[Player]):

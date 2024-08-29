@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from .player import Player
 
+
 class Role(Enum):
     # 狼人
     狼人 = auto()
