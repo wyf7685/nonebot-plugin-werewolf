@@ -8,11 +8,11 @@ from nonebot_plugin_alconna import UniMessage
 
 
 def check_index(text: str, arrlen: int) -> int | None:
-    if not text.isdigit():
-        return None
-    index = int(text)
-    if 1 <= index <= arrlen:
-        return index
+    if text.isdigit():
+        index = int(text)
+        if 1 <= index <= arrlen:
+            return index
+    return None
 
 
 class InputStore:
