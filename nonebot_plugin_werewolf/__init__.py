@@ -13,6 +13,7 @@ from nonebot_plugin_alconna import MsgTarget, UniMessage, UniMsg
 from nonebot_plugin_userinfo import EventUserInfo, UserInfo
 from nonebot_plugin_waiter import waiter
 
+from .config import config
 from .game import Game, player_preset
 from .utils import InputStore
 
@@ -64,15 +65,21 @@ async def handle_start(
     admin_info: Annotated[UserInfo, EventUserInfo()],
 ) -> None:
     admin_id = event.get_user_id()
-    await (
+    msg = (
         UniMessage.at(admin_id)
         .text("成功创建游戏\n")
         .text("玩家请 @我 发送 “加入游戏”、“退出游戏”\n")
         .text("玩家 @我 发送 “当前玩家” 可查看玩家列表\n")
         .text("游戏发起者 @我 发送 “结束游戏” 可结束当前游戏\n")
-        .text("玩家均加入后，游戏发起者请 @我 发送 “开始游戏”")
-        .send()
+        .text("玩家均加入后，游戏发起者请 @我 发送 “开始游戏”\n")
     )
+    if (
+        config.enable_poke
+        and OneBotV11Available
+        and bot.adapter.get_name() == "OneBot V11"
+    ):
+        msg.text("\n可使用戳一戳代替游戏交互中的 “/stop” 命令")
+    await msg.send()
 
     async def rule(target_: MsgTarget) -> bool:
         return not target_.private and target_.id == target.id
@@ -151,16 +158,17 @@ async def handle_start(
 
 
 # OneBot V11 扩展: 戳一戳等效 "/stop"
+OneBotV11Available = False
 with contextlib.suppress(ImportError):
     from nonebot.adapters.onebot.v11.event import PokeNotifyEvent
 
-    matcher = on_type(PokeNotifyEvent, rule=user_in_game)
+    OneBotV11Available = True
 
-    @matcher.handle()
+    @on_type(PokeNotifyEvent, rule=user_in_game).handle()
     async def handle_poke(bot: Bot, event: PokeNotifyEvent):
         if str(event.target_id) == bot.self_id:
             InputStore.put(
                 str(event.user_id),
-                str(event.group_id),
+                str(event.group_id) if event.group_id is not None else None,
                 UniMessage.text("/stop"),
             )
