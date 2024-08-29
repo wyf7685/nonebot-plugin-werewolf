@@ -1,9 +1,9 @@
 import asyncio
+from typing import Annotated
 
 from nonebot import on_command, on_message, require
 from nonebot.adapters import Bot, Event
 from nonebot.rule import to_me
-from typing import Annotated
 
 require("nonebot_plugin_alconna")
 require("nonebot_plugin_userinfo")
