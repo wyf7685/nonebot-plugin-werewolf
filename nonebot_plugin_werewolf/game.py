@@ -1,39 +1,27 @@
 import asyncio
+import asyncio.timeouts
 import random
-from dataclasses import dataclass
-from enum import Enum, auto
 from collections.abc import Callable
 
 from nonebot.adapters import Bot
 from nonebot_plugin_alconna import Target, UniMessage
 
-import asyncio.timeouts
-
-from .player import Player, PlayerSet, Role
-
-player_preset: dict[int, tuple[int, int, int]] = {
-    # 总人数: (狼, 神, 民)
-    6: (1, 3, 2),
-    7: (1, 3, 3),
-    8: (2, 3, 3),
-    9: (2, 4, 3),
-    10: (3, 4, 3),
-    11: (3, 5, 3),
-    12: (3, 5, 4),
-}
+from .constant import GameState, GameStatus, KillReason, Role, RoleGroup, player_preset
+from .player import Player, PlayerSet
+# from .utils import GameProgress
 
 
-def init_players(bot: Bot, players: dict[str, str]) -> PlayerSet:
+def init_players(bot: Bot, game: "Game", players: dict[str, str]) -> PlayerSet:
     preset = player_preset.get(len(players))
     if preset is None:
         r = f"{min(player_preset)}-{max(player_preset)}"
         raise ValueError(f"玩家人数不符: 应为{r}人, 传入{len(players)}人")
 
-    roles = (
-        [Role.狼人] * preset[0]
-        + [Role.预言家, Role.女巫, Role.守卫, Role.猎人, Role.白痴][: preset[1]]
-        + [Role.平民] * preset[2]
-    )
+    roles: list[Role] = []
+    roles.extend([Role.狼人, Role.狼人, Role.狼王, Role.狼人][: preset[0]])
+    roles.extend([Role.预言家, Role.女巫, Role.守卫, Role.猎人, Role.白痴][: preset[1]])
+    roles.extend([Role.平民] * preset[2])
+
     random.shuffle(roles)
 
     async def selector(target_: Target, b: Bot):
@@ -42,6 +30,7 @@ def init_players(bot: Bot, players: dict[str, str]) -> PlayerSet:
     return PlayerSet(
         Player.new(
             bot,
+            game,
             Target(
                 user_id,
                 private=True,
@@ -55,25 +44,13 @@ def init_players(bot: Bot, players: dict[str, str]) -> PlayerSet:
     )
 
 
-class GameStatus(Enum):
-    Good = auto()
-    Bad = auto()
-    Unset = auto()
-
-
-@dataclass
-class GameState:
-    killed: Player | None = None
-    shoot: Player | None = None
-    protected: Player | None = None
-    potion: tuple[Player | None, tuple[bool, bool]] = (None, (False, False))
-
 
 class Game:
     bot: Bot
     group: Target
     players: PlayerSet
     state: GameState
+    # progress: GameProgress
     _on_exit: Callable[[], None]
 
     def __init__(
@@ -85,7 +62,7 @@ class Game:
     ) -> None:
         self.bot = bot
         self.group = group
-        self.players = init_players(bot, players)
+        self.players = init_players(bot, self, players)
         self.state = GameState()
         self._on_exit = on_exit
 
@@ -93,9 +70,6 @@ class Game:
         if isinstance(message, str):
             message = UniMessage.text(message)
         return await message.send(self.group, self.bot)
-
-    async def notify_player_role(self) -> None:
-        await asyncio.gather(*[p.notify_role() for p in self.players])
 
     def at_all(self) -> UniMessage:
         msg = UniMessage()
@@ -114,11 +88,17 @@ class Game:
 
         return GameStatus.Unset
 
-    async def select_killed(self):
-        w = self.players.alive().select(Role.狼人)
+    async def wait_stop(self, players: Player | PlayerSet, timeout: float) -> None:  # noqa: ASYNC109
+        if isinstance(players, Player):
+            players = PlayerSet([players])
+
+        await players.wait_group_stop(self.group.id, timeout)
+
+    async def select_killed(self) -> None:
+        self.state.killed = None
+        w = self.players.alive().select(RoleGroup.狼人)
         try:
-            async with asyncio.timeouts.timeout(120):
-                await w.interact(self)
+            await w.interact(120)
         except TimeoutError:
             await w.broadcast("狼人阵营交互时间结束")
 
@@ -126,14 +106,18 @@ class Game:
             self.state.killed = s.pop()
             await w.broadcast(f"今晚选择的目标为: {self.state.killed.name}")
         else:
-            self.state.killed = None
             await w.broadcast("狼人阵营意见未统一，此晚空刀")
 
-    async def wait_stop(self, players: Player | PlayerSet, timeout: float) -> None:  # noqa: ASYNC109
-        if isinstance(players, Player):
-            players = PlayerSet([players])
-
-        await players.wait_group_stop(self.group.id, timeout)
+        # 如果女巫存活，正常交互，限时1分钟
+        if ps := self.players.alive().select(Role.女巫):
+            await ps.broadcast("女巫交互开始，限时1分钟")
+            try:
+                await ps.interact(60)
+            except TimeoutError:
+                await ps.broadcast("女巫交互时间结束")
+        # 否则等待 5-20s
+        else:
+            await asyncio.sleep(random.uniform(5, 20))
 
     async def handle_new_dead(self, players: Player | PlayerSet) -> None:
         if isinstance(players, Player):
@@ -151,69 +135,75 @@ class Game:
             .broadcast(f"玩家 {', '.join(p.user_id for p in players)} 加入了死者频道"),
         )
 
-    async def handle_shoot(self, player: Player) -> Player | None:
-        if player.role != Role.猎人:
-            return None
-
-        await self.send(
-            UniMessage.text("猎人 ")
-            .at(player.user_id)
-            .text(" 死了\n请猎人决定射杀目标...")
-        )
-        # 猎人发动技能
-        await player.interact(self)
-        # 猎人射杀
-        if shoot := self.state.shoot:
-            await self.send(
-                UniMessage.text("猎人 ")
-                .at(player.user_id)
-                .text(" 射杀了玩家 ")
-                .at(shoot.user_id)
-            )
-            shoot.kill()
-            await self.handle_new_dead(player)
-            return shoot
-        else:  # 不是哥们？
-            await self.send("猎人选择了取消技能")
-            return None
-
-    async def handle_vote_idiot(self, player: Player) -> bool:
-        from .player import 白痴
-
-        assert isinstance(player, 白痴)
-
-        if player.voted:
-            return False
-
-        player.voted = True
-        await self.send(
-            UniMessage.at(player.user_id)
-            .text(" 的身份是白痴\n")
-            .text("免疫本次投票放逐，且接下来无法参与投票")
-        )
-        return True
-
-    async def handle_vote(self, player: Player) -> None:
-        if player.role == Role.白痴 and await self.handle_vote_idiot(player):
+    async def post_kill(self, players: Player | PlayerSet) -> None:
+        if isinstance(players, Player):
+            players = PlayerSet([players])
+        if not players:
             return
 
-        player.kill()
-        await self.handle_new_dead(player)
+        for player in players:
+            await player.post_kill()
+            await self.handle_new_dead(player)
+
+            (shooter, shoot) = self.state.shoot
+            if shooter is not None and shoot is not None:
+                await self.send(
+                    UniMessage.text("玩家 ")
+                    .at(shoot.user_id)
+                    .text(f" 被{shooter.role.name}射杀, 请发表遗言\n")
+                    .text("限时1分钟, 发送 “/stop” 结束发言")
+                )
+                await self.wait_stop(shoot, 60)
+            self.state.shoot = (None, None)
+
+    async def handle_vote(self, player: Player) -> None:
+        if not await player.kill(KillReason.Vote):
+            return
+
         await self.send(
             UniMessage.text("玩家 ")
             .at(player.user_id)
             .text(" 被投票放逐, 请发表遗言\n限时1分钟, 发送 “/stop” 结束发言")
         )
         await self.wait_stop(player, 60)
+        await self.post_kill(player)
 
-        if shoot := await self.handle_shoot(player):
-            await self.send(
-                UniMessage.text("玩家 ")
-                .at(shoot.user_id)
-                .text(" 被猎人射杀, 请发表遗言\n")
-                .text("限时1分钟, 发送 “/stop” 结束发言")
-            )
-            await self.wait_stop(shoot, 60)
+    async def run_vote(self) -> None:
+        players = self.players.alive()
+
+        # 统计投票结果
+        vote_result: dict[Player | None, int] = {}
+        vote_reversed: dict[int, list[Player]] = {}
+        for p in await asyncio.gather(*[p.vote(players) for p in players]):
+            vote_result[p] = vote_result.get(p, 0) + 1
+
+        # 投票结果公示
+        msg = UniMessage.text("投票结果:\n")
+        for p, v in sorted(vote_result.items(), key=lambda x: x[1], reverse=True):
+            if p is not None:
+                msg.at(p.user_id).text(f": {v} 票\n")
+                vote_reversed[v] = [*vote_reversed.get(v, []), p]
+        if v := vote_result.get(None, 0):
+            msg.text(f"弃票: {v} 票\n")
+        await self.send(msg)
+
+        # 执行投票结果
+        if vote_reversed:
+            vs = vote_reversed[max(vote_reversed.keys())]
+            # 仅有一名玩家票数最高
+            if len(vs) == 1:
+                voted = vs[0]
+                await self.handle_vote(voted)
+            # 平票
+            else:
+                msg = UniMessage.text("玩家 ")
+                for p in vs:
+                    msg.at(p.user_id)
+                msg.text(" 平票, 没有人被票出")
+                await self.send(msg)
+        # 全员弃票  # 不是哥们？
+        else:
+            await self.send("没有人被票出")
 
     async def run_dead_channel(self) -> None:
         queue: asyncio.Queue[tuple[Player, UniMessage]] = asyncio.Queue()
@@ -237,6 +227,7 @@ class Game:
     async def run(self) -> None:
         # 告知玩家角色信息
         preset = player_preset[len(self.players)]
+        # 分配职业
         await asyncio.gather(
             self.send(
                 self.at_all()
@@ -244,7 +235,7 @@ class Game:
                 .text(f"当前玩家数: {len(self.players)}\n")
                 .text(f"职业分配: 狼人x{preset[0]}, 神职x{preset[1]}, 平民x{preset[2]}")
             ),
-            self.notify_player_role(),
+            *[p.notify_role() for p in self.players],
         )
         # 死者频道
         dead_channel = asyncio.create_task(self.run_dead_channel())
@@ -254,25 +245,15 @@ class Game:
         while self.check_game_status() == GameStatus.Unset:
             # 重置游戏状态，进入下一夜
             self.state = GameState()
+            # await self.progress.switch(GameProgress.Night)
             players = self.players.alive()
             await self.send("天黑请闭眼...")
 
             # 狼人、预言家、守卫 同时交互，女巫在狼人后交互
-            async def _interact(players: PlayerSet):
-                # 狼人在女巫前交互
-                await self.select_killed()
-
-                # 如果女巫存活，正常交互
-                if players.include(Role.女巫):
-                    await players.select(Role.女巫).interact(self)
-                # 否则等待 5-20s
-                else:
-                    await asyncio.sleep(random.uniform(5, 20))
-
             await asyncio.gather(
-                _interact(players),
-                players.select(Role.预言家, Role.守卫).interact(self),
+                self.select_killed(),
                 players.select(Role.女巫).broadcast("请等待狼人决定目标..."),
+                players.select(Role.预言家, Role.守卫).interact(),
             )
 
             # 狼人击杀目标
@@ -286,10 +267,10 @@ class Game:
             if killed is not None:
                 # 除非守卫保护或女巫使用解药，否则狼人正常击杀玩家
                 if not ((killed is protected) or (antidote and potioned is killed)):
-                    killed.kill()
+                    await killed.kill(KillReason.Kill)
             # 如果女巫使用毒药且守卫未保护，杀死该玩家
             if poison and (potioned is not None) and (potioned is not protected):
-                potioned.kill()
+                await potioned.kill(KillReason.Poison)
 
             day_count += 1
             msg = UniMessage.text(f"【第{day_count}天】天亮了...\n")
@@ -299,26 +280,16 @@ class Game:
             # 有玩家死亡，执行死亡流程
             else:
                 # 公开死者名单
-                msg.text("昨晚的死者是:\n")
+                msg.text("昨晚的死者是:")
                 for p in dead.sorted():
                     msg.text("\n").at(p.user_id)
                 await self.send(msg)
-
-                # 如果死者包含猎人
-                if dead.include(Role.猎人):
-                    p = dead.select(Role.猎人).pop()
-                    # 女巫毒杀无法使用技能
-                    if poison and potioned is p:
-                        await p.send("你昨晚被女巫毒杀，无法使用猎人技能")
-                    else:
-                        await self.handle_shoot(p)
+                await self.post_kill(dead)
+            # await self.progress.switch(GameProgress.Morning)
 
             # 判断游戏状态
             if self.check_game_status() != GameStatus.Unset:
                 break
-
-            # 死者相关的通知
-            await self.handle_new_dead(dead)
 
             # 第一晚被狼人杀死的玩家发表遗言
             if day_count == 1 and killed is not None and not killed.alive:
@@ -329,47 +300,14 @@ class Game:
                 )
                 await self.wait_stop(killed, 60)
 
-            # 选择当前存活玩家
-            players = self.players.alive()
-
             # 开始自由讨论
             await self.send("接下来开始自由讨论\n限时2分钟, 全员发送 “/stop” 结束发言")
-            await self.wait_stop(players, 120)
+            await self.wait_stop(self.players.alive(), 120)
+
+            # 开始投票
             await self.send("讨论结束, 进入投票环节\n请在私聊中选择投票或弃票")
-
-            # 统计投票结果
-            vote_result: dict[Player | None, int] = {}
-            vote_reversed: dict[int, list[Player]] = {}
-            for p in await asyncio.gather(*[p.vote(players) for p in players]):
-                vote_result[p] = vote_result.get(p, 0) + 1
-
-            # 投票结果公示
-            msg = UniMessage.text("投票结果:\n")
-            for p, v in sorted(vote_result.items(), key=lambda x: x[1], reverse=True):
-                if p is not None:
-                    msg.at(p.user_id).text(f": {v} 票\n")
-                    vote_reversed[v] = [*vote_reversed.get(v, []), p]
-            if v := vote_result.get(None, 0):
-                msg.text(f"弃票: {v} 票\n")
-            await self.send(msg)
-
-            # 执行投票结果
-            if vote_reversed:
-                vs = vote_reversed[max(vote_reversed.keys())]
-                # 仅有一名玩家票数最高
-                if len(vs) == 1:
-                    voted = vs[0]
-                    await self.handle_vote(voted)
-                # 平票
-                else:
-                    msg = UniMessage.text("玩家 ")
-                    for p in vs:
-                        msg.at(p.user_id)
-                    msg.text(" 平票, 没有人被票出")
-                    await self.send(msg)
-            # 全员弃票  # 不是哥们？
-            else:
-                await self.send("没有人被票出")
+            # await self.progress.switch(GameProgress.Vote)
+            await self.run_vote()
 
         dead_channel.cancel()
         winner = "好人" if self.check_game_status() == GameStatus.Good else "狼人"

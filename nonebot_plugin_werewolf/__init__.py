@@ -41,7 +41,7 @@ async def user_not_in_game(event: Event, target: MsgTarget) -> bool:
 
 
 @on_message(rule=user_in_game).handle()
-async def _(event: Event, target: MsgTarget, msg: UniMsg) -> None:
+async def handle_input(event: Event, target: MsgTarget, msg: UniMsg) -> None:
     if target.private:
         store.put(target.id, None, msg)
     else:
@@ -56,7 +56,7 @@ start_game = on_command("werewolf", rule=to_me() & is_group & user_not_in_game)
 
 
 @start_game.handle()
-async def _(
+async def handle_start(
     bot: Bot,
     event: Event,
     target: MsgTarget,
@@ -90,16 +90,16 @@ async def _(
         return (
             event.get_user_id(),
             info.user_name if info is not None else event.get_user_id(),
-            msg.extract_plain_text(),
+            msg.extract_plain_text().strip(),
         )
 
-    async for user, name, text in wait(default=(None, "", UniMessage())):
+    async for user, name, text in wait(default=(None, "", "")):
         if user is None:
             continue
         msg = UniMessage.at(user)
 
-        if user == admin_id:
-            if text == "开始游戏":
+        match (text, user == admin_id):
+            case ("开始游戏", True):
                 if len(players) < min(player_preset):
                     await (
                         msg.text(f"游戏至少需要 {min(player_preset)} 人, ")
@@ -115,28 +115,29 @@ async def _(
                 else:
                     await msg.text("游戏即将开始...").send()
                     break
-            elif text == "结束游戏":
+
+            case ("结束游戏", True):
                 await msg.text("已结束当前游戏").finish()
 
-        if text == "加入游戏":
-            if user not in players:
-                players[user] = name
-                await msg.text("成功加入游戏").send()
-            else:
-                await msg.text("你已经加入游戏了").send()
+            case ("加入游戏", _):
+                if user not in players:
+                    players[user] = name
+                    await msg.text("成功加入游戏").send()
+                else:
+                    await msg.text("你已经加入游戏了").send()
 
-        elif text == "退出游戏":
-            if user in players:
-                del players[user]
-                await msg.text("成功退出游戏").send()
-            else:
-                await msg.text("你还没有加入游戏").send()
+            case ("退出游戏", _):
+                if user in players:
+                    del players[user]
+                    await msg.text("成功退出游戏").send()
+                else:
+                    await msg.text("你还没有加入游戏").send()
 
-        if text == "当前玩家":
-            msg.text("\n当前玩家:\n")
-            for u in players:
-                msg.at(u)
-            await msg.send()
+            case ("当前玩家", _):
+                msg.text("\n当前玩家:\n")
+                for u in players:
+                    msg.at(u)
+                await msg.send()
 
     game = Game(
         bot,
