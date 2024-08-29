@@ -1,7 +1,8 @@
 import asyncio
+import contextlib
 from typing import Annotated
 
-from nonebot import on_command, on_message, require
+from nonebot import on_command, on_message, on_type, require
 from nonebot.adapters import Bot, Event
 from nonebot.rule import to_me
 
@@ -147,3 +148,19 @@ async def handle_start(
     )
     task = asyncio.create_task(game.run())
     running_games[target.id] = (game, task)
+
+
+# OneBot V11 扩展: 戳一戳等效 "/stop"
+with contextlib.suppress(ImportError):
+    from nonebot.adapters.onebot.v11.event import PokeNotifyEvent
+
+    matcher = on_type(PokeNotifyEvent, rule=user_in_game)
+
+    @matcher.handle()
+    async def handle_poke(bot: Bot, event: PokeNotifyEvent):
+        if str(event.target_id) == bot.self_id:
+            InputStore.put(
+                str(event.user_id),
+                str(event.group_id),
+                UniMessage.text("/stop"),
+            )
