@@ -44,7 +44,6 @@ def init_players(bot: Bot, game: "Game", players: dict[str, str]) -> PlayerSet:
     )
 
 
-
 class Game:
     bot: Bot
     group: Target
@@ -78,15 +77,27 @@ class Game:
         return msg
 
     def check_game_status(self) -> GameStatus:
-        w = self.players.alive().select(Role.狼人)
+        w = self.players.alive().select(RoleGroup.狼人)
         if not w.size:
             return GameStatus.Good
 
-        p = self.players.alive().exclude(Role.狼人)
+        p = self.players.alive().exclude(RoleGroup.狼人)
         if w.size >= p.size:
             return GameStatus.Bad
 
         return GameStatus.Unset
+
+    async def notify_player_role(self) -> None:
+        preset = player_preset[len(self.players)]
+        await asyncio.gather(
+            self.send(
+                self.at_all()
+                .text("\n正在分配职业，请注意查看私聊消息\n")
+                .text(f"当前玩家数: {len(self.players)}\n")
+                .text(f"职业分配: 狼人x{preset[0]}, 神职x{preset[1]}, 平民x{preset[2]}")
+            ),
+            *[p.notify_role() for p in self.players],
+        )
 
     async def wait_stop(self, players: Player | PlayerSet, timeout: float) -> None:  # noqa: ASYNC109
         if isinstance(players, Player):
@@ -94,14 +105,32 @@ class Game:
 
         await players.wait_group_stop(self.group.id, timeout)
 
-    async def select_killed(self) -> None:
-        self.state.killed = None
-        w = self.players.alive().select(RoleGroup.狼人)
-        try:
-            await w.interact(120)
-        except TimeoutError:
-            await w.broadcast("狼人阵营交互时间结束")
+    async def interact(
+        self,
+        type_: Player | Role | RoleGroup,
+        timeout_secs: float,
+    ) -> None:
+        players = self.players.alive().select(type_)
+        text = (
+            type_.role.name  # Player
+            if isinstance(type_, Player)
+            else type_.name  # Role
+            if isinstance(type_, Role)
+            else f"{type_.name}阵营"  # RoleGroup
+        )
 
+        await players.broadcast(f"{text}交互开始，限时 {timeout_secs/60:.2f} 分钟")
+        try:
+            await players.interact(timeout_secs)
+        except TimeoutError:
+            await players.broadcast(f"{text}交互时间结束")
+
+    async def select_killed(self) -> None:
+        players = self.players.alive()
+        self.state.killed = None
+
+        w = players.select(RoleGroup.狼人)
+        await self.interact(RoleGroup.狼人, 120)
         if (s := w.player_selected()).size == 1:
             self.state.killed = s.pop()
             await w.broadcast(f"今晚选择的目标为: {self.state.killed.name}")
@@ -109,12 +138,8 @@ class Game:
             await w.broadcast("狼人阵营意见未统一，此晚空刀")
 
         # 如果女巫存活，正常交互，限时1分钟
-        if ps := self.players.alive().select(Role.女巫):
-            await ps.broadcast("女巫交互开始，限时1分钟")
-            try:
-                await ps.interact(60)
-            except TimeoutError:
-                await ps.broadcast("女巫交互时间结束")
+        if players.include(Role.女巫):
+            await self.interact(Role.女巫, 60)
         # 否则等待 5-20s
         else:
             await asyncio.sleep(random.uniform(5, 20))
@@ -163,7 +188,8 @@ class Game:
         await self.send(
             UniMessage.text("玩家 ")
             .at(player.user_id)
-            .text(" 被投票放逐, 请发表遗言\n限时1分钟, 发送 “/stop” 结束发言")
+            .text(" 被投票放逐, 请发表遗言\n")
+            .text("限时1分钟, 发送 “/stop” 结束发言")
         )
         await self.wait_stop(player, 60)
         await self.post_kill(player)
@@ -226,17 +252,7 @@ class Game:
 
     async def run(self) -> None:
         # 告知玩家角色信息
-        preset = player_preset[len(self.players)]
-        # 分配职业
-        await asyncio.gather(
-            self.send(
-                self.at_all()
-                .text("\n正在分配职业，请注意查看私聊消息\n")
-                .text(f"当前玩家数: {len(self.players)}\n")
-                .text(f"职业分配: 狼人x{preset[0]}, 神职x{preset[1]}, 平民x{preset[2]}")
-            ),
-            *[p.notify_role() for p in self.players],
-        )
+        await self.notify_player_role()
         # 死者频道
         dead_channel = asyncio.create_task(self.run_dead_channel())
         # 天数记录 主要用于第一晚狼人击杀的遗言
@@ -253,7 +269,8 @@ class Game:
             await asyncio.gather(
                 self.select_killed(),
                 players.select(Role.女巫).broadcast("请等待狼人决定目标..."),
-                players.select(Role.预言家, Role.守卫).interact(),
+                self.interact(Role.预言家, 60),
+                self.interact(Role.守卫, 60),
             )
 
             # 狼人击杀目标

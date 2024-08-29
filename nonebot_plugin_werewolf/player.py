@@ -189,7 +189,7 @@ class 狼人(Player):
             .text(players.show())
             .text("\n\n发送 “/kill <编号>” 选择玩家")
             .text("\n发送 “/stop” 结束回合")
-            .text("\n\n限时2分钟，意见未统一将空刀")
+            .text("\n\n意见未统一将空刀")
         )
 
         selected = None
@@ -468,8 +468,8 @@ class PlayerSet(set[Player]):
     def sorted(self) -> list[Player]:
         return sorted(self, key=lambda p: p.user_id)
 
-    async def interact(self, timeout: float = 60) -> None:  # noqa: ASYNC109
-        async with asyncio.timeouts.timeout(timeout):
+    async def interact(self, timeout_secs: float = 60) -> None:
+        async with asyncio.timeouts.timeout(timeout_secs):
             await asyncio.gather(*[p.interact() for p in self.alive()])
 
     async def post_kill(self) -> None:
@@ -478,7 +478,7 @@ class PlayerSet(set[Player]):
     async def broadcast(self, message: str | UniMessage) -> None:
         await asyncio.gather(*[p.send(message) for p in self])
 
-    async def wait_group_stop(self, group_id: str, timeout: float) -> None:  # noqa: ASYNC109
+    async def wait_group_stop(self, group_id: str, timeout_secs: float) -> None:
         async def wait(p: Player):
             while True:
                 msg = await store.fetch(p.user_id, group_id)
@@ -486,7 +486,7 @@ class PlayerSet(set[Player]):
                     break
 
         with contextlib.suppress(TimeoutError):
-            async with asyncio.timeouts.timeout(timeout):
+            async with asyncio.timeouts.timeout(timeout_secs):
                 await asyncio.gather(*[wait(p) for p in self])
 
     def show(self) -> str:
