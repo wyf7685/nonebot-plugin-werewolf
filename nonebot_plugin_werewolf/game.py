@@ -181,25 +181,11 @@ class Game:
                 await self.wait_stop(shoot, 60)
             self.state.shoot = (None, None)
 
-    async def handle_vote(self, player: Player) -> None:
-        if not await player.kill(KillReason.Vote):
-            return
-
-        await self.send(
-            UniMessage.text("玩家 ")
-            .at(player.user_id)
-            .text(" 被投票放逐, 请发表遗言\n")
-            .text("限时1分钟, 发送 “/stop” 结束发言")
-        )
-        await self.wait_stop(player, 60)
-        await self.post_kill(player)
-
     async def run_vote(self) -> None:
-        players = self.players.alive()
-
         # 统计投票结果
         vote_result: dict[Player | None, int] = {}
         vote_reversed: dict[int, list[Player]] = {}
+        players = self.players.alive()
         for p in await asyncio.gather(*[p.vote(players) for p in players]):
             vote_result[p] = vote_result.get(p, 0) + 1
 
@@ -213,23 +199,35 @@ class Game:
             msg.text(f"弃票: {v} 票\n")
         await self.send(msg)
 
-        # 执行投票结果
-        if vote_reversed:
-            vs = vote_reversed[max(vote_reversed.keys())]
-            # 仅有一名玩家票数最高
-            if len(vs) == 1:
-                voted = vs[0]
-                await self.handle_vote(voted)
-            # 平票
-            else:
-                msg = UniMessage.text("玩家 ")
-                for p in vs:
-                    msg.at(p.user_id)
-                msg.text(" 平票, 没有人被票出")
-                await self.send(msg)
         # 全员弃票  # 不是哥们？
-        else:
+        if not vote_reversed:
             await self.send("没有人被票出")
+            return
+
+        # 平票
+        if len(vs := vote_reversed[max(vote_reversed.keys())]) != 1:
+            msg = UniMessage.text("玩家 ")
+            for p in vs:
+                msg.at(p.user_id)
+            msg.text(" 平票, 没有人被票出")
+            await self.send(msg)
+            return
+
+        # 仅有一名玩家票数最高
+        voted = vs.pop()
+        if not await voted.kill(KillReason.Vote):
+            # 投票放逐失败 (例: 白痴)
+            return
+
+        # 遗言
+        await self.send(
+            UniMessage.text("玩家 ")
+            .at(voted.user_id)
+            .text(" 被投票放逐, 请发表遗言\n")
+            .text("限时1分钟, 发送 “/stop” 结束发言")
+        )
+        await self.wait_stop(voted, 60)
+        await self.post_kill(voted)
 
     async def run_dead_channel(self) -> None:
         queue: asyncio.Queue[tuple[Player, UniMessage]] = asyncio.Queue()
@@ -326,6 +324,7 @@ class Game:
             # await self.progress.switch(GameProgress.Vote)
             await self.run_vote()
 
+        # 游戏结束
         dead_channel.cancel()
         winner = "好人" if self.check_game_status() == GameStatus.Good else "狼人"
         msg = UniMessage.text(f"游戏结束，{winner}获胜\n\n")
