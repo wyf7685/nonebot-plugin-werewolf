@@ -13,7 +13,7 @@ from nonebot_plugin_userinfo import EventUserInfo, UserInfo
 from nonebot_plugin_waiter import waiter
 
 from .game import Game, player_preset
-from .input_store import store
+from .utils import InputStore
 
 running_games: dict[str, tuple[Game, asyncio.Task[None]]] = {}
 
@@ -43,9 +43,9 @@ async def user_not_in_game(event: Event, target: MsgTarget) -> bool:
 @on_message(rule=user_in_game).handle()
 async def handle_input(event: Event, target: MsgTarget, msg: UniMsg) -> None:
     if target.private:
-        store.put(target.id, None, msg)
+        InputStore.put(target.id, None, msg)
     else:
-        store.put(event.get_user_id(), target.id, msg)
+        InputStore.put(event.get_user_id(), target.id, msg)
 
 
 async def is_group(target: MsgTarget) -> bool:

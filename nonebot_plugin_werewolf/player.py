@@ -8,8 +8,7 @@ from nonebot.adapters import Bot
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 
 from .constant import KillReason, Role, RoleGroup
-from .input_store import store
-from .utils import check_index
+from .utils import InputStore, check_index
 
 if TYPE_CHECKING:
     from .game import Game
@@ -60,7 +59,7 @@ class Player:
     async def receive(self, prompt: str | UniMessage | None = None) -> UniMessage:
         if prompt:
             await self.send(prompt)
-        return await store.fetch(self.user.id)
+        return await InputStore.fetch(self.user.id)
 
     async def interact(self) -> None:
         raise NotImplementedError
@@ -481,7 +480,7 @@ class PlayerSet(set[Player]):
     async def wait_group_stop(self, group_id: str, timeout_secs: float) -> None:
         async def wait(p: Player):
             while True:
-                msg = await store.fetch(p.user_id, group_id)
+                msg = await InputStore.fetch(p.user_id, group_id)
                 if msg.extract_plain_text() == "/stop":
                     break
 
