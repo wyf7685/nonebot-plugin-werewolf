@@ -20,29 +20,28 @@ from .utils import InputStore
 running_games: dict[str, tuple[Game, asyncio.Task[None]]] = {}
 
 
-async def user_in_game(event: Event, target: MsgTarget) -> bool:
-    if not running_games:
-        return False
-
-    if target.private:
-        user_id = target.id
-        games = running_games.values()
-    elif target.id in running_games:
-        user_id = event.get_user_id()
-        games = [running_games[target.id]]
-    else:
-        return False
-
+def user_in_game(user_id: str, group_id: str | None):
+    games = running_games.values() if group_id is None else [running_games[group_id]]
     for game, _ in games:
         return any(user_id == player.user_id for player in game.players)
     return False
 
 
-async def user_not_in_game(event: Event, target: MsgTarget) -> bool:
-    return not await user_in_game(event, target)
+async def rule_in_game(event: Event, target: MsgTarget) -> bool:
+    if not running_games:
+        return False
+    if target.private:
+        return user_in_game(target.id, None)
+    elif target.id in running_games:
+        return user_in_game(event.get_user_id(), target.id)
+    return False
 
 
-@on_message(rule=user_in_game).handle()
+async def rule_not_in_game(event: Event, target: MsgTarget) -> bool:
+    return not await rule_in_game(event, target)
+
+
+@on_message(rule=rule_in_game).handle()
 async def handle_input(event: Event, target: MsgTarget, msg: UniMsg) -> None:
     if target.private:
         InputStore.put(target.id, None, msg)
@@ -56,7 +55,7 @@ async def is_group(target: MsgTarget) -> bool:
 
 @on_command(
     "werewolf",
-    rule=to_me() & is_group & user_not_in_game,
+    rule=to_me() & is_group & rule_not_in_game,
     aliases={"狼人杀"},
 ).handle()
 async def handle_start(
@@ -88,7 +87,7 @@ async def handle_start(
     @waiter(
         waits=[event.get_type()],
         keep_session=False,
-        rule=to_me() & rule & user_not_in_game,
+        rule=to_me() & rule & rule_not_in_game,
     )
     def wait(
         event: Event,
@@ -149,10 +148,10 @@ async def handle_start(
                 await msg.send()
 
     game = Game(
-        bot,
-        target,
-        players,
-        lambda: running_games.pop(target.id, None) and None,
+        bot=bot,
+        group=target,
+        players=players,
+        on_exit=lambda: running_games.pop(target.id, None) and None,
     )
     task = asyncio.create_task(game.run())
     running_games[target.id] = (game, task)
@@ -165,11 +164,16 @@ with contextlib.suppress(ImportError):
 
     OneBotV11Available = True
 
-    @on_type(PokeNotifyEvent).handle()
-    async def handle_poke(bot: Bot, event: PokeNotifyEvent):
-        if str(event.target_id) == bot.self_id:
-            InputStore.put(
-                str(event.user_id),
-                str(event.group_id) if event.group_id is not None else None,
-                UniMessage.text("/stop"),
-            )
+    async def _rule_poke(event: PokeNotifyEvent):
+        return (event.target_id == event.self_id) and user_in_game(
+            user_id=event.get_user_id(),
+            group_id=str(event.group_id) if event.group_id else None,
+        )
+
+    @on_type(PokeNotifyEvent, rule=_rule_poke).handle()
+    async def handle_poke(event: PokeNotifyEvent):
+        InputStore.put(
+            str(event.user_id),
+            str(event.group_id) if event.group_id is not None else None,
+            UniMessage.text("/stop"),
+        )
