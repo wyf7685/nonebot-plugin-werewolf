@@ -51,7 +51,7 @@ class GameState:
 player_preset: dict[int, tuple[int, int, int]] = {
     # 总人数: (狼, 神, 民)
     6: (1, 3, 2),
-    7: (1, 3, 3),
+    7: (2, 3, 2),
     8: (2, 3, 3),
     9: (2, 4, 3),
     10: (3, 4, 3),

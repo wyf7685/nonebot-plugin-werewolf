@@ -82,7 +82,6 @@ class Player:
         return
 
     async def vote(self, players: "PlayerSet") -> "Player | None":
-        players = players.exclude(self)
         await self.send(
             f"请选择需要投票的玩家:\n{players.show()}"
             "\n\n发送编号选择玩家\n发送 “/stop” 弃票"
@@ -210,7 +209,7 @@ class 狼人(Player):
                 await self.send(msg)
                 broadcast(f"队友 {self.name} {msg}")
             if text == "/stop":
-                if selected is None:
+                if selected is not None:
                     finished = True
                     await self.send("你已结束当前回合")
                     broadcast(f"队友 {self.name} 结束当前回合")
@@ -466,6 +465,20 @@ class PlayerSet(set[Player]):
     async def interact(self, timeout_secs: float = 60) -> None:
         async with asyncio.timeouts.timeout(timeout_secs):
             await asyncio.gather(*[p.interact() for p in self.alive()])
+
+    async def vote(self, timeout_secs: float = 60) -> "PlayerSet":
+        async def vote(player: Player) -> "Player | None":
+            try:
+                async with asyncio.timeouts.timeout(timeout_secs):
+                    return await player.vote(self)
+            except TimeoutError:
+                await player.send("投票超时，将自动弃票")
+
+        return PlayerSet(
+            p
+            for p in await asyncio.gather(*[vote(p) for p in self.alive()])
+            if p is not None
+        )
 
     async def post_kill(self) -> None:
         await asyncio.gather(*[p.post_kill() for p in self])

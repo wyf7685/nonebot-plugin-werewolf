@@ -22,7 +22,7 @@ def init_players(bot: Bot, game: "Game", players: dict[str, str]) -> PlayerSet:
 
     roles: list[Role] = []
     roles.extend([Role.狼人, Role.狼人, Role.狼王, Role.狼人][: preset[0]])
-    roles.extend([Role.预言家, Role.女巫, Role.守卫, Role.猎人, Role.白痴][: preset[1]])
+    roles.extend([Role.预言家, Role.女巫, Role.猎人, Role.守卫, Role.白痴][: preset[1]])
     roles.extend([Role.平民] * preset[2])
 
     random.shuffle(roles)
@@ -80,12 +80,18 @@ class Game:
         return msg
 
     def check_game_status(self) -> GameStatus:
-        w = self.players.alive().select(RoleGroup.狼人)
+        players = self.players.alive()
+
+        w = players.select(RoleGroup.狼人)
         if not w.size:
             return GameStatus.Good
 
-        p = self.players.alive().exclude(RoleGroup.狼人)
+        p = players.exclude(RoleGroup.狼人)
         if w.size >= p.size:
+            return GameStatus.Bad
+        if not players.select(Role.平民):
+            return GameStatus.Bad
+        if not players.select(RoleGroup.好人).exclude(Role.平民):
             return GameStatus.Bad
 
         return GameStatus.Unset
@@ -192,8 +198,7 @@ class Game:
         # 统计投票结果
         vote_result: dict[Player | None, int] = {}
         vote_reversed: dict[int, list[Player]] = {}
-        players = self.players.alive()
-        for p in await asyncio.gather(*[p.vote(players) for p in players]):
+        for p in await self.players.alive().vote(60):
             vote_result[p] = vote_result.get(p, 0) + 1
 
         # 投票结果公示
@@ -327,7 +332,7 @@ class Game:
             await self.wait_stop(self.players.alive(), 120)
 
             # 开始投票
-            await self.send("讨论结束, 进入投票环节\n请在私聊中选择投票或弃票")
+            await self.send("讨论结束, 进入投票环节，限时1分钟\n请在私聊中进行投票交互")
             # await self.progress.switch(GameProgress.Vote)
             await self.run_vote()
 

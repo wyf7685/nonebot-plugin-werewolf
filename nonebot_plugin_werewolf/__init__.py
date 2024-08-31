@@ -113,8 +113,8 @@ async def prepare_game(
 
             case ("当前玩家", _):
                 msg.text("\n当前玩家:\n")
-                for u in players:
-                    msg.at(u)
+                for name in players.values():
+                    msg.text(f"\n{name}")
                 await msg.send()
 
 
