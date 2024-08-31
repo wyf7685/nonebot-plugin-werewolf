@@ -223,11 +223,11 @@ class Game:
 
         # 平票
         if len(vs := vote_reversed[max(vote_reversed.keys())]) != 1:
-            msg = UniMessage.text("玩家 ")
-            for p in vs:
-                msg.at(p.user_id)
-            msg.text(" 平票, 没有人被票出")
-            await self.send(msg)
+            await self.send(
+                UniMessage.text("玩家 ")
+                .text(", ".join(p.name for p in vs))
+                .text(" 平票, 没有人被票出")
+            )
             return
 
         # 仅有一名玩家票数最高
