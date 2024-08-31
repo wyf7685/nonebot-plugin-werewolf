@@ -276,7 +276,6 @@ class Game:
         while self.check_game_status() == GameStatus.Unset:
             # 重置游戏状态，进入下一夜
             self.state = GameState()
-            # await self.progress.switch(GameProgress.Night)
             players = self.players.alive()
             await self.send("天黑请闭眼...")
 
@@ -317,7 +316,6 @@ class Game:
                     msg.text("\n").at(p.user_id)
                 await self.send(msg)
                 await self.post_kill(dead)
-            # await self.progress.switch(GameProgress.Morning)
 
             # 判断游戏状态
             if self.check_game_status() != GameStatus.Unset:
@@ -341,7 +339,6 @@ class Game:
 
             # 开始投票
             await self.send("讨论结束, 进入投票环节，限时1分钟\n请在私聊中进行投票交互")
-            # await self.progress.switch(GameProgress.Vote)
             await self.run_vote()
 
         # 游戏结束
