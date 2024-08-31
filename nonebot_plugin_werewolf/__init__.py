@@ -18,6 +18,8 @@ from .config import config
 from .game import Game, player_preset
 from .utils import InputStore
 
+
+starting_games: dict[str, dict[str, str]] = {}
 running_games: dict[str, tuple[Game, asyncio.Task[None]]] = {}
 
 
@@ -165,27 +167,29 @@ async def handle_start(
             msg.extract_plain_text().strip(),
         )
 
-    players = {admin_id: admin_info.user_name}
+    starting_games[target.id] = {admin_id: admin_info.user_name}
 
     try:
         async with asyncio.timeouts.timeout(5 * 60):
-            await prepare_game(wait, players, admin_id)
+            await prepare_game(wait, starting_games[target.id], admin_id)
     except TimeoutError:
         await UniMessage.text("游戏准备超时，已自动结束").finish()
 
     game = Game(
         bot=bot,
         group=target,
-        players=players,
+        players=starting_games[target.id],
         on_exit=lambda: running_games.pop(target.id, None) and None,
     )
     task = asyncio.create_task(game.run())
     running_games[target.id] = (game, task)
+    del starting_games[target.id]
 
 
 # OneBot V11 扩展: 戳一戳等效 "/stop"
 OneBotV11Available = False
 with contextlib.suppress(ImportError):
+    from nonebot.adapters.onebot.v11 import Bot as V11Bot, MessageSegment
     from nonebot.adapters.onebot.v11.event import PokeNotifyEvent
 
     OneBotV11Available = True
@@ -197,9 +201,17 @@ with contextlib.suppress(ImportError):
         )
 
     @on_type(PokeNotifyEvent, rule=_rule_poke).handle()
-    async def handle_poke(event: PokeNotifyEvent):
-        InputStore.put(
-            str(event.user_id),
-            str(event.group_id) if event.group_id is not None else None,
-            UniMessage.text("/stop"),
-        )
+    async def handle_poke(bot: V11Bot, event: PokeNotifyEvent):
+        user_id = str(event.user_id)
+        group_id = str(event.group_id) if event.group_id is not None else None
+        InputStore.put(user_id, group_id, UniMessage.text("/stop"))
+
+        if group_id is not None:
+            players = starting_games.get(str(event.group_id))
+            if players is not None:
+                res: dict[str, str] = await bot.get_group_member_info(
+                    group_id=int(group_id),
+                    user_id=int(user_id),
+                )
+                players[user_id] = res.get("nickname") or user_id
+                await bot.send(event, MessageSegment.at(user_id) + "成功加入游戏")
