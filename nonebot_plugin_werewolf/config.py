@@ -3,7 +3,7 @@ from pydantic import BaseModel
 
 
 class PluginConfig(BaseModel):
-    enable_poke: bool = False
+    enable_poke: bool = True
 
 
 class Config(BaseModel):

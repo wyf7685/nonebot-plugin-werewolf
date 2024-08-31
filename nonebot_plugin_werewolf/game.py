@@ -25,11 +25,6 @@ def init_players(bot: Bot, game: "Game", players: dict[str, str]) -> PlayerSet:
 
     random.shuffle(roles)
 
-    # if (sb_zg := "2956918266") in players and Role.白痴 in roles:
-    #     players[sb_zg] = players.pop(sb_zg)
-    #     roles.remove(Role.白痴)
-    #     roles.append(Role.白痴)
-
     async def selector(target_: Target, b: Bot):
         return target_.self_id == bot.self_id and b is bot
 
@@ -113,12 +108,12 @@ class Game:
     async def wait_stop(
         self,
         players: Player | PlayerSet,
-        timeout: float,  # noqa: ASYNC109
+        timeout_secs: float,
     ) -> None:
         if isinstance(players, Player):
             players = PlayerSet([players])
 
-        await players.wait_group_stop(self.group.id, timeout)
+        await players.wait_group_stop(self.group.id, timeout_secs)
 
     async def interact(
         self,
