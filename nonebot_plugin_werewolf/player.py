@@ -466,7 +466,7 @@ class PlayerSet(set[Player]):
         async with asyncio.timeouts.timeout(timeout_secs):
             await asyncio.gather(*[p.interact() for p in self.alive()])
 
-    async def vote(self, timeout_secs: float = 60) -> "PlayerSet":
+    async def vote(self, timeout_secs: float = 60) -> list[Player]:
         async def vote(player: Player) -> "Player | None":
             try:
                 async with asyncio.timeouts.timeout(timeout_secs):
@@ -474,11 +474,11 @@ class PlayerSet(set[Player]):
             except TimeoutError:
                 await player.send("投票超时，将自动弃票")
 
-        return PlayerSet(
+        return [
             p
             for p in await asyncio.gather(*[vote(p) for p in self.alive()])
             if p is not None
-        )
+        ]
 
     async def post_kill(self) -> None:
         await asyncio.gather(*[p.post_kill() for p in self])
