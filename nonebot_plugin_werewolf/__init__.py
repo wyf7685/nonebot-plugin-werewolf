@@ -1,4 +1,5 @@
 import asyncio
+import asyncio.timeouts
 import contextlib
 from typing import Annotated
 
@@ -9,9 +10,9 @@ from nonebot.rule import to_me
 require("nonebot_plugin_alconna")
 require("nonebot_plugin_userinfo")
 require("nonebot_plugin_waiter")
+import nonebot_plugin_waiter as waiter
 from nonebot_plugin_alconna import MsgTarget, UniMessage, UniMsg
 from nonebot_plugin_userinfo import EventUserInfo, UserInfo
-from nonebot_plugin_waiter import waiter
 
 from .config import config
 from .game import Game, player_preset
@@ -53,6 +54,70 @@ async def is_group(target: MsgTarget) -> bool:
     return not target.private
 
 
+async def prepare_game(
+    wait: waiter.Waiter[tuple[str, str, str]],
+    players: dict[str, str],
+    admin_id: str,
+):
+    async for user, name, text in wait(default=(None, "", "")):
+        if user is None:
+            continue
+        msg = UniMessage.at(user)
+
+        match (text, user == admin_id):
+            case ("开始游戏", True):
+                if len(players) < min(player_preset):
+                    await (
+                        msg.text(f"游戏至少需要 {min(player_preset)} 人, ")
+                        .text(f"当前已有 {len(players)} 人")
+                        .send()
+                    )
+                elif len(players) > max(player_preset):
+                    await (
+                        msg.text(f"游戏最多需要 {max(player_preset)} 人, ")
+                        .text(f"当前已有 {len(players)} 人")
+                        .send()
+                    )
+                else:
+                    await msg.text("游戏即将开始...").send()
+                    return
+
+            case ("开始游戏", False):
+                await msg.text("只有游戏发起者可以开始游戏").send()
+
+            case ("结束游戏", True):
+                await msg.text("已结束当前游戏").finish()
+
+            case ("结束游戏", False):
+                await msg.text("只有游戏发起者可以结束游戏").send()
+
+            case ("加入游戏", True):
+                await msg.text("游戏发起者已经加入游戏了").send()
+
+            case ("加入游戏", False):
+                if user not in players:
+                    players[user] = name
+                    await msg.text("成功加入游戏").send()
+                else:
+                    await msg.text("你已经加入游戏了").send()
+
+            case ("退出游戏", True):
+                await msg.text("游戏发起者无法退出游戏").send()
+
+            case ("退出游戏", False):
+                if user in players:
+                    del players[user]
+                    await msg.text("成功退出游戏").send()
+                else:
+                    await msg.text("你还没有加入游戏").send()
+
+            case ("当前玩家", _):
+                msg.text("\n当前玩家:\n")
+                for u in players:
+                    msg.at(u)
+                await msg.send()
+
+
 @on_command(
     "werewolf",
     rule=to_me() & is_group & rule_not_in_game,
@@ -79,12 +144,12 @@ async def handle_start(
         and bot.adapter.get_name() == "OneBot V11"
     ):
         msg.text("\n可使用戳一戳代替游戏交互中的 “/stop” 命令")
-    await msg.send()
+    await msg.text("\n\n游戏准备阶段限时5分钟，超时将自动结束").send()
 
     async def rule(target_: MsgTarget) -> bool:
         return not target_.private and target_.id == target.id
 
-    @waiter(
+    @waiter.waiter(
         waits=[event.get_type()],
         keep_session=False,
         rule=to_me() & rule & rule_not_in_game,
@@ -101,51 +166,12 @@ async def handle_start(
         )
 
     players = {admin_id: admin_info.user_name}
-    async for user, name, text in wait(default=(None, "", "")):
-        if user is None:
-            continue
-        msg = UniMessage.at(user)
 
-        match (text, user == admin_id):
-            case ("开始游戏", True):
-                if len(players) < min(player_preset):
-                    await (
-                        msg.text(f"游戏至少需要 {min(player_preset)} 人, ")
-                        .text(f"当前已有 {len(players)} 人")
-                        .send()
-                    )
-                elif len(players) > max(player_preset):
-                    await (
-                        msg.text(f"游戏最多需要 {max(player_preset)} 人, ")
-                        .text(f"当前已有 {len(players)} 人")
-                        .send()
-                    )
-                else:
-                    await msg.text("游戏即将开始...").send()
-                    break
-
-            case ("结束游戏", True):
-                await msg.text("已结束当前游戏").finish()
-
-            case ("加入游戏", False):
-                if user not in players:
-                    players[user] = name
-                    await msg.text("成功加入游戏").send()
-                else:
-                    await msg.text("你已经加入游戏了").send()
-
-            case ("退出游戏", False):
-                if user in players:
-                    del players[user]
-                    await msg.text("成功退出游戏").send()
-                else:
-                    await msg.text("你还没有加入游戏").send()
-
-            case ("当前玩家", _):
-                msg.text("\n当前玩家:\n")
-                for u in players:
-                    msg.at(u)
-                await msg.send()
+    try:
+        async with asyncio.timeouts.timeout(5 * 60):
+            await prepare_game(wait, players, admin_id)
+    except TimeoutError:
+        await UniMessage.text("游戏准备超时，已自动结束").finish()
 
     game = Game(
         bot=bot,
