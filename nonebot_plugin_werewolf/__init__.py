@@ -23,7 +23,9 @@ starting_games: dict[str, dict[str, str]] = {}
 running_games: dict[str, tuple[Game, asyncio.Task[None]]] = {}
 
 
-def user_in_game(user_id: str, group_id: str | None):
+def user_in_game(user_id: str, group_id: str | None) -> bool:
+    if group_id is not None and group_id not in running_games:
+        return False
     games = running_games.values() if group_id is None else [running_games[group_id]]
     for game, _ in games:
         return any(user_id == player.user_id for player in game.players)
@@ -167,18 +169,18 @@ async def handle_start(
             msg.extract_plain_text().strip(),
         )
 
-    starting_games[target.id] = {admin_id: admin_info.user_name}
+    starting_games[target.id] = players = {admin_id: admin_info.user_name}
 
     try:
         async with asyncio.timeouts.timeout(5 * 60):
-            await prepare_game(wait, starting_games[target.id], admin_id)
+            await prepare_game(wait, players, admin_id)
     except TimeoutError:
         await UniMessage.text("游戏准备超时，已自动结束").finish()
 
     game = Game(
         bot=bot,
         group=target,
-        players=starting_games[target.id],
+        players=players,
         on_exit=lambda: running_games.pop(target.id, None) and None,
     )
     task = asyncio.create_task(game.run())
@@ -186,7 +188,7 @@ async def handle_start(
     del starting_games[target.id]
 
 
-# OneBot V11 扩展: 戳一戳等效 "/stop"
+# OneBot V11 扩展
 OneBotV11Available = False
 with contextlib.suppress(ImportError):
     from nonebot.adapters.onebot.v11 import Bot as V11Bot, MessageSegment
@@ -194,24 +196,41 @@ with contextlib.suppress(ImportError):
 
     OneBotV11Available = True
 
-    async def _rule_poke(event: PokeNotifyEvent):
-        return (event.target_id == event.self_id) and user_in_game(
-            user_id=event.get_user_id(),
-            group_id=str(event.group_id) if event.group_id else None,
-        )
+    # 戳一戳等效 "/stop"
+    async def _rule_poke_1(event: PokeNotifyEvent):
+        user_id = str(event.user_id)
+        group_id = str(event.group_id) if event.group_id is not None else None
+        return (event.target_id == event.self_id) and user_in_game(user_id, group_id)
 
-    @on_type(PokeNotifyEvent, rule=_rule_poke).handle()
-    async def handle_poke(bot: V11Bot, event: PokeNotifyEvent):
+    @on_type(PokeNotifyEvent, rule=_rule_poke_1).handle()
+    async def handle_poke_1(bot: V11Bot, event: PokeNotifyEvent):
         user_id = str(event.user_id)
         group_id = str(event.group_id) if event.group_id is not None else None
         InputStore.put(user_id, group_id, UniMessage.text("/stop"))
 
-        if group_id is not None:
-            players = starting_games.get(str(event.group_id))
-            if players is not None:
-                res: dict[str, str] = await bot.get_group_member_info(
-                    group_id=int(group_id),
-                    user_id=int(user_id),
-                )
-                players[user_id] = res.get("nickname") or user_id
-                await bot.send(event, MessageSegment.at(user_id) + "成功加入游戏")
+    # 准备阶段戳一戳等效加入游戏
+    async def _rule_poke_2(event: PokeNotifyEvent):
+        if event.group_id is None:
+            return False
+
+        user_id = str(event.user_id)
+        group_id = str(event.group_id)
+        return (
+            (event.target_id == event.self_id)
+            and not user_in_game(user_id, group_id)
+            and group_id in starting_games
+        )
+
+    @on_type(PokeNotifyEvent, rule=_rule_poke_2).handle()
+    async def handle_poke_2(bot: V11Bot, event: PokeNotifyEvent):
+        user_id = str(event.user_id)
+        group_id = str(event.group_id)
+        players = starting_games[group_id]
+
+        if user_id not in players:
+            res: dict[str, str] = await bot.get_group_member_info(
+                group_id=int(group_id),
+                user_id=int(user_id),
+            )
+            players[user_id] = res.get("nickname") or user_id
+            await bot.send(event, MessageSegment.at(user_id) + "成功加入游戏")
