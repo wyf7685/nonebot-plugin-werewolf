@@ -3,11 +3,10 @@ import asyncio.timeouts
 import contextlib
 from typing import Annotated
 
+import nonebot_plugin_waiter as waiter
 from nonebot import on_command, on_message, on_type
 from nonebot.adapters import Bot, Event
 from nonebot.rule import to_me
-
-import nonebot_plugin_waiter as waiter
 from nonebot_plugin_alconna import MsgTarget, UniMessage, UniMsg
 from nonebot_plugin_userinfo import EventUserInfo, UserInfo
 
