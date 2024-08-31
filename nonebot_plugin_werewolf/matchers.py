@@ -66,16 +66,23 @@ async def prepare_game(
 
         match (text, user == admin_id):
             case ("开始游戏", True):
-                if len(players) < min(player_preset):
+                player_num = len(players)
+                if player_num < min(player_preset):
                     await (
                         msg.text(f"游戏至少需要 {min(player_preset)} 人, ")
-                        .text(f"当前已有 {len(players)} 人")
+                        .text(f"当前已有 {player_num} 人")
                         .send()
                     )
-                elif len(players) > max(player_preset):
+                elif player_num > max(player_preset):
                     await (
                         msg.text(f"游戏最多需要 {max(player_preset)} 人, ")
-                        .text(f"当前已有 {len(players)} 人")
+                        .text(f"当前已有 {player_num} 人")
+                        .send()
+                    )
+                elif player_num not in player_preset:
+                    await (
+                        msg.text(f"不存在总人数为 {player_num} 的预设, ")
+                        .text("无法开始游戏")
                         .send()
                     )
                 else:

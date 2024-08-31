@@ -15,7 +15,7 @@ def init_players(bot: Bot, game: "Game", players: dict[str, str]) -> PlayerSet:
     if preset is None:
         raise ValueError(
             f"玩家人数不符: "
-            f"应为{min(player_preset)}-{max(player_preset)}人, 传入{len(players)}人"
+            f"应为 {', '.join(map(str, player_preset))} 人, 传入{len(players)}人"
         )
 
     roles: list[Role] = []
