@@ -30,6 +30,7 @@ class Player:
     user: Target
     name: str
     alive: bool = True
+    killed: bool = False
     kill_reason: KillReason | None = None
     selected: "Player | None" = None
 
@@ -79,7 +80,7 @@ class Player:
         return True
 
     async def post_kill(self) -> None:
-        return
+        self.killed = True
 
     async def vote(self, players: "PlayerSet") -> "Player | None":
         await self.send(
@@ -260,98 +261,84 @@ class 女巫(Player):
     antidote: int = 1
     poison: int = 1
 
+    def set_state(
+        self, *, antidote: Player | None = None, posion: Player | None = None
+    ):
+        if antidote is not None:
+            self.antidote = 0
+            self.selected = antidote
+            self.game.state.potion = (antidote, (True, False))
+        elif posion is not None:
+            self.poison = 0
+            self.selected = posion
+            self.game.state.potion = (posion, (False, True))
+        else:
+            self.game.state.potion = (None, (False, False))
+
     @staticmethod
     def potion_str(potion: Literal[1, 2]) -> str:
         return "解药" if potion == 1 else "毒药"
 
-    async def select_potion(self, players: "PlayerSet") -> Literal[1, 2] | None:
-        await self.send(
-            UniMessage.text("你当前拥有以下药水:")
-            .text(f"\n1.解药x{self.antidote} | 2.毒药x{self.poison}")
-            .text("\n发送编号选择药水")
-            .text("\n发送 “/list” 查看玩家列表")
-            .text("\n发送 “/stop” 结束回合(不使用药水)")
-        )
-
-        while True:
-            text = (await self.receive()).extract_plain_text()
-            if text == "/list":
-                await self.send(players.show())
-                continue
-            elif text == "/stop":
-                await self.send("你选择了取消，回合结束")
-                return
-            selected = check_index(text, 2)
-            match (selected, self.antidote, self.poison):
-                case (None, _, _):
-                    await self.send("输入错误: 请发送编号选择药水")
-                case (1, 0, _):
-                    await self.send("选择错误: 你已经用过解药了")
-                case (2, _, 0):
-                    await self.send("选择错误: 你已经用过毒药了")
-                case (1, 1, _) | (2, _, 1):
-                    return selected
-                case x:
-                    await self.send(f"未知错误: {x}")
-
-    async def select_player(
-        self,
-        potion: Literal[1, 2],
-        players: "PlayerSet",
-    ) -> Player | None:
-        await self.send(
-            UniMessage.text(f"当前选择药水: {self.potion_str(potion)}\n\n")
-            .text(players.show())
-            .text("\n\n发送编号选择玩家")
-            .text("\n发送 “/back” 回退到选择药水")
-        )
-
-        while True:
-            text = (await self.receive()).extract_plain_text()
-            if text == "/back":
-                return None
-            index = check_index(text, len(players))
-            if index is not None:
-                selected = index - 1
-                break
-            await self.send("输入错误，请发送编号选择玩家")
-
-        return players[selected]
-
-    @override
-    async def interact(self) -> None:
+    async def handle_killed(self) -> bool:
         if self.game.state.killed is not None:
             await self.send(f"今晚 {self.game.state.killed.name} 被刀了")
         else:
             await self.send("今晚没有人被刀")
+            return False
 
-        if not self.antidote and not self.poison:
+        if not self.antidote:
+            await self.send("你已经用过解药了")
+            return False
+
+        await self.send("使用解药请发送 “1”\n不使用解药请发送 “/stop”")
+
+        while True:
+            text = (await self.receive()).extract_plain_text()
+            if text == "1":
+                self.antidote = 0
+                self.set_state(antidote=self.game.state.killed)
+                return True
+            elif text == "/stop":
+                return False
+            else:
+                await self.send("输入错误: 请输入 “1” 或 “/stop”")
+
+    @override
+    async def interact(self) -> None:
+        if await self.handle_killed():
+            return
+
+        if not self.poison:
             await self.send("你没有可以使用的药水，回合结束")
-            self.game.state.potion = (None, (False, False))
+            self.set_state()
             return
 
         players = self.game.players.alive()
-        potion = await self.select_potion(players)
-        if potion is None:
-            return
-
-        while (player := await self.select_player(potion, players)) is None:
-            potion = await self.select_potion(players)
-            if potion is None:
-                return
-
-        self.selected = player
-        self.game.state.potion = (player, (potion == 1, potion == 2))
         await self.send(
-            UniMessage.text(f"当前回合选择对玩家 {player.name}")
-            .text(f" 使用 {self.potion_str(potion)}")
-            .text("\n回合结束")
+            UniMessage.text("你有一瓶毒药\n")
+            .text("玩家列表:\n")
+            .text(players.show())
+            .text("\n\n发送玩家编号使用毒药")
+            .text("\n发送 “/stop” 结束回合(不使用药水)")
         )
 
-        if potion == 1:
-            self.antidote = 0
-        else:
-            self.poison = 0
+        while True:
+            text = (await self.receive()).extract_plain_text().strip()
+            index = check_index(text, len(players))
+            if index is not None:
+                selected = index - 1
+                break
+            elif text == "/stop":
+                await self.send("你选择不使用毒药，回合结束")
+                self.set_state()
+                return
+            else:
+                await self.send("输入错误: 请发送玩家编号或 “/stop”")
+
+        self.poison = 0
+        self.selected = player = players[selected]
+        self.set_state(posion=player)
+        await self.send(f"当前回合选择对玩家 {player.name} 使用毒药\n回合结束")
 
 
 @register_role

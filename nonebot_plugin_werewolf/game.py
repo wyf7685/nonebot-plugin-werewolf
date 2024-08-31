@@ -170,7 +170,7 @@ class Game:
             ),
             self.players.dead()
             .exclude(*players)
-            .broadcast(f"玩家 {', '.join(p.user_id for p in players)} 加入了死者频道"),
+            .broadcast(f"玩家 {', '.join(p.name for p in players)} 加入了死者频道"),
         )
 
     async def post_kill(self, players: Player | PlayerSet) -> None:
@@ -252,7 +252,7 @@ class Game:
 
         async def recv(player: Player):
             while True:
-                if player.alive:
+                if not player.killed:
                     await asyncio.sleep(1)
                     continue
                 msg = await player.receive()
