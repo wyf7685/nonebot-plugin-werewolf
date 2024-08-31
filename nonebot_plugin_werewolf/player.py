@@ -297,6 +297,9 @@ class 女巫(Player):
             if text == "1":
                 self.antidote = 0
                 self.set_state(antidote=self.game.state.killed)
+                await self.send(
+                    f"你对 {self.game.state.killed.name} 使用了解药，回合结束"
+                )
                 return True
             elif text == "/stop":
                 return False
