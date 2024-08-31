@@ -323,6 +323,9 @@ class Game:
             if self.check_game_status() != GameStatus.Unset:
                 break
 
+            # 公示存活玩家
+            await self.send(f"当前存活玩家: \n\n{self.players.alive().show()}")
+
             # 第一晚被狼人杀死的玩家发表遗言
             if day_count == 1 and killed is not None and not killed.alive:
                 await self.send(
