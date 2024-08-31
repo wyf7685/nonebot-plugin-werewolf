@@ -4,6 +4,7 @@ from pydantic import BaseModel
 
 class PluginConfig(BaseModel):
     enable_poke: bool = True
+    override_preset: list[tuple[int, int, int, int]] | None = None
 
 
 class Config(BaseModel):

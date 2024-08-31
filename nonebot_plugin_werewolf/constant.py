@@ -2,6 +2,8 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
+from .config import config
+
 if TYPE_CHECKING:
     from .player import Player
 
@@ -58,3 +60,6 @@ player_preset: dict[int, tuple[int, int, int]] = {
     11: (3, 5, 3),
     12: (4, 5, 3),
 }
+
+if config.override_preset is not None:
+    player_preset |= {i[0]: i[1:] for i in config.override_preset}
