@@ -18,7 +18,6 @@ from .config import config
 from .game import Game, player_preset
 from .utils import InputStore
 
-
 starting_games: dict[str, dict[str, str]] = {}
 running_games: dict[str, tuple[Game, asyncio.Task[None]]] = {}
 
@@ -194,25 +193,28 @@ async def handle_start(
 # OneBot V11 扩展
 OneBotV11Available = False
 with contextlib.suppress(ImportError):
-    from nonebot.adapters.onebot.v11 import Bot as V11Bot, MessageSegment
+    from nonebot.adapters.onebot.v11 import Bot as V11Bot
+    from nonebot.adapters.onebot.v11 import MessageSegment
     from nonebot.adapters.onebot.v11.event import PokeNotifyEvent
 
     OneBotV11Available = True
 
-    # 戳一戳等效 "/stop"
-    async def _rule_poke_1(event: PokeNotifyEvent):
+    # 游戏内戳一戳等效 "/stop"
+    async def _rule_poke_1(event: PokeNotifyEvent) -> bool:
         user_id = str(event.user_id)
         group_id = str(event.group_id) if event.group_id is not None else None
         return (event.target_id == event.self_id) and user_in_game(user_id, group_id)
 
     @on_type(PokeNotifyEvent, rule=_rule_poke_1).handle()
-    async def handle_poke_1(bot: V11Bot, event: PokeNotifyEvent):
-        user_id = str(event.user_id)
-        group_id = str(event.group_id) if event.group_id is not None else None
-        InputStore.put(user_id, group_id, UniMessage.text("/stop"))
+    async def handle_poke_1(event: PokeNotifyEvent) -> None:
+        InputStore.put(
+            user_id=str(event.user_id),
+            group_id=str(event.group_id) if event.group_id is not None else None,
+            msg=UniMessage.text("/stop"),
+        )
 
     # 准备阶段戳一戳等效加入游戏
-    async def _rule_poke_2(event: PokeNotifyEvent):
+    async def _rule_poke_2(event: PokeNotifyEvent) -> bool:
         if event.group_id is None:
             return False
 
@@ -225,7 +227,7 @@ with contextlib.suppress(ImportError):
         )
 
     @on_type(PokeNotifyEvent, rule=_rule_poke_2).handle()
-    async def handle_poke_2(bot: V11Bot, event: PokeNotifyEvent):
+    async def handle_poke_2(bot: V11Bot, event: PokeNotifyEvent) -> None:
         user_id = str(event.user_id)
         group_id = str(event.group_id)
         players = starting_games[group_id]

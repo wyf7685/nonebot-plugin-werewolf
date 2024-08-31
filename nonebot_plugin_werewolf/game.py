@@ -9,8 +9,6 @@ from nonebot_plugin_alconna import Target, UniMessage
 from .constant import GameState, GameStatus, KillReason, Role, RoleGroup, player_preset
 from .player import Player, PlayerSet
 
-# from .utils import GameProgress
-
 
 def init_players(bot: Bot, game: "Game", players: dict[str, str]) -> PlayerSet:
     preset = player_preset.get(len(players))
@@ -57,7 +55,6 @@ class Game:
     group: Target
     players: PlayerSet
     state: GameState
-    # progress: GameProgress
     _on_exit: Callable[[], None]
 
     def __init__(

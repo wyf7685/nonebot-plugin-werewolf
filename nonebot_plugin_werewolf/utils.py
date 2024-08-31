@@ -32,4 +32,3 @@ class InputStore:
         key = f"{group_id}_{user_id}"
         if future := cls.futures.get(key):
             future.set_result(msg)
-
