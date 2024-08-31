@@ -193,7 +193,7 @@ class 狼人(Player):
         await self.send(
             msg.text("请选择今晚的目标:\n")
             .text(players.show())
-            .text("\n\n发送 “/kill <编号>” 选择玩家")
+            .text("\n\n发送编号选择玩家")
             .text("\n发送 “/stop” 结束回合")
             .text("\n\n意见未统一将空刀")
         )
@@ -203,7 +203,7 @@ class 狼人(Player):
         while selected is None or not finished:
             input = await self.receive()
             text = input.extract_plain_text()
-            index = check_index(text.removeprefix("/kill").strip(), len(players))
+            index = check_index(text, len(players))
             if index is not None:
                 selected = index - 1
                 msg = f"当前选择玩家: {players[selected].name}"
