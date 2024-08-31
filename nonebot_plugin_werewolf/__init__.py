@@ -61,6 +61,7 @@ async def is_group(target: MsgTarget) -> bool:
 async def prepare_game(
     wait: waiter.Waiter[tuple[str, str, str]],
     players: dict[str, str],
+    group_id: str,
     admin_id: str,
 ):
     async for user, name, text in wait(default=(None, "", "")):
@@ -90,6 +91,7 @@ async def prepare_game(
                 await msg.text("只有游戏发起者可以开始游戏").send()
 
             case ("结束游戏", True):
+                del starting_games[group_id]
                 await msg.text("已结束当前游戏").finish()
 
             case ("结束游戏", False):
@@ -173,8 +175,9 @@ async def handle_start(
 
     try:
         async with asyncio.timeouts.timeout(5 * 60):
-            await prepare_game(wait, players, admin_id)
+            await prepare_game(wait, players, target.id, admin_id)
     except TimeoutError:
+        del starting_games[target.id]
         await UniMessage.text("游戏准备超时，已自动结束").finish()
 
     game = Game(
