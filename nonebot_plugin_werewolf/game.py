@@ -8,14 +8,17 @@ from nonebot_plugin_alconna import Target, UniMessage
 
 from .constant import GameState, GameStatus, KillReason, Role, RoleGroup, player_preset
 from .player import Player, PlayerSet
+
 # from .utils import GameProgress
 
 
 def init_players(bot: Bot, game: "Game", players: dict[str, str]) -> PlayerSet:
     preset = player_preset.get(len(players))
     if preset is None:
-        r = f"{min(player_preset)}-{max(player_preset)}"
-        raise ValueError(f"玩家人数不符: 应为{r}人, 传入{len(players)}人")
+        raise ValueError(
+            f"玩家人数不符: "
+            f"应为{min(player_preset)}-{max(player_preset)}人, 传入{len(players)}人"
+        )
 
     roles: list[Role] = []
     roles.extend([Role.狼人, Role.狼人, Role.狼王, Role.狼人][: preset[0]])
@@ -29,6 +32,7 @@ def init_players(bot: Bot, game: "Game", players: dict[str, str]) -> PlayerSet:
 
     return PlayerSet(
         Player.new(
+            role,
             bot,
             game,
             Target(
@@ -38,7 +42,6 @@ def init_players(bot: Bot, game: "Game", players: dict[str, str]) -> PlayerSet:
                 selector=selector,
             ),
             players[user_id],
-            role,
         )
         for user_id, role in zip(players, roles)
     )
@@ -99,7 +102,11 @@ class Game:
             *[p.notify_role() for p in self.players],
         )
 
-    async def wait_stop(self, players: Player | PlayerSet, timeout: float) -> None:  # noqa: ASYNC109
+    async def wait_stop(
+        self,
+        players: Player | PlayerSet,
+        timeout: float,  # noqa: ASYNC109
+    ) -> None:
         if isinstance(players, Player):
             players = PlayerSet([players])
 
@@ -114,9 +121,9 @@ class Game:
         text = (
             type_.role.name  # Player
             if isinstance(type_, Player)
-            else type_.name  # Role
-            if isinstance(type_, Role)
-            else f"{type_.name}阵营"  # RoleGroup
+            else (
+                type_.name if isinstance(type_, Role) else f"{type_.name}阵营"  # Role
+            )  # RoleGroup
         )
 
         await players.broadcast(f"{text}交互开始，限时 {timeout_secs/60:.2f} 分钟")

@@ -26,9 +26,9 @@ class Player:
     role_group: ClassVar[RoleGroup]
 
     bot: Bot
+    game: "Game"
     user: Target
     name: str
-    game: "Game"
     alive: bool = True
     kill_reason: KillReason | None = None
     selected: "Player | None" = None
@@ -36,11 +36,11 @@ class Player:
     @classmethod
     def new(
         cls,
+        role: Role,
         bot: Bot,
         game: "Game",
         user: Target,
         name: str,
-        role: Role,
     ) -> "Player":
         if role not in PlayerClass:
             raise ValueError(f"Unexpected role: {role!r}")

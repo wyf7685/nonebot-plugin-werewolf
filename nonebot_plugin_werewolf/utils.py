@@ -1,10 +1,11 @@
 import asyncio
 from collections import defaultdict
 from typing import ClassVar
-# from collections.abc import Awaitable, Callable
-# from typing import Any
 
 from nonebot_plugin_alconna import UniMessage
+
+# from collections.abc import Awaitable, Callable
+# from typing import Any
 
 
 def check_index(text: str, arrlen: int) -> int | None:
