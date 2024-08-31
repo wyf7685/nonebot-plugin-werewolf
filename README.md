@@ -11,7 +11,7 @@
 _✨ 简单的狼人杀插件 ✨_
 
 [![license](https://img.shields.io/github/license/wyf7685/nonebot-plugin-werewolf.svg)](./LICENSE)
-[![pypi](https://img.shields.io/pypi/v/nonebot-plugin-werewolf?logo=python&logoColor=edb641)](https://pypi.python.org/pypi/nonebot-plugin-exe-code)
+[![pypi](https://img.shields.io/pypi/v/nonebot-plugin-werewolf?logo=python&logoColor=edb641)](https://pypi.python.org/pypi/nonebot-plugin-werewolf)
 [![python](https://img.shields.io/badge/python-3.10+-blue?logo=python&logoColor=edb641)](https://www.python.org/)
 
 [![pdm-managed](https://img.shields.io/endpoint?url=https%3A%2F%2Fcdn.jsdelivr.net%2Fgh%2Fpdm-project%2F.github%2Fbadge.json)](https://pdm-project.org)
@@ -130,7 +130,9 @@ _✨ 简单的狼人杀插件 ✨_
 职业预设可以通过配置项 `werewolf__override_preset` 修改
 
 <details>
-    <summary>配置项 `werewolf__override_preset` 示例</summary>
+<summary>示例</summary>
+
+配置项 `werewolf__override_preset`
 
 ```env
 werewolf__override_preset='
