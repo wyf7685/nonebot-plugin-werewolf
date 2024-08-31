@@ -1,6 +1,6 @@
 [project]
 name = "nonebot-plugin-werewolf"
-version = "0.1.1"
+version = "1.0.0"
 description = "Default template for PDM package"
 authors = [{ name = "wyf7685", email = "wyf7685@163.com" }]
 dependencies = [
@@ -19,6 +19,9 @@ build-backend = "pdm.backend"
 
 [tool.pdm]
 distribution = true
+
+[tool.pdm.scripts]
+lint = { composite = ["isort .", "black .", "pyright .", "ruff check ."] }
 
 [tool.pdm.dev-dependencies]
 dev = [
