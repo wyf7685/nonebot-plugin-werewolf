@@ -1,7 +1,7 @@
 import asyncio
 import asyncio.timeouts
 import contextlib
-from typing import TYPE_CHECKING, ClassVar, Literal
+from typing import TYPE_CHECKING, ClassVar, TypeVar
 from typing_extensions import override
 
 from nonebot.adapters import Bot
@@ -13,11 +13,13 @@ from .utils import InputStore, check_index
 if TYPE_CHECKING:
     from .game import Game
 
-PlayerClass: dict[Role, type["Player"]] = {}
+
+P = TypeVar("P", bound=type["Player"])
+PLAYER_CLASS: dict[Role, type["Player"]] = {}
 
 
-def register_role(cls: type["Player"]) -> type["Player"]:
-    PlayerClass[cls.role] = cls
+def register_role(cls: P) -> P:
+    PLAYER_CLASS[cls.role] = cls
     return cls
 
 
@@ -34,6 +36,12 @@ class Player:
     kill_reason: KillReason | None = None
     selected: "Player | None" = None
 
+    def __init__(self, bot: Bot, game: "Game", user: Target, name: str) -> None:
+        self.bot = bot
+        self.game = game
+        self.user = user
+        self.name = name
+
     @classmethod
     def new(
         cls,
@@ -43,19 +51,17 @@ class Player:
         user: Target,
         name: str,
     ) -> "Player":
-        if role not in PlayerClass:
+        if role not in PLAYER_CLASS:
             raise ValueError(f"Unexpected role: {role!r}")
 
-        player = PlayerClass[role]()
-        player.bot = bot
-        player.game = game
-        player.user = user
-        player.name = name
-        player.game = game
-        return player
+        return PLAYER_CLASS[role](bot, game, user, name)
 
     def __repr__(self) -> str:
         return f"<{self.role.name}: user={self.user} alive={self.alive}>"
+
+    @property
+    def user_id(self) -> str:
+        return self.user.id
 
     async def send(self, message: str | UniMessage) -> Receipt:
         if isinstance(message, str):
@@ -67,6 +73,9 @@ class Player:
         if prompt:
             await self.send(prompt)
         return await InputStore.fetch(self.user.id)
+
+    async def receive_text(self) -> str:
+        return (await self.receive()).extract_plain_text()
 
     async def interact(self) -> None:
         return
@@ -101,10 +110,6 @@ class Player:
         player = players[selected]
         await self.send(f"投票的玩家: {player.name}")
         return player
-
-    @property
-    def user_id(self) -> str:
-        return self.user.id
 
 
 class CanShoot(Player):
@@ -148,7 +153,7 @@ class CanShoot(Player):
         )
 
         while True:
-            text = (await self.receive()).extract_plain_text()
+            text = await self.receive_text()
             if text == "/stop":
                 await self.send("已取消技能")
                 return
@@ -242,7 +247,7 @@ class 预言家(Player):
         )
 
         while True:
-            text = (await self.receive()).extract_plain_text()
+            text = await self.receive_text()
             index = check_index(text, len(players))
             if index is not None:
                 selected = index - 1
@@ -262,7 +267,10 @@ class 女巫(Player):
     poison: int = 1
 
     def set_state(
-        self, *, antidote: Player | None = None, posion: Player | None = None
+        self,
+        *,
+        antidote: Player | None = None,
+        posion: Player | None = None,
     ):
         if antidote is not None:
             self.antidote = 0
@@ -273,33 +281,29 @@ class 女巫(Player):
             self.selected = posion
             self.game.state.potion = (posion, (False, True))
         else:
+            self.selected = None
             self.game.state.potion = (None, (False, False))
 
-    @staticmethod
-    def potion_str(potion: Literal[1, 2]) -> str:
-        return "解药" if potion == 1 else "毒药"
-
     async def handle_killed(self) -> bool:
-        if self.game.state.killed is not None:
-            await self.send(f"今晚 {self.game.state.killed.name} 被刀了")
+        msg = UniMessage()
+        if (killed := self.game.state.killed) is not None:
+            msg.text(f"今晚 {killed} 被刀了\n\n")
         else:
             await self.send("今晚没有人被刀")
             return False
 
         if not self.antidote:
-            await self.send("你已经用过解药了")
+            await self.send(msg.text("你已经用过解药了"))
             return False
 
-        await self.send("使用解药请发送 “1”\n不使用解药请发送 “/stop”")
+        await self.send(msg.text("使用解药请发送 “1”\n不使用解药请发送 “/stop”"))
 
         while True:
-            text = (await self.receive()).extract_plain_text()
+            text = await self.receive_text()
             if text == "1":
                 self.antidote = 0
-                self.set_state(antidote=self.game.state.killed)
-                await self.send(
-                    f"你对 {self.game.state.killed.name} 使用了解药，回合结束"
-                )
+                self.set_state(antidote=killed)
+                await self.send(f"你对 {killed.name} 使用了解药，回合结束")
                 return True
             elif text == "/stop":
                 return False
@@ -326,7 +330,7 @@ class 女巫(Player):
         )
 
         while True:
-            text = (await self.receive()).extract_plain_text().strip()
+            text = await self.receive_text()
             index = check_index(text, len(players))
             if index is not None:
                 selected = index - 1
@@ -365,7 +369,7 @@ class 守卫(Player):
         )
 
         while True:
-            text = (await self.receive()).extract_plain_text()
+            text = await self.receive_text()
             if text == "/stop":
                 await self.send("你选择了取消，回合结束")
                 return

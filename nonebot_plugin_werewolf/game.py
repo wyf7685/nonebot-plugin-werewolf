@@ -1,13 +1,15 @@
 import asyncio
 import asyncio.timeouts
 import random
-from collections.abc import Callable
 
 from nonebot.adapters import Bot
 from nonebot_plugin_alconna import Target, UniMessage
 
 from .constant import GameState, GameStatus, KillReason, Role, RoleGroup, player_preset
 from .player import Player, PlayerSet
+
+starting_games: dict[str, dict[str, str]] = {}
+running_games: dict[str, tuple["Game", asyncio.Task[None]]] = {}
 
 
 def init_players(bot: Bot, game: "Game", players: dict[str, str]) -> PlayerSet:
@@ -50,20 +52,17 @@ class Game:
     group: Target
     players: PlayerSet
     state: GameState
-    _on_exit: Callable[[], None]
 
     def __init__(
         self,
         bot: Bot,
         group: Target,
         players: dict[str, str],
-        on_exit: Callable[[], None],
     ) -> None:
         self.bot = bot
         self.group = group
         self.players = init_players(bot, self, players)
         self.state = GameState()
-        self._on_exit = on_exit
 
     async def send(self, message: str | UniMessage):
         if isinstance(message, str):
@@ -340,4 +339,4 @@ class Game:
         for p in sorted(self.players, key=lambda p: (p.role.name, p.user_id)):
             msg.at(p.user_id).text(f": {p.role.name}\n")
         await self.send(msg)
-        self._on_exit()
+        running_games.pop(self.group.id, None)
