@@ -1,8 +1,9 @@
 import asyncio
 import asyncio.timeouts
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, TypeVar
 from typing_extensions import override
-from dataclasses import dataclass
+
 from nonebot.adapters import Bot
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 
