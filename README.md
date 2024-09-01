@@ -158,6 +158,10 @@ werewolf__override_preset='
 <details>
     <summary>更新日志</summary>
 
+- 2024.09.01 v1.0.4
+
+  - 优化玩家交互体验
+
 - 2024.08.31 v1.0.1
 
   - 允许通过配置项修改职业预设
