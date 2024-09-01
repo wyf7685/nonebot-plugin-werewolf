@@ -44,6 +44,7 @@ class GameStatus(Enum):
 
 @dataclass
 class GameState:
+    day: int
     killed: "Player | None" = None
     shoot: tuple["Player", "Player"] | tuple[None, None] = (None, None)
     protected: "Player | None" = None

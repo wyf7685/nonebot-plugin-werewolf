@@ -1,9 +1,8 @@
 import asyncio
 import asyncio.timeouts
-import contextlib
 from typing import TYPE_CHECKING, ClassVar, TypeVar
 from typing_extensions import override
-
+from dataclasses import dataclass
 from nonebot.adapters import Bot
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 
@@ -12,6 +11,7 @@ from .utils import InputStore, check_index
 
 if TYPE_CHECKING:
     from .game import Game
+    from .player_set import PlayerSet
 
 
 P = TypeVar("P", bound=type["Player"])
@@ -21,6 +21,12 @@ PLAYER_CLASS: dict[Role, type["Player"]] = {}
 def register_role(cls: P) -> P:
     PLAYER_CLASS[cls.role] = cls
     return cls
+
+
+@dataclass
+class KillInfo:
+    reason: KillReason
+    killers: "PlayerSet"
 
 
 class Player:
@@ -33,7 +39,7 @@ class Player:
     name: str
     alive: bool = True
     killed: bool = False
-    kill_reason: KillReason | None = None
+    kill_info: KillInfo | None = None
     selected: "Player | None" = None
 
     def __init__(self, bot: Bot, game: "Game", user: Target, name: str) -> None:
@@ -83,15 +89,19 @@ class Player:
     async def notify_role(self) -> None:
         await self.send(f"你的身份: {self.role.name}")
 
-    async def kill(self, reason: KillReason) -> bool:
+    async def kill(
+        self,
+        reason: KillReason,
+        *killers: "Player",
+    ) -> bool:
         self.alive = False
-        self.kill_reason = reason
+        self.kill_info = KillInfo(reason, PlayerSet(killers))
         return True
 
     async def post_kill(self) -> None:
         self.killed = True
 
-    async def vote(self, players: "PlayerSet") -> "Player | None":
+    async def vote(self, players: "PlayerSet") -> "tuple[Player, Player] | None":
         await self.send(
             f"请选择需要投票的玩家:\n{players.show()}"
             "\n\n发送编号选择玩家\n发送 “/stop” 弃票"
@@ -109,13 +119,13 @@ class Player:
 
         player = players[selected]
         await self.send(f"投票的玩家: {player.name}")
-        return player
+        return self, player
 
 
 class CanShoot(Player):
     @override
     async def post_kill(self) -> None:
-        if self.kill_reason == KillReason.Poison:
+        if self.kill_info and self.kill_info.reason == KillReason.Poison:
             await self.send("你昨晚被女巫毒杀，无法使用技能")
             return await super().post_kill()
 
@@ -127,18 +137,16 @@ class CanShoot(Player):
 
         self.game.state.shoot = (None, None)
         shoot = await self.shoot()
-        if shoot is not None:
-            self.game.state.shoot = (self, shoot)
 
         if shoot is not None:
+            self.game.state.shoot = (self, shoot)
             await self.send(
                 UniMessage.text(f"{self.role.name} ")
                 .at(self.user_id)
                 .text(" 射杀了玩家 ")
                 .at(shoot.user_id)
             )
-            await shoot.kill(KillReason.Shoot)
-            await shoot.post_kill()
+            await shoot.kill(KillReason.Shoot, self)
         else:
             await self.send(f"{self.role.name}选择了取消技能")
         return await super().post_kill()
@@ -393,7 +401,11 @@ class 白痴(Player):
     voted: bool = False
 
     @override
-    async def kill(self, reason: KillReason) -> bool:
+    async def kill(
+        self,
+        reason: KillReason,
+        *killers: Player,
+    ) -> bool:
         if reason == KillReason.Vote and not self.voted:
             self.voted = True
             await self.game.send(
@@ -402,10 +414,10 @@ class 白痴(Player):
                 .text("免疫本次投票放逐，且接下来无法参与投票")
             )
             return False
-        return await super().kill(reason)
+        return await super().kill(reason, *killers)
 
     @override
-    async def vote(self, players: "PlayerSet") -> "Player | None":
+    async def vote(self, players: "PlayerSet") -> "tuple[Player, Player] | None":
         if self.voted:
             await self.send("你已经发动过白痴身份的技能，无法参与本次投票")
             return None
@@ -416,83 +428,3 @@ class 白痴(Player):
 class 平民(Player):
     role: ClassVar[Role] = Role.平民
     role_group: ClassVar[RoleGroup] = RoleGroup.好人
-
-
-class PlayerSet(set[Player]):
-    @property
-    def size(self) -> int:
-        return len(self)
-
-    def alive(self) -> "PlayerSet":
-        return PlayerSet(p for p in self if p.alive)
-
-    def dead(self) -> "PlayerSet":
-        return PlayerSet(p for p in self if not p.alive)
-
-    def include(self, *types: Player | Role | RoleGroup) -> "PlayerSet":
-        return PlayerSet(
-            player
-            for player in self
-            if (player in types or player.role in types or player.role_group in types)
-        )
-
-    def select(self, *types: Player | Role | RoleGroup) -> "PlayerSet":
-        return self.include(*types)
-
-    def exclude(self, *types: Player | Role | RoleGroup) -> "PlayerSet":
-        return PlayerSet(
-            player
-            for player in self
-            if (
-                player not in types
-                and player.role not in types
-                and player.role_group not in types
-            )
-        )
-
-    def player_selected(self) -> "PlayerSet":
-        return PlayerSet(p.selected for p in self.alive() if p.selected is not None)
-
-    def sorted(self) -> list[Player]:
-        return sorted(self, key=lambda p: p.user_id)
-
-    async def interact(self, timeout_secs: float = 60) -> None:
-        async with asyncio.timeouts.timeout(timeout_secs):
-            await asyncio.gather(*[p.interact() for p in self.alive()])
-
-    async def vote(self, timeout_secs: float = 60) -> list[Player]:
-        async def vote(player: Player) -> "Player | None":
-            try:
-                async with asyncio.timeouts.timeout(timeout_secs):
-                    return await player.vote(self)
-            except TimeoutError:
-                await player.send("投票超时，将自动弃票")
-
-        return [
-            p
-            for p in await asyncio.gather(*[vote(p) for p in self.alive()])
-            if p is not None
-        ]
-
-    async def post_kill(self) -> None:
-        await asyncio.gather(*[p.post_kill() for p in self])
-
-    async def broadcast(self, message: str | UniMessage) -> None:
-        await asyncio.gather(*[p.send(message) for p in self])
-
-    async def wait_group_stop(self, group_id: str, timeout_secs: float) -> None:
-        async def wait(p: Player):
-            while True:
-                msg = await InputStore.fetch(p.user_id, group_id)
-                if msg.extract_plain_text() == "/stop":
-                    break
-
-        with contextlib.suppress(TimeoutError):
-            async with asyncio.timeouts.timeout(timeout_secs):
-                await asyncio.gather(*[wait(p) for p in self])
-
-    def show(self) -> str:
-        return "\n".join(f"{i}. {p.name}" for i, p in enumerate(self.sorted(), 1))
-
-    def __getitem__(self, __index: int) -> Player:
-        return self.sorted()[__index]

@@ -6,7 +6,8 @@ from nonebot.adapters import Bot
 from nonebot_plugin_alconna import Target, UniMessage
 
 from .constant import GameState, GameStatus, KillReason, Role, RoleGroup, player_preset
-from .player import Player, PlayerSet
+from .player import Player
+from .player_set import PlayerSet
 
 starting_games: dict[str, dict[str, str]] = {}
 running_games: dict[str, tuple["Game", asyncio.Task[None]]] = {}
@@ -52,6 +53,7 @@ class Game:
     group: Target
     players: PlayerSet
     state: GameState
+    killed_players: list[Player]
 
     def __init__(
         self,
@@ -62,7 +64,7 @@ class Game:
         self.bot = bot
         self.group = group
         self.players = init_players(bot, self, players)
-        self.state = GameState()
+        self.state = GameState(0)
 
     async def send(self, message: str | UniMessage):
         if isinstance(message, str):
@@ -77,27 +79,49 @@ class Game:
 
     def check_game_status(self) -> GameStatus:
         players = self.players.alive()
-
         w = players.select(RoleGroup.狼人)
+        p = players.exclude(RoleGroup.狼人)
+
+        if w.size >= p.size:
+            return GameStatus.Bad
+        if not p.select(Role.平民):
+            return GameStatus.Bad
+        if not p.exclude(Role.平民):
+            return GameStatus.Bad
         if not w.size:
             return GameStatus.Good
 
-        p = players.exclude(RoleGroup.狼人)
-        if w.size >= p.size:
-            return GameStatus.Bad
-        if not players.select(Role.平民):
-            return GameStatus.Bad
-        if not players.select(RoleGroup.好人).exclude(Role.平民):
-            return GameStatus.Bad
-
         return GameStatus.Unset
+
+    def show_killed_players(self) -> str:
+        msg = ""
+
+        for player in self.killed_players:
+            if player.kill_info is None:
+                continue
+
+            msg += f"{player.name} 被 " + ", ".join(
+                p.name for p in player.kill_info.killers
+            )
+            match player.kill_info.reason:
+                case KillReason.Kill:
+                    msg += " 刀了"
+                case KillReason.Poison:
+                    msg += " 毒死"
+                case KillReason.Shoot:
+                    msg += " 射杀"
+                case KillReason.Vote:
+                    msg += " 投票放逐"
+            msg += "\n\n"
+
+        return msg.strip()
 
     async def notify_player_role(self) -> None:
         preset = player_preset[len(self.players)]
         await asyncio.gather(
             self.send(
                 self.at_all()
-                .text("\n正在分配职业，请注意查看私聊消息\n")
+                .text("\n\n正在分配职业，请注意查看私聊消息\n")
                 .text(f"当前玩家数: {len(self.players)}\n")
                 .text(f"职业分配: 狼人x{preset[0]}, 神职x{preset[1]}, 平民x{preset[2]}")
             ),
@@ -124,8 +148,10 @@ class Game:
             type_.role.name  # Player
             if isinstance(type_, Player)
             else (
-                type_.name if isinstance(type_, Role) else f"{type_.name}阵营"  # Role
-            )  # RoleGroup
+                type_.name  # Role
+                if isinstance(type_, Role)
+                else f"{type_.name}阵营"  # RoleGroup
+            )
         )
 
         await players.broadcast(f"{text}交互开始，限时 {timeout_secs/60:.2f} 分钟")
@@ -175,9 +201,10 @@ class Game:
         if not players:
             return
 
-        for player in players:
+        for player in players.dead():
             await player.post_kill()
             await self.handle_new_dead(player)
+            self.killed_players.append(player)
 
             (shooter, shoot) = self.state.shoot
             if shooter is not None and shoot is not None:
@@ -188,27 +215,32 @@ class Game:
                     .text("限时1分钟, 发送 “/stop” 结束发言")
                 )
                 await self.wait_stop(shoot, 60)
+                await self.post_kill(shoot)
             self.state.shoot = (None, None)
 
     async def run_vote(self) -> None:
         # 统计投票结果
-        vote_result: dict[Player | None, int] = {}
+        players = self.players.alive()
+
+        # 被票玩家: [投票玩家]
+        vote_result: dict[Player, list[Player]] = await players.vote(60)
+        # 票数: [被票玩家]
         vote_reversed: dict[int, list[Player]] = {}
-        for p in await self.players.alive().vote(60):
-            vote_result[p] = vote_result.get(p, 0) + 1
+        # 收集到的总票数
+        total_votes = sum(map(len, vote_result.values()))
 
         # 投票结果公示
         msg = UniMessage.text("投票结果:\n")
         for p, v in sorted(vote_result.items(), key=lambda x: x[1], reverse=True):
             if p is not None:
                 msg.at(p.user_id).text(f": {v} 票\n")
-                vote_reversed[v] = [*vote_reversed.get(v, []), p]
-        if v := vote_result.get(None, 0):
+                vote_reversed[len(v)] = [*vote_reversed.get(len(v), []), p]
+        if v := (len(players) - total_votes):
             msg.text(f"弃票: {v} 票\n")
         await self.send(msg)
 
         # 全员弃票  # 不是哥们？
-        if not vote_reversed:
+        if total_votes == 0:
             await self.send("没有人被票出")
             return
 
@@ -223,7 +255,7 @@ class Game:
 
         # 仅有一名玩家票数最高
         voted = vs.pop()
-        if not await voted.kill(KillReason.Vote):
+        if not await voted.kill(KillReason.Vote, *vote_result[voted]):
             # 投票放逐失败 (例: 白痴)
             return
 
@@ -266,7 +298,7 @@ class Game:
 
         while self.check_game_status() == GameStatus.Unset:
             # 重置游戏状态，进入下一夜
-            self.state = GameState()
+            self.state = GameState(day_count)
             players = self.players.alive()
             await self.send("天黑请闭眼...")
 
@@ -289,19 +321,19 @@ class Game:
             if killed is not None:
                 # 除非守卫保护或女巫使用解药，否则狼人正常击杀玩家
                 if not ((killed is protected) or (antidote and potioned is killed)):
-                    await killed.kill(KillReason.Kill)
+                    await killed.kill(KillReason.Kill, *players.select(RoleGroup.狼人))
             # 如果女巫使用毒药且守卫未保护，杀死该玩家
             if poison and (potioned is not None) and (potioned is not protected):
-                await potioned.kill(KillReason.Poison)
+                await potioned.kill(KillReason.Poison, *players.select(Role.女巫))
 
             day_count += 1
-            msg = UniMessage.text(f"【第{day_count}天】天亮了...\n")
+            msg = UniMessage.text(f"『第{day_count}天』天亮了...\n")
             # 没有玩家死亡，平安夜
             if not (dead := players.dead()):
                 await self.send(msg.text("昨晚是平安夜"))
             # 有玩家死亡，执行死亡流程
             else:
-                # 公开死者名单
+                # 公布死者名单
                 msg.text("昨晚的死者是:")
                 for p in dead.sorted():
                     msg.text("\n").at(p.user_id)
@@ -335,8 +367,9 @@ class Game:
         # 游戏结束
         dead_channel.cancel()
         winner = "好人" if self.check_game_status() == GameStatus.Good else "狼人"
-        msg = UniMessage.text(f"游戏结束，{winner}获胜\n\n")
-        for p in sorted(self.players, key=lambda p: (p.role.name, p.user_id)):
+        msg = UniMessage.text(f"🎉游戏结束，{winner}获胜\n\n")
+        for p in sorted(self.players, key=lambda p: (p.role.value, p.user_id)):
             msg.at(p.user_id).text(f": {p.role.name}\n")
+        msg.text(f"\n{self.show_killed_players()}")
         await self.send(msg)
         running_games.pop(self.group.id, None)
