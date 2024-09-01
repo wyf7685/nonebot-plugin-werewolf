@@ -9,7 +9,7 @@ from nonebot.rule import to_me
 from nonebot_plugin_alconna import MsgTarget, UniMessage, UniMsg
 from nonebot_plugin_userinfo import EventUserInfo, UserInfo
 
-from .game import player_preset, running_games
+from .game import player_preset
 
 
 def check_index(text: str, arrlen: int) -> int | None:
@@ -42,6 +42,8 @@ class InputStore:
 
 
 def user_in_game(user_id: str, group_id: str | None) -> bool:
+    from .game import running_games
+
     if group_id is not None and group_id not in running_games:
         return False
     games = running_games.values() if group_id is None else [running_games[group_id]]
@@ -51,6 +53,8 @@ def user_in_game(user_id: str, group_id: str | None) -> bool:
 
 
 async def rule_in_game(event: Event, target: MsgTarget) -> bool:
+    from .game import running_games
+
     if not running_games:
         return False
     if target.private:
