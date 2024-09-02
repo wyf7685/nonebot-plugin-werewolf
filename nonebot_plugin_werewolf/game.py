@@ -4,8 +4,8 @@ import random
 import time
 
 from nonebot.adapters import Bot
-from nonebot_plugin_alconna import Target, UniMessage
 from nonebot.log import logger
+from nonebot_plugin_alconna import Target, UniMessage
 
 from .constant import GameState, GameStatus, KillReason, Role, RoleGroup, player_preset
 from .player import Player
