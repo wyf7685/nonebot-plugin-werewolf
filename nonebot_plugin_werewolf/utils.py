@@ -173,12 +173,12 @@ async def _prepare_game_handle(
 
 
 async def prepare_game(event: Event, players: dict[str, str]) -> None:
-    queue = asyncio.Queue()
+    queue: asyncio.Queue[tuple[str, str, str]] = asyncio.Queue()
     task_receive = asyncio.create_task(
         _prepare_game_receive(
             queue,
             event,
-            UniMessage.get_target().id,
+            UniMessage.get_target(event).id,
         )
     )
 

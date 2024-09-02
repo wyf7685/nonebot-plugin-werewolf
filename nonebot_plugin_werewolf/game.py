@@ -29,8 +29,6 @@ def init_players(bot: Bot, game: "Game", players: dict[str, str]) -> PlayerSet:
     roles.extend([Role.平民] * preset[2])
 
     r = random.Random(time.time())
-    # for _ in range(r.randint(0, int(time.time()) % 10)):
-    #     r.random()
     shuffled: list[Role] = []
     for _ in range(len(players)):
         idx = r.randint(0, len(roles) - 1)
@@ -228,7 +226,7 @@ class Game:
                 await self.post_kill(shoot)
 
     async def run_vote(self) -> None:
-        # 统计投票结果
+        # 筛选当前存活玩家
         players = self.players.alive()
 
         # 被票玩家: [投票玩家]
@@ -254,7 +252,7 @@ class Game:
             return
 
         # 弃票大于最高票
-        if len(players) - total_votes >= max(vote_reversed.keys()):
+        if (len(players) - total_votes) >= max(vote_reversed.keys()):
             await self.send("弃票数大于最高票数, 没有人被票出")
             return
 
