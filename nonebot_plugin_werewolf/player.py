@@ -95,6 +95,8 @@ class Player:
         reason: KillReason,
         *killers: "Player",
     ) -> bool:
+        from .player_set import PlayerSet
+
         self.alive = False
         self.kill_info = KillInfo(reason, PlayerSet(killers))
         return True
@@ -109,8 +111,9 @@ class Player:
         )
 
         while True:
-            text = (await self.receive()).extract_plain_text()
+            text = await self.receive_text()
             if text == "/stop":
+                await self.send("你选择了弃票")
                 return None
             index = check_index(text, len(players))
             if index is not None:
@@ -185,8 +188,11 @@ class 狼人(Player):
     async def notify_role(self) -> None:
         await super().notify_role()
         partners = self.game.players.alive().select(RoleGroup.狼人).exclude(self)
-        msg = "你的队友:\n" + "\n".join(f"  {p.role.name}: {p.name}" for p in partners)
-        await self.send(msg)
+        if partners:
+            await self.send(
+                "你的队友:\n"
+                + "\n".join(f"  {p.role.name}: {p.name}" for p in partners)
+            )
 
     @override
     async def interact(self) -> None:
@@ -221,7 +227,7 @@ class 狼人(Player):
             if index is not None:
                 selected = index - 1
                 msg = f"当前选择玩家: {players[selected].name}"
-                await self.send(msg)
+                await self.send(f"{msg}\n发送 “/stop” 结束回合")
                 broadcast(f"队友 {self.name} {msg}")
             if text == "/stop":
                 if selected is not None:
@@ -296,7 +302,7 @@ class 女巫(Player):
     async def handle_killed(self) -> bool:
         msg = UniMessage()
         if (killed := self.game.state.killed) is not None:
-            msg.text(f"今晚 {killed} 被刀了\n\n")
+            msg.text(f"今晚 {killed.name} 被刀了\n\n")
         else:
             await self.send("今晚没有人被刀")
             return False
