@@ -1,18 +1,20 @@
 import asyncio
 import asyncio.timeouts
+import contextlib
 import random
 import time
 
 from nonebot.adapters import Bot
-from nonebot_plugin_alconna import Target, UniMessage
 from nonebot.log import logger
+from nonebot_plugin_alconna import Target, UniMessage
 
 from .constant import GameState, GameStatus, KillReason, Role, RoleGroup, player_preset
 from .player import Player
 from .player_set import PlayerSet
+from .utils import InputStore
 
 starting_games: dict[str, dict[str, str]] = {}
-running_games: dict[str, tuple["Game", asyncio.Task[None]]] = {}
+running_games: dict[str, tuple["Game", asyncio.Task[None], asyncio.Task[None]]] = {}
 
 
 def init_players(bot: Bot, game: "Game", players: dict[str, str]) -> PlayerSet:
@@ -118,7 +120,7 @@ class Game:
                 case KillReason.Shoot:
                     msg += " 射杀"
                 case KillReason.Vote:
-                    msg += " 投票放逐"
+                    msg += " 票出"
             msg += "\n\n"
 
         return msg.strip()
@@ -143,7 +145,15 @@ class Game:
         if isinstance(players, Player):
             players = PlayerSet([players])
 
-        await players.wait_group_stop(self.group.id, timeout_secs)
+        async def wait(p: Player):
+            while True:
+                msg = await InputStore.fetch(p.user_id, self.group.id)
+                if msg.extract_plain_text() == "/stop":
+                    break
+
+        with contextlib.suppress(TimeoutError):
+            async with asyncio.timeouts.timeout(timeout_secs):
+                await asyncio.gather(*[wait(p) for p in players])
 
     async def interact(
         self,
@@ -282,6 +292,7 @@ class Game:
         await self.post_kill(voted)
 
     async def run_dead_channel(self) -> None:
+        loop = asyncio.get_event_loop()
         queue: asyncio.Queue[tuple[Player, UniMessage]] = asyncio.Queue()
 
         async def send():
@@ -291,20 +302,29 @@ class Game:
                 await self.players.dead().exclude(player).broadcast(msg)
 
         async def recv(player: Player):
+            counter = 0
+
+            def decrease():
+                nonlocal counter
+                counter -= 1
+
             while True:
                 if not player.killed:
                     await asyncio.sleep(1)
                     continue
                 msg = await player.receive()
-                await queue.put((player, msg))
+                counter += 1
+                if counter <= 10:
+                    await queue.put((player, msg))
+                    loop.call_later(60, decrease)
+                else:
+                    await player.send("发言频率超过限制, 该消息被屏蔽")
 
         await asyncio.gather(send(), *[recv(p) for p in self.players])
 
     async def run(self) -> None:
         # 告知玩家角色信息
         await self.notify_player_role()
-        # 死者频道
-        dead_channel = asyncio.create_task(self.run_dead_channel())
         # 天数记录 主要用于第一晚狼人击杀的遗言
         day_count = 0
 
@@ -356,7 +376,8 @@ class Game:
                 await self.send(
                     UniMessage.text("当前为第一天\n请被狼人杀死的 ")
                     .at(killed.user_id)
-                    .text(" 发表遗言\n限时1分钟, 发送 “/stop” 结束发言")
+                    .text(" 发表遗言\n")
+                    .text("限时1分钟, 发送 “/stop” 结束发言")
                 )
                 await self.wait_stop(killed, 60)
             await self.post_kill(dead)
@@ -377,24 +398,31 @@ class Game:
             await self.run_vote()
 
         # 游戏结束
-        dead_channel.cancel()
         winner = "好人" if self.check_game_status() == GameStatus.Good else "狼人"
         msg = UniMessage.text(f"🎉游戏结束，{winner}获胜\n\n")
         for p in sorted(self.players, key=lambda p: (p.role.value, p.user_id)):
             msg.at(p.user_id).text(f": {p.role.name}\n")
         await self.send(msg)
         await self.send(f"玩家死亡报告:\n\n{self.show_killed_players()}")
-        running_games.pop(self.group.id, None)
 
     def start(self):
-        async def wrapper():
+        task = asyncio.create_task(self.run())
+        dead_channel = asyncio.create_task(self.run_dead_channel())
+
+        async def daemon():
+            while not task.done():  # noqa: ASYNC110
+                await asyncio.sleep(1)
+
             try:
-                await self.run()
-            except asyncio.CancelledError:
-                raise
+                task.result()
+            except asyncio.CancelledError as err:
+                logger.warning(f"狼人杀游戏进程被取消: {err}")
             except Exception as err:
                 msg = f"狼人杀游戏进程出现错误: {err!r}"
                 logger.opt(exception=err).error(msg)
                 await self.send(msg)
+            finally:
+                dead_channel.cancel()
+                running_games.pop(self.group.id, None)
 
-        return asyncio.create_task(wrapper())
+        running_games[self.group.id] = (self, task, asyncio.create_task(daemon()))

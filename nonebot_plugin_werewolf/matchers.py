@@ -62,5 +62,4 @@ async def handle_start(
         del starting_games[target.id]
 
     game = Game(bot=bot, group=target, players=players)
-    task = asyncio.create_task(game.run())
-    running_games[target.id] = (game, task)
+    game.start()

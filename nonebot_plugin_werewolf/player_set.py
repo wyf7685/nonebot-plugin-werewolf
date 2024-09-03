@@ -1,12 +1,10 @@
 import asyncio
 import asyncio.timeouts
-import contextlib
 
 from nonebot_plugin_alconna.uniseg import UniMessage
 
 from .constant import Role, RoleGroup
 from .player import Player
-from .utils import InputStore
 
 
 class PlayerSet(set[Player]):
@@ -69,17 +67,6 @@ class PlayerSet(set[Player]):
 
     async def broadcast(self, message: str | UniMessage) -> None:
         await asyncio.gather(*[p.send(message) for p in self])
-
-    async def wait_group_stop(self, group_id: str, timeout_secs: float) -> None:
-        async def wait(p: Player):
-            while True:
-                msg = await InputStore.fetch(p.user_id, group_id)
-                if msg.extract_plain_text() == "/stop":
-                    break
-
-        with contextlib.suppress(TimeoutError):
-            async with asyncio.timeouts.timeout(timeout_secs):
-                await asyncio.gather(*[wait(p) for p in self])
 
     def show(self) -> str:
         return "\n".join(f"{i}. {p.name}" for i, p in enumerate(self.sorted(), 1))
