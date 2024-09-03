@@ -167,6 +167,10 @@ werewolf__override_preset='
 <details>
     <summary>更新日志</summary>
 
+- 2024.09.03 v1.0.6
+
+  - 修复预言家查验狼王返回好人的 bug
+
 - 2024.09.03 v1.0.5
 
   - 优化玩家交互体验
