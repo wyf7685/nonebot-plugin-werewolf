@@ -9,7 +9,7 @@ from typing_extensions import override
 from nonebot.adapters import Bot
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 
-from .constant import KillReason, Role, RoleGroup, role_name_conv,role_group_name_conv
+from .constant import KillReason, Role, RoleGroup, role_group_name_conv, role_name_conv
 from .utils import InputStore, check_index
 
 if TYPE_CHECKING:
