@@ -1,3 +1,5 @@
+# ruff: noqa: T201
+
 import os
 import tomllib
 from datetime import date
@@ -11,10 +13,10 @@ toml_file = project_root / "pyproject.toml"
 project = tomllib.loads(toml_file.read_text())
 
 project_name: str = project["project"]["name"]
-print(f"Project name: {project_name}")  # noqa: T201
+print(f"Project name: {project_name}")
 
 old_ver: str = project["project"]["version"]
-print(f"Current version: {old_ver}")  # noqa: T201
+print(f"Current version: {old_ver}")
 new_ver = input("Input new version: ")
 
 changelog: list[str] = []
@@ -61,4 +63,4 @@ os.system("git add -u")
 os.system(f'git commit -m "version {new_ver}"')
 os.system(f"git tag v{new_ver}")
 
-print("Done!")  # noqa: T201
+print("Done!")
