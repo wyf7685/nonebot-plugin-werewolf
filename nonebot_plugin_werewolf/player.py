@@ -3,13 +3,13 @@ from __future__ import annotations
 import asyncio
 import asyncio.timeouts
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, TypeVar
+from typing import TYPE_CHECKING, ClassVar, TypeVar, final
 from typing_extensions import override
 
 from nonebot.adapters import Bot
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 
-from .constant import KillReason, Role, RoleGroup
+from .constant import KillReason, Role, RoleGroup, role_name_conv,role_group_name_conv
 from .utils import InputStore, check_index
 
 if TYPE_CHECKING:
@@ -45,12 +45,14 @@ class Player:
     kill_info: KillInfo | None = None
     selected: Player | None = None
 
+    @final
     def __init__(self, bot: Bot, game: Game, user: Target, name: str) -> None:
         self.bot = bot
         self.game = game
         self.user = user
         self.name = name
 
+    @final
     @classmethod
     def new(
         cls,
@@ -66,23 +68,30 @@ class Player:
         return PLAYER_CLASS[role](bot, game, user, name)
 
     def __repr__(self) -> str:
-        return f"<{self.role.name}: user={self.user} alive={self.alive}>"
+        return f"<{self.role_name}: user={self.user} alive={self.alive}>"
 
     @property
     def user_id(self) -> str:
         return self.user.id
 
+    @property
+    def role_name(self) -> str:
+        return role_name_conv[self.role]
+
+    @final
     async def send(self, message: str | UniMessage) -> Receipt:
         if isinstance(message, str):
             message = UniMessage.text(message)
 
         return await message.send(target=self.user, bot=self.bot)
 
+    @final
     async def receive(self, prompt: str | UniMessage | None = None) -> UniMessage:
         if prompt:
             await self.send(prompt)
         return await InputStore.fetch(self.user.id)
 
+    @final
     async def receive_text(self) -> str:
         return (await self.receive()).extract_plain_text()
 
@@ -90,7 +99,7 @@ class Player:
         return
 
     async def notify_role(self) -> None:
-        await self.send(f"你的身份: {self.role.name}")
+        await self.send(f"你的身份: {self.role_name}")
 
     async def kill(
         self,
@@ -136,9 +145,9 @@ class CanShoot(Player):
             return await super().post_kill()
 
         await self.game.send(
-            UniMessage.text(f"{self.role.name} ")
+            UniMessage.text(f"{self.role_name} ")
             .at(self.user_id)
-            .text(f" 死了\n请{self.role.name}决定击杀目标...")
+            .text(f" 死了\n请{self.role_name}决定击杀目标...")
         )
 
         self.game.state.shoot = (None, None)
@@ -147,14 +156,14 @@ class CanShoot(Player):
         if shoot is not None:
             self.game.state.shoot = (self, shoot)
             await self.send(
-                UniMessage.text(f"{self.role.name} ")
+                UniMessage.text(f"{self.role_name} ")
                 .at(self.user_id)
                 .text(" 射杀了玩家 ")
                 .at(shoot.user_id)
             )
             await shoot.kill(KillReason.Shoot, self)
         else:
-            await self.send(f"{self.role.name}选择了取消技能")
+            await self.send(f"{self.role_name}选择了取消技能")
         return await super().post_kill()
 
     async def shoot(self) -> Player | None:
@@ -183,23 +192,23 @@ class CanShoot(Player):
 
 @register_role
 class 狼人(Player):
-    role: ClassVar[Role] = Role.狼人
-    role_group: ClassVar[RoleGroup] = RoleGroup.狼人
+    role: ClassVar[Role] = Role.Werewolf
+    role_group: ClassVar[RoleGroup] = RoleGroup.Werewolf
 
     @override
     async def notify_role(self) -> None:
         await super().notify_role()
-        partners = self.game.players.alive().select(RoleGroup.狼人).exclude(self)
+        partners = self.game.players.alive().select(RoleGroup.Werewolf).exclude(self)
         if partners:
             await self.send(
                 "你的队友:\n"
-                + "\n".join(f"  {p.role.name}: {p.name}" for p in partners)
+                + "\n".join(f"  {p.role_name}: {p.name}" for p in partners)
             )
 
     @override
     async def interact(self) -> None:
         players = self.game.players.alive()
-        partners = players.select(RoleGroup.狼人).exclude(self)
+        partners = players.select(RoleGroup.Werewolf).exclude(self)
 
         # 避免阻塞
         def broadcast(msg: str | UniMessage):
@@ -209,7 +218,7 @@ class 狼人(Player):
         if partners:
             msg = (
                 msg.text("你的队友:\n")
-                .text("\n".join(f"  {p.role.name}: {p.name}" for p in partners))
+                .text("\n".join(f"  {p.role_name}: {p.name}" for p in partners))
                 .text("\n所有私聊消息将被转发至队友\n\n")
             )
         await self.send(
@@ -245,14 +254,14 @@ class 狼人(Player):
 
 @register_role
 class 狼王(CanShoot, 狼人):
-    role: ClassVar[Role] = Role.狼王
-    role_group: ClassVar[RoleGroup] = RoleGroup.狼人
+    role: ClassVar[Role] = Role.WolfKing
+    role_group: ClassVar[RoleGroup] = RoleGroup.Werewolf
 
 
 @register_role
 class 预言家(Player):
-    role: ClassVar[Role] = Role.预言家
-    role_group: ClassVar[RoleGroup] = RoleGroup.好人
+    role: ClassVar[Role] = Role.Prophet
+    role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy
 
     @override
     async def interact(self) -> None:
@@ -272,14 +281,14 @@ class 预言家(Player):
             await self.send("输入错误，请发送编号选择玩家")
 
         player = players[selected]
-        result = "狼人" if player.role == Role.狼人 else "好人"
+        result = role_group_name_conv[player.role_group]
         await self.send(f"玩家 {player.name} 的阵营是『{result}』")
 
 
 @register_role
 class 女巫(Player):
-    role: ClassVar[Role] = Role.女巫
-    role_group: ClassVar[RoleGroup] = RoleGroup.好人
+    role: ClassVar[Role] = Role.Witch
+    role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy
     antidote: int = 1
     poison: int = 1
 
@@ -367,14 +376,14 @@ class 女巫(Player):
 
 @register_role
 class 猎人(CanShoot, Player):
-    role: ClassVar[Role] = Role.猎人
-    role_group: ClassVar[RoleGroup] = RoleGroup.好人
+    role: ClassVar[Role] = Role.Hunter
+    role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy
 
 
 @register_role
 class 守卫(Player):
-    role: ClassVar[Role] = Role.守卫
-    role_group: ClassVar[RoleGroup] = RoleGroup.好人
+    role: ClassVar[Role] = Role.Guard
+    role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy
 
     @override
     async def interact(self) -> None:
@@ -405,8 +414,8 @@ class 守卫(Player):
 
 @register_role
 class 白痴(Player):
-    role: ClassVar[Role] = Role.白痴
-    role_group: ClassVar[RoleGroup] = RoleGroup.好人
+    role: ClassVar[Role] = Role.Idiot
+    role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy
     voted: bool = False
 
     @override
@@ -435,5 +444,5 @@ class 白痴(Player):
 
 @register_role
 class 平民(Player):
-    role: ClassVar[Role] = Role.平民
-    role_group: ClassVar[RoleGroup] = RoleGroup.好人
+    role: ClassVar[Role] = Role.Civilian
+    role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy

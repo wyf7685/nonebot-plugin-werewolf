@@ -26,9 +26,13 @@ def init_players(bot: Bot, game: "Game", players: dict[str, str]) -> PlayerSet:
         )
 
     roles: list[Role] = []
-    roles.extend([Role.狼人, Role.狼人, Role.狼王, Role.狼人][: preset[0]])
-    roles.extend([Role.预言家, Role.女巫, Role.猎人, Role.守卫, Role.白痴][: preset[1]])
-    roles.extend([Role.平民] * preset[2])
+    roles.extend(
+        [Role.Werewolf, Role.Werewolf, Role.WolfKing, Role.Werewolf][: preset[0]]
+    )
+    roles.extend(
+        [Role.Prophet, Role.Witch, Role.Hunter, Role.Guard, Role.Idiot][: preset[1]]
+    )
+    roles.extend([Role.Civilian] * preset[2])
 
     r = random.Random(time.time())
     shuffled: list[Role] = []
@@ -82,20 +86,20 @@ class Game:
 
     def at_all(self) -> UniMessage:
         msg = UniMessage()
-        for p in sorted(self.players, key=lambda p: (p.role.name, p.user_id)):
+        for p in sorted(self.players, key=lambda p: (p.role_name, p.user_id)):
             msg.at(p.user_id)
         return msg
 
     def check_game_status(self) -> GameStatus:
         players = self.players.alive()
-        w = players.select(RoleGroup.狼人)
-        p = players.exclude(RoleGroup.狼人)
+        w = players.select(RoleGroup.Werewolf)
+        p = players.exclude(RoleGroup.Werewolf)
 
         if w.size >= p.size:
             return GameStatus.Bad
-        if not p.select(Role.平民):
+        if not p.select(Role.Civilian):
             return GameStatus.Bad
-        if not p.exclude(Role.平民):
+        if not p.exclude(Role.Civilian):
             return GameStatus.Bad
         if not w.size:
             return GameStatus.Good
@@ -162,7 +166,7 @@ class Game:
     ) -> None:
         players = self.players.alive().select(type_)
         text = (
-            type_.role.name  # Player
+            type_.role_name  # Player
             if isinstance(type_, Player)
             else (
                 type_.name  # Role
@@ -181,8 +185,8 @@ class Game:
         players = self.players.alive()
         self.state.killed = None
 
-        w = players.select(RoleGroup.狼人)
-        await self.interact(RoleGroup.狼人, 120)
+        w = players.select(RoleGroup.Werewolf)
+        await self.interact(RoleGroup.Werewolf, 120)
         if (s := w.player_selected()).size == 1:
             self.state.killed = s.pop()
             await w.broadcast(f"今晚选择的目标为: {self.state.killed.name}")
@@ -190,8 +194,8 @@ class Game:
             await w.broadcast("狼人阵营意见未统一，此晚空刀")
 
         # 如果女巫存活，正常交互，限时1分钟
-        if players.include(Role.女巫):
-            await self.interact(Role.女巫, 60)
+        if players.include(Role.Witch):
+            await self.interact(Role.Witch, 60)
         # 否则等待 5-20s
         else:
             await asyncio.sleep(random.uniform(5, 20))
@@ -228,7 +232,7 @@ class Game:
                 await self.send(
                     UniMessage.text("玩家 ")
                     .at(shoot.user_id)
-                    .text(f" 被{shooter.role.name}射杀, 请发表遗言\n")
+                    .text(f" 被{shooter.role_name}射杀, 请发表遗言\n")
                     .text("限时1分钟, 发送 “/stop” 结束发言")
                 )
                 await self.wait_stop(shoot, 60)
@@ -337,10 +341,10 @@ class Game:
             # 狼人、预言家、守卫 同时交互，女巫在狼人后交互
             await asyncio.gather(
                 self.select_killed(),
-                players.select(Role.女巫).broadcast("请等待狼人决定目标..."),
-                players.select(Role.平民).broadcast("请等待其他玩家结束交互..."),
-                self.interact(Role.预言家, 60),
-                self.interact(Role.守卫, 60),
+                players.select(Role.Witch).broadcast("请等待狼人决定目标..."),
+                players.select(Role.Civilian).broadcast("请等待其他玩家结束交互..."),
+                self.interact(Role.Prophet, 60),
+                self.interact(Role.Guard, 60),
             )
 
             # 狼人击杀目标
@@ -354,10 +358,12 @@ class Game:
             if killed is not None:
                 # 除非守卫保护或女巫使用解药，否则狼人正常击杀玩家
                 if not ((killed is protected) or (antidote and potioned is killed)):
-                    await killed.kill(KillReason.Kill, *players.select(RoleGroup.狼人))
+                    await killed.kill(
+                        KillReason.Kill, *players.select(RoleGroup.Werewolf)
+                    )
             # 如果女巫使用毒药且守卫未保护，杀死该玩家
             if poison and (potioned is not None) and (potioned is not protected):
-                await potioned.kill(KillReason.Poison, *players.select(Role.女巫))
+                await potioned.kill(KillReason.Poison, *players.select(Role.Witch))
 
             day_count += 1
             msg = UniMessage.text(f"『第{day_count}天』天亮了...\n")
@@ -401,7 +407,7 @@ class Game:
         winner = "好人" if self.check_game_status() == GameStatus.Good else "狼人"
         msg = UniMessage.text(f"🎉游戏结束，{winner}获胜\n\n")
         for p in sorted(self.players, key=lambda p: (p.role.value, p.user_id)):
-            msg.at(p.user_id).text(f": {p.role.name}\n")
+            msg.at(p.user_id).text(f": {p.role_name}\n")
         await self.send(msg)
         await self.send(f"玩家死亡报告:\n\n{self.show_killed_players()}")
 
