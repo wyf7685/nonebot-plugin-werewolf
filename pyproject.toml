@@ -1,6 +1,6 @@
 [project]
 name = "nonebot-plugin-werewolf"
-version = "1.0.4"
+version = "1.0.5"
 description = "Default template for PDM package"
 authors = [{ name = "wyf7685", email = "wyf7685@163.com" }]
 dependencies = [

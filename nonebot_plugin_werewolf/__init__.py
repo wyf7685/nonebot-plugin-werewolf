@@ -8,7 +8,7 @@ require("nonebot_plugin_waiter")
 from . import matchers as matchers
 from .config import Config
 
-__version__ = "1.0.4"
+__version__ = "1.0.5"
 __plugin_meta__ = PluginMetadata(
     name="狼人杀",
     description="适用于 Nonebot2 的狼人杀插件",
