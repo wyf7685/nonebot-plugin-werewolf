@@ -167,6 +167,8 @@ werewolf__override_preset='
 <details>
     <summary>更新日志</summary>
 
+<!-- CHANGELOG -->
+
 - 2024.09.03 v1.0.6
 
   - 修复预言家查验狼王返回好人的 bug

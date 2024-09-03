@@ -23,6 +23,7 @@ distribution = true
 
 [tool.pdm.scripts]
 lint = { composite = ["isort .", "black .", "pyright .", "ruff check ."] }
+updver = "pdm run python ./scripts/update_version.py"
 
 [tool.pdm.dev-dependencies]
 dev = [
