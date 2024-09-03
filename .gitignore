@@ -170,7 +170,3 @@ pyrightconfig.json
 
 # VisualStudioCode
 .vscode/*
-
-# debug run
-bot.py
-.env.*
