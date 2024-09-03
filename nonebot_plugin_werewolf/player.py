@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import asyncio.timeouts
 from dataclasses import dataclass
@@ -16,7 +18,7 @@ if TYPE_CHECKING:
 
 
 P = TypeVar("P", bound=type["Player"])
-PLAYER_CLASS: dict[Role, type["Player"]] = {}
+PLAYER_CLASS: dict[Role, type[Player]] = {}
 
 
 def register_role(cls: P) -> P:
@@ -27,7 +29,7 @@ def register_role(cls: P) -> P:
 @dataclass
 class KillInfo:
     reason: KillReason
-    killers: "PlayerSet"
+    killers: PlayerSet
 
 
 class Player:
@@ -35,15 +37,15 @@ class Player:
     role_group: ClassVar[RoleGroup]
 
     bot: Bot
-    game: "Game"
+    game: Game
     user: Target
     name: str
     alive: bool = True
     killed: bool = False
     kill_info: KillInfo | None = None
-    selected: "Player | None" = None
+    selected: Player | None = None
 
-    def __init__(self, bot: Bot, game: "Game", user: Target, name: str) -> None:
+    def __init__(self, bot: Bot, game: Game, user: Target, name: str) -> None:
         self.bot = bot
         self.game = game
         self.user = user
@@ -54,10 +56,10 @@ class Player:
         cls,
         role: Role,
         bot: Bot,
-        game: "Game",
+        game: Game,
         user: Target,
         name: str,
-    ) -> "Player":
+    ) -> Player:
         if role not in PLAYER_CLASS:
             raise ValueError(f"Unexpected role: {role!r}")
 
@@ -93,7 +95,7 @@ class Player:
     async def kill(
         self,
         reason: KillReason,
-        *killers: "Player",
+        *killers: Player,
     ) -> bool:
         from .player_set import PlayerSet
 
@@ -104,7 +106,7 @@ class Player:
     async def post_kill(self) -> None:
         self.killed = True
 
-    async def vote(self, players: "PlayerSet") -> "tuple[Player, Player] | None":
+    async def vote(self, players: PlayerSet) -> tuple[Player, Player] | None:
         await self.send(
             f"请选择需要投票的玩家:\n{players.show()}"
             "\n\n发送编号选择玩家\n发送 “/stop” 弃票"
@@ -424,7 +426,7 @@ class 白痴(Player):
         return await super().kill(reason, *killers)
 
     @override
-    async def vote(self, players: "PlayerSet") -> "tuple[Player, Player] | None":
+    async def vote(self, players: PlayerSet) -> tuple[Player, Player] | None:
         if self.voted:
             await self.send("你已经发动过白痴身份的技能，无法参与本次投票")
             return None

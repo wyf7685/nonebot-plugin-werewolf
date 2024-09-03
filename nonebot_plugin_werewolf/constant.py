@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
@@ -45,10 +47,10 @@ class GameStatus(Enum):
 @dataclass
 class GameState:
     day: int
-    killed: "Player | None" = None
-    shoot: tuple["Player", "Player"] | tuple[None, None] = (None, None)
-    protected: "Player | None" = None
-    potion: tuple["Player | None", tuple[bool, bool]] = (None, (False, False))
+    killed: Player | None = None
+    shoot: tuple[Player, Player] | tuple[None, None] = (None, None)
+    protected: Player | None = None
+    potion: tuple[Player | None, tuple[bool, bool]] = (None, (False, False))
 
 
 player_preset: dict[int, tuple[int, int, int]] = {

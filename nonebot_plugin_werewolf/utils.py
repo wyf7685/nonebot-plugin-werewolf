@@ -9,7 +9,7 @@ from nonebot.rule import to_me
 from nonebot_plugin_alconna import MsgTarget, UniMessage, UniMsg
 from nonebot_plugin_userinfo import EventUserInfo, UserInfo
 
-from .game import player_preset
+from .constant import player_preset
 
 
 def check_index(text: str, arrlen: int) -> int | None:
