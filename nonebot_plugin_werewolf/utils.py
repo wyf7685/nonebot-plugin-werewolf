@@ -1,6 +1,6 @@
 import asyncio
-import re
 import asyncio.timeouts
+import re
 from collections import defaultdict
 from typing import Annotated, Any, ClassVar
 
@@ -93,9 +93,11 @@ async def _prepare_game_receive(
     ) -> tuple[str, str, str]:
         return (
             event.get_user_id(),
-            (info.user_displayname or info.user_name)
-            if info is not None
-            else event.get_user_id(),
+            (
+                (info.user_displayname or info.user_name)
+                if info is not None
+                else event.get_user_id()
+            ),
             msg.extract_plain_text().strip(),
         )
 
