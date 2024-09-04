@@ -269,7 +269,10 @@ class Werewolf(Player):
 
 @register_role(Role.WolfKing, RoleGroup.Werewolf)
 class WolfKing(CanShoot, Werewolf):
-    pass
+    @override
+    async def notify_role(self) -> None:
+        await super().notify_role()
+        await self.send("作为狼王，你可以在死后射杀一名玩家")
 
 
 @register_role(Role.Prophet, RoleGroup.GoodGuy)
@@ -420,6 +423,13 @@ class Guard(Player):
 @register_role(Role.Idiot, RoleGroup.GoodGuy)
 class Idiot(Player):
     voted: bool = False
+
+    @override
+    async def notify_role(self) -> None:
+        await super().notify_role()
+        await self.send(
+            "作为白痴，你可以在首次被投票放逐时免疫放逐，但在之后的投票中无法继续投票"
+        )
 
     @override
     async def kill(
