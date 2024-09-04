@@ -189,10 +189,6 @@ async def prepare_game(event: Event, players: dict[str, str]) -> None:
     )
 
     try:
-        await _prepare_game_handle(
-            queue,
-            players,
-            event.get_user_id(),
-        )
+        await _prepare_game_handle(queue, players, event.get_user_id())
     finally:
         task_receive.cancel()

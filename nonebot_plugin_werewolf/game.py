@@ -74,12 +74,7 @@ class Game:
     state: GameState
     killed_players: list[Player]
 
-    def __init__(
-        self,
-        bot: Bot,
-        group: Target,
-        players: dict[str, str],
-    ) -> None:
+    def __init__(self, bot: Bot, group: Target, players: dict[str, str]) -> None:
         self.bot = bot
         self.group = group
         self.players = init_players(bot, self, players)
