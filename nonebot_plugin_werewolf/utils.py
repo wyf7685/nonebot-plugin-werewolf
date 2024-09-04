@@ -10,7 +10,7 @@ from nonebot.rule import to_me
 from nonebot_plugin_alconna import MsgTarget, UniMessage, UniMsg
 from nonebot_plugin_userinfo import EventUserInfo, UserInfo
 
-from .constant import player_preset
+from .constant import role_preset
 
 
 def check_index(text: str, arrlen: int) -> int | None:
@@ -120,19 +120,19 @@ async def _prepare_game_handle(
         match (text, user == admin_id):
             case ("开始游戏", True):
                 player_num = len(players)
-                if player_num < min(player_preset):
+                if player_num < min(role_preset):
                     await (
-                        msg.text(f"游戏至少需要 {min(player_preset)} 人, ")
+                        msg.text(f"游戏至少需要 {min(role_preset)} 人, ")
                         .text(f"当前已有 {player_num} 人")
                         .send()
                     )
-                elif player_num > max(player_preset):
+                elif player_num > max(role_preset):
                     await (
-                        msg.text(f"游戏最多需要 {max(player_preset)} 人, ")
+                        msg.text(f"游戏最多需要 {max(role_preset)} 人, ")
                         .text(f"当前已有 {player_num} 人")
                         .send()
                     )
-                elif player_num not in player_preset:
+                elif player_num not in role_preset:
                     await (
                         msg.text(f"不存在总人数为 {player_num} 的预设, ")
                         .text("无法开始游戏")

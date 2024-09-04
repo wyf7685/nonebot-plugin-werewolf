@@ -10,7 +10,16 @@ from nonebot.adapters import Bot
 from nonebot.log import logger
 from nonebot_plugin_alconna import Target, UniMessage
 
-from .constant import GameState, GameStatus, KillReason, Role, RoleGroup, player_preset
+from .constant import (
+    GameState,
+    GameStatus,
+    KillReason,
+    Role,
+    RoleGroup,
+    priesthood_proirity,
+    role_preset,
+    werewolf_priority,
+)
 from .player import Player
 from .player_set import PlayerSet
 from .utils import InputStore
@@ -20,20 +29,16 @@ running_games: dict[str, Game] = {}
 
 
 def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
-    preset = player_preset.get(len(players))
+    preset = role_preset.get(len(players))
     if preset is None:
         raise ValueError(
             f"玩家人数不符: "
-            f"应为 {', '.join(map(str, player_preset))} 人, 传入{len(players)}人"
+            f"应为 {', '.join(map(str, role_preset))} 人, 传入{len(players)}人"
         )
 
     roles: list[Role] = []
-    roles.extend(
-        [Role.Werewolf, Role.Werewolf, Role.WolfKing, Role.Werewolf][: preset[0]]
-    )
-    roles.extend(
-        [Role.Prophet, Role.Witch, Role.Hunter, Role.Guard, Role.Idiot][: preset[1]]
-    )
+    roles.extend(werewolf_priority[: preset[0]])
+    roles.extend(priesthood_proirity[: preset[1]])
     roles.extend([Role.Civilian] * preset[2])
 
     r = random.Random(time.time())
@@ -132,7 +137,7 @@ class Game:
         return msg.strip()
 
     async def notify_player_role(self) -> None:
-        preset = player_preset[len(self.players)]
+        preset = role_preset[len(self.players)]
         await asyncio.gather(
             self.send(
                 self.at_all()
