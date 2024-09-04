@@ -191,7 +191,7 @@ class CanShoot(Player):
 
 
 @register_role
-class 狼人(Player):
+class Werewolf(Player):
     role: ClassVar[Role] = Role.Werewolf
     role_group: ClassVar[RoleGroup] = RoleGroup.Werewolf
 
@@ -253,13 +253,13 @@ class 狼人(Player):
 
 
 @register_role
-class 狼王(CanShoot, 狼人):
+class WolfKing(CanShoot, Werewolf):
     role: ClassVar[Role] = Role.WolfKing
     role_group: ClassVar[RoleGroup] = RoleGroup.Werewolf
 
 
 @register_role
-class 预言家(Player):
+class Prophet(Player):
     role: ClassVar[Role] = Role.Prophet
     role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy
 
@@ -286,7 +286,7 @@ class 预言家(Player):
 
 
 @register_role
-class 女巫(Player):
+class Witch(Player):
     role: ClassVar[Role] = Role.Witch
     role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy
     antidote: int = 1
@@ -375,13 +375,13 @@ class 女巫(Player):
 
 
 @register_role
-class 猎人(CanShoot, Player):
+class Hunter(CanShoot, Player):
     role: ClassVar[Role] = Role.Hunter
     role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy
 
 
 @register_role
-class 守卫(Player):
+class Guard(Player):
     role: ClassVar[Role] = Role.Guard
     role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy
 
@@ -413,7 +413,7 @@ class 守卫(Player):
 
 
 @register_role
-class 白痴(Player):
+class Idiot(Player):
     role: ClassVar[Role] = Role.Idiot
     role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy
     voted: bool = False
@@ -443,6 +443,6 @@ class 白痴(Player):
 
 
 @register_role
-class 平民(Player):
+class Civilian(Player):
     role: ClassVar[Role] = Role.Civilian
     role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy
