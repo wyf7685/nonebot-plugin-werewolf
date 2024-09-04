@@ -21,9 +21,14 @@ P = TypeVar("P", bound=type["Player"])
 PLAYER_CLASS: dict[Role, type[Player]] = {}
 
 
-def register_role(cls: P) -> P:
-    PLAYER_CLASS[cls.role] = cls
-    return cls
+def register_role(role: Role, role_group: RoleGroup, /):
+    def decorator(cls: P, /) -> P:
+        cls.role = role
+        cls.role_group = role_group
+        PLAYER_CLASS[role] = cls
+        return cls
+
+    return decorator
 
 
 @dataclass
@@ -190,11 +195,8 @@ class CanShoot(Player):
         return players[selected]
 
 
-@register_role
+@register_role(Role.Werewolf, RoleGroup.Werewolf)
 class Werewolf(Player):
-    role: ClassVar[Role] = Role.Werewolf
-    role_group: ClassVar[RoleGroup] = RoleGroup.Werewolf
-
     @override
     async def notify_role(self) -> None:
         await super().notify_role()
@@ -252,17 +254,13 @@ class Werewolf(Player):
         self.selected = players[selected]
 
 
-@register_role
+@register_role(Role.WolfKing, RoleGroup.Werewolf)
 class WolfKing(CanShoot, Werewolf):
-    role: ClassVar[Role] = Role.WolfKing
-    role_group: ClassVar[RoleGroup] = RoleGroup.Werewolf
+    pass
 
 
-@register_role
+@register_role(Role.Prophet, RoleGroup.GoodGuy)
 class Prophet(Player):
-    role: ClassVar[Role] = Role.Prophet
-    role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy
-
     @override
     async def interact(self) -> None:
         players = self.game.players.alive().exclude(self)
@@ -285,10 +283,8 @@ class Prophet(Player):
         await self.send(f"玩家 {player.name} 的阵营是『{result}』")
 
 
-@register_role
+@register_role(Role.Witch, RoleGroup.GoodGuy)
 class Witch(Player):
-    role: ClassVar[Role] = Role.Witch
-    role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy
     antidote: int = 1
     poison: int = 1
 
@@ -374,17 +370,13 @@ class Witch(Player):
         await self.send(f"当前回合选择对玩家 {player.name} 使用毒药\n回合结束")
 
 
-@register_role
+@register_role(Role.Hunter, RoleGroup.GoodGuy)
 class Hunter(CanShoot, Player):
-    role: ClassVar[Role] = Role.Hunter
-    role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy
+    pass
 
 
-@register_role
+@register_role(Role.Guard, RoleGroup.GoodGuy)
 class Guard(Player):
-    role: ClassVar[Role] = Role.Guard
-    role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy
-
     @override
     async def interact(self) -> None:
         players = self.game.players.alive().exclude(self)
@@ -412,10 +404,8 @@ class Guard(Player):
         await self.send(f"本回合保护的玩家: {self.selected.name}")
 
 
-@register_role
+@register_role(Role.Idiot, RoleGroup.GoodGuy)
 class Idiot(Player):
-    role: ClassVar[Role] = Role.Idiot
-    role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy
     voted: bool = False
 
     @override
@@ -442,7 +432,6 @@ class Idiot(Player):
         return await super().vote(players)
 
 
-@register_role
+@register_role(Role.Civilian, RoleGroup.GoodGuy)
 class Civilian(Player):
-    role: ClassVar[Role] = Role.Civilian
-    role_group: ClassVar[RoleGroup] = RoleGroup.GoodGuy
+    pass
