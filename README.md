@@ -194,3 +194,4 @@ werewolf__override_preset='
 - [`nonebot/plugin-alconna`](https://github.com/nonebot/plugin-alconna): 跨平台的消息处理接口
 - [`noneplugin/nonebot-plugin-userinfo`](https://github.com/noneplugin/nonebot-plugin-userinfo): 用户信息获取
 - [`RF-Tar-Railt/nonebot-plugin-waiter`](https://github.com/RF-Tar-Railt/nonebot-plugin-waiter): 灵活获取用户输入
+- `热心群友`: 协助测试插件
