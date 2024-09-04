@@ -11,6 +11,7 @@ from nonebot.adapters import Bot
 from nonebot.log import logger
 from nonebot_plugin_alconna import Target, UniMessage
 
+from .config import config
 from .constant import (
     GameState,
     GameStatus,
@@ -21,7 +22,6 @@ from .constant import (
     role_preset,
     werewolf_priority,
 )
-from .config import config
 from .exception import GameFinished
 from .player import Player
 from .player_set import PlayerSet

@@ -4,11 +4,11 @@ import asyncio
 import asyncio.timeouts
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, TypeVar, final
+from typing_extensions import override
 
 from nonebot.adapters import Bot
 from nonebot.log import logger
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
-from typing_extensions import override
 
 from .constant import GameStatus, KillReason, Role, RoleGroup, role_name_conv
 from .exception import GameFinished
