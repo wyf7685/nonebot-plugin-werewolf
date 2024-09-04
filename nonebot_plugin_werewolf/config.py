@@ -9,6 +9,7 @@ class PluginConfig(BaseModel):
     role_preset: list[tuple[int, int, int, int]] | None = None
     werewolf_priority: list[Role] | None = None
     priesthood_proirity: list[Role] | None = None
+    joker_probability: float = 0.3
 
 
 class Config(BaseModel):
