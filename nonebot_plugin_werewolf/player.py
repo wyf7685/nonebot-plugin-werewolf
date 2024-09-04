@@ -441,6 +441,11 @@ class Idiot(Player):
 @register_role(Role.Joker, RoleGroup.Others)
 class Joker(Player):
     @override
+    async def notify_role(self) -> None:
+        await super().notify_role()
+        await self.send("你的胜利条件: 被投票放逐")
+
+    @override
     async def kill(self, reason: KillReason, *killers: Player) -> bool:
         result = await super().kill(reason, *killers)
         if reason == KillReason.Vote:
