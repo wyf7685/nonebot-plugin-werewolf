@@ -6,6 +6,7 @@ from typing import Annotated, Any, ClassVar
 
 import nonebot_plugin_waiter as waiter
 from nonebot.adapters import Event
+from nonebot.log import logger
 from nonebot.rule import to_me
 from nonebot_plugin_alconna import MsgTarget, UniMessage, UniMsg
 from nonebot_plugin_userinfo import EventUserInfo, UserInfo
@@ -113,9 +114,12 @@ async def _prepare_game_handle(
     players: dict[str, str],
     admin_id: str,
 ) -> None:
+    log = logger.opt(colors=True)
+
     while True:
         user, name, text = await queue.get()
         msg = UniMessage.at(user)
+        colored = f"<y>{name}</y>(<c>{user}</c>)"
 
         match (text, user == admin_id):
             case ("开始游戏", True):
@@ -140,12 +144,14 @@ async def _prepare_game_handle(
                     )
                 else:
                     await msg.text("游戏即将开始...").send()
+                    log.info(f"游戏发起者 {colored} 开始游戏")
                     return
 
             case ("开始游戏", False):
                 await msg.text("只有游戏发起者可以开始游戏").send()
 
             case ("结束游戏", True):
+                log.info(f"游戏发起者 {colored} 结束游戏")
                 await msg.text("已结束当前游戏").finish()
 
             case ("结束游戏", False):
@@ -157,6 +163,7 @@ async def _prepare_game_handle(
             case ("加入游戏", False):
                 if user not in players:
                     players[user] = name
+                    log.info(f"玩家 {colored} 加入游戏")
                     await msg.text("成功加入游戏").send()
                 else:
                     await msg.text("你已经加入游戏了").send()
@@ -167,6 +174,7 @@ async def _prepare_game_handle(
             case ("退出游戏", False):
                 if user in players:
                     del players[user]
+                    log.info(f"玩家 {colored} 退出游戏")
                     await msg.text("成功退出游戏").send()
                 else:
                     await msg.text("你还没有加入游戏").send()
