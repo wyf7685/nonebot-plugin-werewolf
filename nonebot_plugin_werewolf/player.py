@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, TypeVar, final
 
 from nonebot.adapters import Bot
+from nonebot.log import logger
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 from typing_extensions import override
 
@@ -85,17 +86,29 @@ class Player:
         return role_name_conv[self.role]
 
     @final
+    def _log(self, text: str):
+        logger.opt(colors=True).info(
+            f"<c>{self.game.group.id}</c> | "
+            f"[<m>{self.role_name}</m>] <y>{self.name}</y>(<c>{self.user_id}</c>) | "
+            + text.replace("\n", "\\n")
+        )
+
+    @final
     async def send(self, message: str | UniMessage) -> Receipt:
         if isinstance(message, str):
             message = UniMessage.text(message)
 
+        self._log(f"<m>Send</m> | {message}")
         return await message.send(target=self.user, bot=self.bot)
 
     @final
     async def receive(self, prompt: str | UniMessage | None = None) -> UniMessage:
         if prompt:
             await self.send(prompt)
-        return await InputStore.fetch(self.user.id)
+
+        result = await InputStore.fetch(self.user.id)
+        self._log(f"<m>Recv</m> | {result}")
+        return result
 
     @final
     async def receive_text(self) -> str:
