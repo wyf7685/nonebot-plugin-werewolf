@@ -4,6 +4,7 @@ from typing import Annotated
 
 from nonebot import on_command, on_message
 from nonebot.adapters import Bot, Event
+from nonebot.exception import FinishedException
 from nonebot.rule import to_me
 from nonebot_plugin_alconna import MsgTarget, UniMessage, UniMsg
 from nonebot_plugin_userinfo import EventUserInfo, UserInfo
@@ -56,6 +57,8 @@ async def handle_start(
     try:
         async with asyncio.timeouts.timeout(5 * 60):
             await prepare_game(event, players)
+    except FinishedException:
+        raise
     except TimeoutError:
         await UniMessage.text("游戏准备超时，已自动结束").finish()
     finally:

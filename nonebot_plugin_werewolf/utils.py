@@ -47,7 +47,7 @@ def user_in_game(user_id: str, group_id: str | None) -> bool:
     if group_id is not None and group_id not in running_games:
         return False
     games = running_games.values() if group_id is None else [running_games[group_id]]
-    for game, *_ in games:
+    for game in games:
         return any(user_id == player.user_id for player in game.players)
     return False
 

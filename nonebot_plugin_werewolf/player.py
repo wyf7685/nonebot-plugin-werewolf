@@ -9,7 +9,7 @@ from typing_extensions import override
 from nonebot.adapters import Bot
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 
-from .constant import KillReason, Role, RoleGroup, role_group_name_conv, role_name_conv
+from .constant import KillReason, Role, RoleGroup, role_name_conv
 from .utils import InputStore, check_index
 
 if TYPE_CHECKING:
@@ -281,7 +281,7 @@ class 预言家(Player):
             await self.send("输入错误，请发送编号选择玩家")
 
         player = players[selected]
-        result = role_group_name_conv[player.role_group]
+        result = role_name_conv[player.role_group]
         await self.send(f"玩家 {player.name} 的阵营是『{result}』")
 
 

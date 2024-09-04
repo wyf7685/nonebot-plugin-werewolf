@@ -4,15 +4,13 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
-from strenum import StrEnum
-
 from .config import config
 
 if TYPE_CHECKING:
     from .player import Player
 
 
-class Role(StrEnum):
+class Role(Enum):
     # 狼人
     Werewolf = auto()
     WolfKing = auto()
@@ -28,7 +26,7 @@ class Role(StrEnum):
     Civilian = auto()
 
 
-class RoleGroup(StrEnum):
+class RoleGroup(Enum):
     Werewolf = auto()
     GoodGuy = auto()
 
@@ -55,7 +53,7 @@ class GameState:
     potion: tuple[Player | None, tuple[bool, bool]] = (None, (False, False))
 
 
-role_name_conv: dict[Role, str] = {
+role_name_conv: dict[Role | RoleGroup, str] = {
     Role.Werewolf: "狼人",
     Role.WolfKing: "狼王",
     Role.Prophet: "预言家",
@@ -64,10 +62,6 @@ role_name_conv: dict[Role, str] = {
     Role.Guard: "守卫",
     Role.Idiot: "白痴",
     Role.Civilian: "平民",
-}
-
-
-role_group_name_conv: dict[RoleGroup, str] = {
     RoleGroup.Werewolf: "狼人",
     RoleGroup.GoodGuy: "好人",
 }
@@ -84,5 +78,4 @@ player_preset: dict[int, tuple[int, int, int]] = {
 }
 
 if config.override_preset is not None:
-    player_preset |= {i[0]: i[1:] for i in config.override_preset}
     player_preset |= {i[0]: i[1:] for i in config.override_preset}

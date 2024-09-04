@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import asyncio.timeouts
 
@@ -12,23 +14,23 @@ class PlayerSet(set[Player]):
     def size(self) -> int:
         return len(self)
 
-    def alive(self) -> "PlayerSet":
+    def alive(self) -> PlayerSet:
         return PlayerSet(p for p in self if p.alive)
 
-    def dead(self) -> "PlayerSet":
+    def dead(self) -> PlayerSet:
         return PlayerSet(p for p in self if not p.alive)
 
-    def include(self, *types: Player | Role | RoleGroup) -> "PlayerSet":
+    def include(self, *types: Player | Role | RoleGroup) -> PlayerSet:
         return PlayerSet(
             player
             for player in self
             if (player in types or player.role in types or player.role_group in types)
         )
 
-    def select(self, *types: Player | Role | RoleGroup) -> "PlayerSet":
+    def select(self, *types: Player | Role | RoleGroup) -> PlayerSet:
         return self.include(*types)
 
-    def exclude(self, *types: Player | Role | RoleGroup) -> "PlayerSet":
+    def exclude(self, *types: Player | Role | RoleGroup) -> PlayerSet:
         return PlayerSet(
             player
             for player in self
@@ -39,7 +41,7 @@ class PlayerSet(set[Player]):
             )
         )
 
-    def player_selected(self) -> "PlayerSet":
+    def player_selected(self) -> PlayerSet:
         return PlayerSet(p.selected for p in self.alive() if p.selected is not None)
 
     def sorted(self) -> list[Player]:

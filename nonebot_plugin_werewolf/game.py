@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 import asyncio.timeouts
 import contextlib
@@ -14,10 +16,10 @@ from .player_set import PlayerSet
 from .utils import InputStore
 
 starting_games: dict[str, dict[str, str]] = {}
-running_games: dict[str, tuple["Game", asyncio.Task[None], asyncio.Task[None]]] = {}
+running_games: dict[str, Game] = {}
 
 
-def init_players(bot: Bot, game: "Game", players: dict[str, str]) -> PlayerSet:
+def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
     preset = player_preset.get(len(players))
     if preset is None:
         raise ValueError(
@@ -412,23 +414,32 @@ class Game:
         await self.send(f"玩家死亡报告:\n\n{self.show_killed_players()}")
 
     def start(self):
-        task = asyncio.create_task(self.run())
+        event = asyncio.Event()
+        game_task = asyncio.create_task(self.run())
+        game_task.add_done_callback(lambda _: event.set())
         dead_channel = asyncio.create_task(self.run_dead_channel())
 
         async def daemon():
-            while not task.done():  # noqa: ASYNC110
-                await asyncio.sleep(1)
+            await event.wait()
 
             try:
-                task.result()
+                game_task.result()
+                logger.info(f"{self.group.id} 的狼人杀游戏进程正常退出")
             except asyncio.CancelledError as err:
-                logger.warning(f"狼人杀游戏进程被取消: {err}")
+                logger.warning(f"{self.group.id} 的狼人杀游戏进程被取消: {err}")
             except Exception as err:
-                msg = f"狼人杀游戏进程出现错误: {err!r}"
+                msg = f"{self.group.id} 的狼人杀游戏进程出现错误: {err!r}"
                 logger.opt(exception=err).error(msg)
                 await self.send(msg)
             finally:
                 dead_channel.cancel()
                 running_games.pop(self.group.id, None)
 
-        running_games[self.group.id] = (self, task, asyncio.create_task(daemon()))
+        def daemon_callback(task: asyncio.Task[None]):
+            if err := task.exception():
+                logger.opt(exception=err).error(
+                    f"{self.group.id} 的狼人杀守护进程出现错误: {err!r}"
+                )
+
+        running_games[self.group.id] = self
+        asyncio.create_task(daemon()).add_done_callback(daemon_callback)
