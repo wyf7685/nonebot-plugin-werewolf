@@ -1,4 +1,5 @@
 import asyncio
+import re
 import asyncio.timeouts
 from collections import defaultdict
 from typing import Annotated, Any, ClassVar
@@ -92,13 +93,16 @@ async def _prepare_game_receive(
     ) -> tuple[str, str, str]:
         return (
             event.get_user_id(),
-            info.user_name if info is not None else event.get_user_id(),
+            (info.user_displayname or info.user_name)
+            if info is not None
+            else event.get_user_id(),
             msg.extract_plain_text().strip(),
         )
 
     async for user, name, text in wait(default=(None, "", "")):
         if user is None:
             continue
+        name = re.sub(r"[\u2066-\u2069]", "", name)
         await queue.put((user, name, text))
 
 
@@ -167,8 +171,8 @@ async def _prepare_game_handle(
 
             case ("当前玩家", _):
                 msg.text("\n当前玩家:\n")
-                for name in players.values():
-                    msg.text(f"\n{name}")
+                for idx, name in enumerate(players.values(), 1):
+                    msg.text(f"\n{idx}. {name}")
                 await msg.send()
 
 
