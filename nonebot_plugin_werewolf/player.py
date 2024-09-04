@@ -429,9 +429,10 @@ class Idiot(Player):
 class Joker(Player):
     @override
     async def kill(self, reason: KillReason, *killers: Player) -> bool:
+        result = await super().kill(reason, *killers)
         if reason == KillReason.Vote:
             raise GameFinished(GameStatus.Joker)
-        return await super().kill(reason, *killers)
+        return result
 
 
 @register_role(Role.Civilian, RoleGroup.GoodGuy)
