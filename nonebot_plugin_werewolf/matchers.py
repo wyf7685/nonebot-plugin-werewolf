@@ -64,5 +64,5 @@ async def handle_start(
     finally:
         del starting_games[target.id]
 
-    game = Game(bot=bot, group=target, players=players)
+    game = Game(bot, target, players)
     game.start()

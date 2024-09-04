@@ -68,7 +68,6 @@ select = [
     "RUF",   # Ruff-specific rules
 ]
 ignore = [
-    "C408",   # unnecessary-collection-call
     "E402",   # module-import-not-at-top-of-file
     "RUF001", # ambiguous-unicode-character-string
     "RUF002", # ambiguous-unicode-character-docstring
