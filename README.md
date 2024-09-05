@@ -81,6 +81,7 @@ _✨ 简单的狼人杀插件 ✨_
 |     `werewolf__role_preset`     |  否  |   -    |                    覆写插件内置的职业预设                     |
 |  `werewolf__werewolf_priority`  |  否  |   -    |                     自定义狼人职业优先级                      |
 | `werewolf__priesthood_proirity` |  否  |   -    |                     自定义神职职业优先级                      |
+|  `werewolf__joker_probability`  |  否  | `0.3`  |                    小丑职业替换平民的概率                     |
 
 `werewolf__role_preset`, `werewolf__werewolf_priority`, `werewolf__priesthood_proirity` 的配置格式请参考 [`游戏内容`](#游戏内容) 部分
 
