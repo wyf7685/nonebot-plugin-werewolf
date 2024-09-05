@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
+from nonebot.log import logger
+
 if TYPE_CHECKING:
     from .config import PluginConfig
     from .player import Player
@@ -102,6 +104,7 @@ def apply_config(config: PluginConfig):
                     f"预设总人数为 {preset[0]}, 实际总人数为 {sum(preset[1:])}"
                 )
         role_preset |= {i[0]: i[1:] for i in config.role_preset}
+        logger.debug(f"覆写配置 role_preset: {role_preset}")
 
     if (priority := config.werewolf_priority) is not None:
         min_length = max(i[0] for i in role_preset.values())
@@ -110,6 +113,7 @@ def apply_config(config: PluginConfig):
                 f"配置项 `werewolf_priority` 错误: 应至少为 {min_length} 项"
             )
         werewolf_priority = priority
+        logger.debug(f"覆写配置 werewolf_priority: {werewolf_priority}")
 
     if (priority := config.priesthood_proirity) is not None:
         min_length = max(i[1] for i in role_preset.values())
@@ -118,3 +122,4 @@ def apply_config(config: PluginConfig):
                 f"配置项 `priesthood_proirity` 错误: 应至少为 {min_length} 项"
             )
         priesthood_proirity = priority
+        logger.debug(f"覆写配置 priesthood_proirity: {priesthood_proirity}")

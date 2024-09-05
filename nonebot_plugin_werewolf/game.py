@@ -29,6 +29,7 @@ running_games: dict[str, Game] = {}
 
 
 def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
+    logger.opt(colors=True).debug(f"初始化 <c>{game.group.id}</c> 的玩家职业")
     preset = role_preset.get(len(players))
     if preset is None:
         raise ValueError(
@@ -46,6 +47,8 @@ def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
     for _ in range(len(players)):
         idx = r.randint(0, len(roles) - 1)
         shuffled.append(roles.pop(idx))
+
+    logger.debug(f"职业分配: {shuffled}")
 
     async def selector(target_: Target, b: Bot):
         return target_.self_id == bot.self_id and b is bot
@@ -184,6 +187,7 @@ class Game:
         try:
             await players.interact(timeout_secs)
         except TimeoutError:
+            logger.opt(colors=True).debug(f"{text}交互超时 (<y>{timeout_secs}</y>s)")
             await players.broadcast(f"{text}交互时间结束")
 
     async def select_killed(self) -> None:
@@ -254,6 +258,8 @@ class Game:
         vote_reversed: dict[int, list[Player]] = {}
         # 收集到的总票数
         total_votes = sum(map(len, vote_result.values()))
+
+        logger.debug(f"投票结果: {vote_result}")
 
         # 投票结果公示
         msg = UniMessage.text("投票结果:\n")
