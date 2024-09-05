@@ -5,6 +5,7 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from .config import PluginConfig
     from .player import Player
 
 
@@ -90,9 +91,7 @@ priesthood_proirity: list[Role] = [
 ]
 
 
-def __apply_config():
-    from .config import config
-
+def apply_config(config: PluginConfig):
     global role_preset, werewolf_priority, priesthood_proirity
 
     if config.role_preset is not None:
@@ -119,6 +118,3 @@ def __apply_config():
                 f"配置项 `priesthood_proirity` 错误: 应至少为 {min_length} 项"
             )
         priesthood_proirity = priority
-
-
-__apply_config()

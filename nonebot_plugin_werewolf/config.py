@@ -1,7 +1,7 @@
 from nonebot import get_plugin_config
 from pydantic import BaseModel
 
-from .constant import Role
+from .constant import Role, apply_config
 
 
 class PluginConfig(BaseModel):
@@ -16,3 +16,4 @@ class Config(BaseModel):
 
 
 config = get_plugin_config(Config).werewolf
+apply_config(config)
