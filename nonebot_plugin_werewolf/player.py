@@ -266,7 +266,10 @@ class Werewolf(Player):
 
 @register_role(Role.WolfKing, RoleGroup.Werewolf)
 class WolfKing(CanShoot, Werewolf):
-    pass
+    @override
+    async def notify_role(self) -> None:
+        await super().notify_role()
+        await self.send("作为狼王，你可以在死后射杀一名玩家")
 
 
 @register_role(Role.Prophet, RoleGroup.GoodGuy)
@@ -389,9 +392,10 @@ class Hunter(CanShoot, Player):
 class Guard(Player):
     @override
     async def interact(self) -> None:
-        players = self.game.players.alive().exclude(self)
+        players = self.game.players.alive()
         await self.send(
-            UniMessage.text(f"请选择需要保护的玩家:\n{players.show()}")
+            UniMessage.text("请选择需要保护的玩家:\n")
+            .text(players.show())
             .text("\n\n发送编号选择玩家")
             .text("\n发送 “/stop” 结束回合")
         )
@@ -417,6 +421,13 @@ class Guard(Player):
 @register_role(Role.Idiot, RoleGroup.GoodGuy)
 class Idiot(Player):
     voted: bool = False
+
+    @override
+    async def notify_role(self) -> None:
+        await super().notify_role()
+        await self.send(
+            "作为白痴，你可以在首次被投票放逐时免疫放逐，但在之后的投票中无法继续投票"
+        )
 
     @override
     async def kill(self, reason: KillReason, *killers: Player) -> bool:
