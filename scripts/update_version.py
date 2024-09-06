@@ -10,7 +10,7 @@ os.system("pdm lint")
 project_root = Path(__file__).parent.parent.resolve()
 
 toml_file = project_root / "pyproject.toml"
-project = tomllib.loads(toml_file.read_text())
+project = tomllib.loads(toml_file.read_text(encoding="utf-8"))
 
 project_name: str = project["project"]["name"]
 print(f"Project name: {project_name}")
