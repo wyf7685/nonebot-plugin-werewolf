@@ -94,8 +94,6 @@ priesthood_proirity: list[Role] = [
 
 
 def apply_config(config: PluginConfig):
-    global role_preset, werewolf_priority, priesthood_proirity
-
     if config.role_preset is not None:
         for preset in config.role_preset:
             if preset[0] != preset[1:]:
@@ -103,7 +101,7 @@ def apply_config(config: PluginConfig):
                     "配置项 `role_preset` 错误: "
                     f"预设总人数为 {preset[0]}, 实际总人数为 {sum(preset[1:])}"
                 )
-        role_preset |= {i[0]: i[1:] for i in config.role_preset}
+        role_preset.update({i[0]: i[1:] for i in config.role_preset})
         logger.debug(f"覆写配置 role_preset: {role_preset}")
 
     if (priority := config.werewolf_priority) is not None:
@@ -112,7 +110,7 @@ def apply_config(config: PluginConfig):
             raise RuntimeError(
                 f"配置项 `werewolf_priority` 错误: 应至少为 {min_length} 项"
             )
-        werewolf_priority = priority
+        werewolf_priority[:] = priority
         logger.debug(f"覆写配置 werewolf_priority: {werewolf_priority}")
 
     if (priority := config.priesthood_proirity) is not None:
@@ -121,5 +119,5 @@ def apply_config(config: PluginConfig):
             raise RuntimeError(
                 f"配置项 `priesthood_proirity` 错误: 应至少为 {min_length} 项"
             )
-        priesthood_proirity = priority
+        priesthood_proirity[:] = priority
         logger.debug(f"覆写配置 priesthood_proirity: {priesthood_proirity}")
