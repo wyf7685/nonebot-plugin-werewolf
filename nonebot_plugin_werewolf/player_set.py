@@ -20,6 +20,9 @@ class PlayerSet(set[Player]):
     def dead(self) -> PlayerSet:
         return PlayerSet(p for p in self if not p.alive)
 
+    def killed(self) -> PlayerSet:
+        return PlayerSet(p for p in self if p.killed.is_set())
+
     def include(self, *types: Player | Role | RoleGroup) -> PlayerSet:
         return PlayerSet(
             player

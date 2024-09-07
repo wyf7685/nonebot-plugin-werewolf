@@ -47,7 +47,7 @@ class Player:
     user: Target
     name: str
     alive: bool = True
-    killed: bool = False
+    killed: asyncio.Event
     kill_info: KillInfo | None = None
     selected: Player | None = None
 
@@ -57,6 +57,7 @@ class Player:
         self.game = game
         self.user = user
         self.name = name
+        self.killed = asyncio.Event()
 
     @final
     @classmethod
@@ -131,7 +132,7 @@ class Player:
         return True
 
     async def post_kill(self) -> None:
-        self.killed = True
+        self.killed.set()
 
     async def vote(self, players: PlayerSet) -> tuple[Player, Player] | None:
         await self.send(

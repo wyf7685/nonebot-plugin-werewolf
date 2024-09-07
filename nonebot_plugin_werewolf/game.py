@@ -307,9 +307,12 @@ class Game:
             while True:
                 player, msg = await queue.get()
                 msg = f"玩家 {player.name}:\n" + msg
-                await self.players.dead().exclude(player).broadcast(msg)
+                await self.players.killed().exclude(player).broadcast(msg)
+                queue.task_done()
 
         async def recv(player: Player):
+            await player.killed.wait()
+
             counter = 0
 
             def decrease():
@@ -317,9 +320,6 @@ class Game:
                 counter -= 1
 
             while True:
-                if not player.killed:
-                    await asyncio.sleep(1)
-                    continue
                 msg = await player.receive()
                 counter += 1
                 if counter <= 10:
