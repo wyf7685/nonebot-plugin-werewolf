@@ -118,7 +118,7 @@ class Game:
                 p.name for p in player.kill_info.killers
             )
             match player.kill_info.reason:
-                case KillReason.Kill:
+                case KillReason.Werewolf:
                     msg += " 刀了"
                 case KillReason.Poison:
                     msg += " 毒死"
@@ -363,7 +363,7 @@ class Game:
                 # 除非守卫保护或女巫使用解药，否则狼人正常击杀玩家
                 if not ((killed is protected) or (antidote and potioned is killed)):
                     await killed.kill(
-                        KillReason.Kill, *players.select(RoleGroup.Werewolf)
+                        KillReason.Werewolf, *players.select(RoleGroup.Werewolf)
                     )
             # 如果女巫使用毒药且守卫未保护，杀死该玩家
             if poison and (potioned is not None) and (potioned is not protected):
@@ -415,14 +415,14 @@ class Game:
         await self.send(msg)
         await self.send(f"玩家死亡报告:\n\n{self.show_killed_players()}")
 
-    def start(self):
-        event = asyncio.Event()
+    def start(self) -> None:
+        finished = asyncio.Event()
         game_task = asyncio.create_task(self.run())
-        game_task.add_done_callback(lambda _: event.set())
+        game_task.add_done_callback(lambda _: finished.set())
         dead_channel = asyncio.create_task(self.run_dead_channel())
 
         async def daemon():
-            await event.wait()
+            await finished.wait()
 
             try:
                 game_task.result()

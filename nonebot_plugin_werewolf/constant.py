@@ -30,7 +30,7 @@ class RoleGroup(Enum):
 
 
 class KillReason(Enum):
-    Kill = auto()
+    Werewolf = auto()
     Poison = auto()
     Shoot = auto()
     Vote = auto()
