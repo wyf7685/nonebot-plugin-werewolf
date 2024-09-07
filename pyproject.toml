@@ -65,11 +65,3 @@ pythonPlatform = "All"
 typeCheckingMode = "standard"
 reportShadowedImports = false
 disableBytesTypePromotions = true
-
-[tool.nonebot]
-adapters = [
-    { name = "OneBot V11", module_name = "nonebot.adapters.onebot.v11" },
-]
-plugins = ["nonebot_plugin_werewolf"]
-plugin_dirs = []
-builtin_plugins = []
