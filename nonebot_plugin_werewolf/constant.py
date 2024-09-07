@@ -64,7 +64,7 @@ role_name_conv: dict[Role | RoleGroup, str] = {
     RoleGroup.GoodGuy: "好人",
 }
 
-role_preset: dict[int, tuple[int, int, int]] = {
+default_role_preset: dict[int, tuple[int, int, int]] = {
     # 总人数: (狼, 神, 民)
     6: (1, 2, 3),
     7: (2, 2, 3),
@@ -75,13 +75,13 @@ role_preset: dict[int, tuple[int, int, int]] = {
     12: (4, 5, 3),
 }
 
-werewolf_priority: list[Role] = [
+default_werewolf_priority: list[Role] = [
     Role.Werewolf,
     Role.Werewolf,
     Role.WolfKing,
     Role.Werewolf,
 ]
-priesthood_proirity: list[Role] = [
+default_priesthood_proirity: list[Role] = [
     Role.Witch,
     Role.Prophet,
     Role.Hunter,

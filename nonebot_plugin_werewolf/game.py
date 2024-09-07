@@ -10,16 +10,8 @@ from nonebot.adapters import Bot
 from nonebot.log import logger
 from nonebot_plugin_alconna import Target, UniMessage
 
-from .constant import (
-    GameState,
-    GameStatus,
-    KillReason,
-    Role,
-    RoleGroup,
-    priesthood_proirity,
-    role_preset,
-    werewolf_priority,
-)
+from .config import config
+from .constant import GameState, GameStatus, KillReason, Role, RoleGroup
 from .player import Player
 from .player_set import PlayerSet
 from .utils import InputStore
@@ -30,6 +22,7 @@ running_games: dict[str, Game] = {}
 
 def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
     logger.opt(colors=True).debug(f"初始化 <c>{game.group.id}</c> 的玩家职业")
+    role_preset = config.get_role_preset()
     preset = role_preset.get(len(players))
     if preset is None:
         raise ValueError(
@@ -38,8 +31,8 @@ def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
         )
 
     roles: list[Role] = []
-    roles.extend(werewolf_priority[: preset[0]])
-    roles.extend(priesthood_proirity[: preset[1]])
+    roles.extend(config.werewolf_priority[: preset[0]])
+    roles.extend(config.priesthood_proirity[: preset[1]])
     roles.extend([Role.Civilian] * preset[2])
 
     r = random.Random(time.time())
@@ -138,7 +131,7 @@ class Game:
         return msg.strip()
 
     async def notify_player_role(self) -> None:
-        preset = role_preset[len(self.players)]
+        preset = config.get_role_preset()[len(self.players)]
         await asyncio.gather(
             self.send(
                 self.at_all()
