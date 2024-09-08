@@ -6,13 +6,13 @@ on:
       - "nonebot_plugin_werewolf/**"
       - ".github/workflows/pyright.yml"
       - "pyproject.toml"
-      - "pdm.lock"
+      - "uv.lock"
   pull_request:
     paths:
       - "nonebot_plugin_werewolf/**"
       - ".github/workflows/pyright.yml"
       - "pyproject.toml"
-      - "pdm.lock"
+      - "uv.lock"
 
 jobs:
   pyright:
@@ -25,14 +25,15 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup PDM
-        uses: pdm-project/setup-pdm@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v2
         with:
-          python-version: "3.12"
-          cache: true
+          enable-cache: true
 
       - name: Install dependencies
-        run: pdm install
+        run: |
+          uv python install 3.12
+          uv sync --python 3.12
 
       - name: Configure venv
         run: echo "$PWD/.venv/bin" >> $GITHUB_PATH

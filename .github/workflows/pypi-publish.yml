@@ -19,14 +19,13 @@ jobs:
     steps:
       - uses: actions/checkout@master
 
-      - name: Setup PDM
-        uses: pdm-project/setup-pdm@v4
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v2
         with:
-          python-version: "3.12"
-          cache: true
+          enable-cache: true
 
       - name: Build dist
-        run: pdm build
+        run: uv build
 
       - name: Publish package distributions to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

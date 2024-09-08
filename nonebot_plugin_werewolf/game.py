@@ -12,16 +12,7 @@ from nonebot.log import logger
 from nonebot_plugin_alconna import Target, UniMessage
 
 from .config import config
-from .constant import (
-    GameState,
-    GameStatus,
-    KillReason,
-    Role,
-    RoleGroup,
-    priesthood_proirity,
-    role_preset,
-    werewolf_priority,
-)
+from .constant import GameState, GameStatus, KillReason, Role, RoleGroup
 from .exception import GameFinished
 from .player import Player
 from .player_set import PlayerSet
@@ -32,6 +23,8 @@ running_games: dict[str, Game] = {}
 
 
 def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
+    logger.opt(colors=True).debug(f"初始化 <c>{game.group.id}</c> 的玩家职业")
+    role_preset = config.get_role_preset()
     preset = role_preset.get(len(players))
     if preset is None:
         raise ValueError(
@@ -40,8 +33,8 @@ def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
         )
 
     roles: list[Role] = []
-    roles.extend(werewolf_priority[: preset[0]])
-    roles.extend(priesthood_proirity[: preset[1]])
+    roles.extend(config.werewolf_priority[: preset[0]])
+    roles.extend(config.priesthood_proirity[: preset[1]])
     roles.extend([Role.Civilian] * preset[2])
 
     r = random.Random(time.time())
@@ -54,6 +47,8 @@ def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
     for _ in range(len(players)):
         idx = r.randint(0, len(roles) - 1)
         shuffled.append(roles.pop(idx))
+
+    logger.debug(f"职业分配: {shuffled}")
 
     async def selector(target_: Target, b: Bot):
         return target_.self_id == bot.self_id and b is bot
@@ -134,7 +129,7 @@ class Game:
                 p.name for p in player.kill_info.killers
             )
             match player.kill_info.reason:
-                case KillReason.Kill:
+                case KillReason.Werewolf:
                     msg += " 刀了"
                 case KillReason.Poison:
                     msg += " 毒死"
@@ -147,7 +142,7 @@ class Game:
         return msg.strip()
 
     async def notify_player_role(self) -> None:
-        preset = role_preset[len(self.players)]
+        preset = config.get_role_preset()[len(self.players)]
         await asyncio.gather(
             self.send(
                 self.at_all()
@@ -196,6 +191,7 @@ class Game:
         try:
             await players.interact(timeout_secs)
         except TimeoutError:
+            logger.opt(colors=True).debug(f"{text}交互超时 (<y>{timeout_secs}</y>s)")
             await players.broadcast(f"{text}交互时间结束")
 
     async def select_killed(self) -> None:
@@ -267,6 +263,8 @@ class Game:
         # 收集到的总票数
         total_votes = sum(map(len, vote_result.values()))
 
+        logger.debug(f"投票结果: {vote_result}")
+
         # 投票结果公示
         msg = UniMessage.text("投票结果:\n")
         for p, v in sorted(vote_result.items(), key=lambda x: len(x[1]), reverse=True):
@@ -320,9 +318,12 @@ class Game:
             while True:
                 player, msg = await queue.get()
                 msg = f"玩家 {player.name}:\n" + msg
-                await self.players.dead().exclude(player).broadcast(msg)
+                await self.players.killed().exclude(player).broadcast(msg)
+                queue.task_done()
 
         async def recv(player: Player):
+            await player.killed.wait()
+
             counter = 0
 
             def decrease():
@@ -330,9 +331,6 @@ class Game:
                 counter -= 1
 
             while True:
-                if not player.killed:
-                    await asyncio.sleep(1)
-                    continue
                 msg = await player.receive()
                 counter += 1
                 if counter <= 10:
@@ -379,7 +377,7 @@ class Game:
                 # 除非守卫保护或女巫使用解药，否则狼人正常击杀玩家
                 if not ((killed is protected) or (antidote and potioned is killed)):
                     await killed.kill(
-                        KillReason.Kill, *players.select(RoleGroup.Werewolf)
+                        KillReason.Werewolf, *players.select(RoleGroup.Werewolf)
                     )
             # 如果女巫使用毒药且守卫未保护，杀死该玩家
             if poison and (potioned is not None) and (potioned is not protected):
@@ -442,14 +440,14 @@ class Game:
         await self.send(msg)
         await self.send(f"📌玩家死亡报告:\n\n{self.show_killed_players()}")
 
-    def start(self):
-        event = asyncio.Event()
+    def start(self) -> None:
+        finished = asyncio.Event()
         game_task = asyncio.create_task(self.run())
-        game_task.add_done_callback(lambda _: event.set())
+        game_task.add_done_callback(lambda _: finished.set())
         dead_channel = asyncio.create_task(self.run_dead_channel())
 
         async def daemon():
-            await event.wait()
+            await finished.wait()
 
             try:
                 game_task.result()

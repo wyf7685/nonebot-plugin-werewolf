@@ -5,12 +5,12 @@ import tomllib
 from datetime import date
 from pathlib import Path
 
-os.system("pdm lint")
+os.system("uv run scripts/lint.cmd")
 
 project_root = Path(__file__).parent.parent.resolve()
 
 toml_file = project_root / "pyproject.toml"
-project = tomllib.loads(toml_file.read_text())
+project = tomllib.loads(toml_file.read_text(encoding="utf-8"))
 
 project_name: str = project["project"]["name"]
 print(f"Project name: {project_name}")
@@ -22,8 +22,6 @@ new_ver = input("Input new version: ")
 changelog: list[str] = []
 while line := input("Input changelog: "):
     changelog.append(line)
-
-today = date.today().strftime("%Y.%m.%d")
 
 
 def replace_file(path: Path, old: str, new: str):
@@ -49,7 +47,7 @@ replace_file(
 changelog_placeholder = "<!-- CHANGELOG -->"
 new_changelog = (
     changelog_placeholder
-    + f"\n\n- {today} v{new_ver}\n\n"
+    + f"\n\n- {date.today().strftime('%Y.%m.%d')} v{new_ver}\n\n"
     + "\n".join(f"  - {line}" for line in changelog)
 )
 readme_file = project_root / "README.md"

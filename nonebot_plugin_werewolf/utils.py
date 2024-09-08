@@ -11,7 +11,7 @@ from nonebot.rule import to_me
 from nonebot_plugin_alconna import MsgTarget, UniMessage, UniMsg
 from nonebot_plugin_userinfo import EventUserInfo, UserInfo
 
-from .constant import role_preset
+from .config import config
 
 
 def check_index(text: str, arrlen: int) -> int | None:
@@ -124,6 +124,7 @@ async def _prepare_game_handle(
         match (text, user == admin_id):
             case ("开始游戏", True):
                 player_num = len(players)
+                role_preset = config.get_role_preset()
                 if player_num < min(role_preset):
                     await (
                         msg.text(f"游戏至少需要 {min(role_preset)} 人, ")
