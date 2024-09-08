@@ -23,5 +23,7 @@ driver.register_adapter(SatoriAdapter)
 nonebot.load_plugin("nonebot_plugin_werewolf")
 
 if __name__ == "__main__":
-    nonebot.run()
-    clean_pycache()
+    try:
+        nonebot.run()
+    finally:
+        clean_pycache()
