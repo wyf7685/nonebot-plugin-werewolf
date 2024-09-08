@@ -182,7 +182,7 @@ werewolf__werewolf_priority=[1, 2, 1, 1]
 
 上述配置中，`[1, 2, 1, 1]` 表示狼人的职业优先级为 `狼人`, `狼王`, `狼人`, `狼人`
 
-#### 配置项 `werewolf__werewolf_priority`
+#### 配置项 `werewolf__priesthood_proirity`
 
 ```env
 werewolf__priesthood_proirity=[11, 12, 13, 14, 15]
