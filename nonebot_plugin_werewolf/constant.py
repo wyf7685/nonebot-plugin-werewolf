@@ -69,7 +69,7 @@ role_name_conv: dict[Role, str] = {
 }
 
 default_role_preset: dict[int, tuple[int, int, int]] = {
-    # 总人数: (狼, 神, 民)
+    # 总人数 => (狼, 神, 民)
     6: (1, 2, 3),
     7: (2, 2, 3),
     8: (2, 3, 3),

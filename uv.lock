@@ -355,6 +355,18 @@ wheels = [
 ]
 
 [[package]]
+name = "nonebot-adapter-satori"
+version = "0.12.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "nonebot2" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/94/cb/983a3fe3f8bdece7b4baf4e3010968b0d99f304aa97a90a19dc8c1848b8e/nonebot_adapter_satori-0.12.5.tar.gz", hash = "sha256:e5b03737f4821f90c2a9d4bc1a49137f595868533d33c8a198b51bc966be17c4", size = 28371 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/da/f4/16c53d84b45646c39a5711bfc6893725f75dad2e7b40deb7433208e0db8a/nonebot_adapter_satori-0.12.5-py3-none-any.whl", hash = "sha256:09082f176c79a69196be8ef027113705a84a17dfafd69767b9dc2cf71e095afc", size = 27137 },
+]
+
+[[package]]
 name = "nonebot-plugin-alconna"
 version = "0.52.2"
 source = { registry = "https://pypi.org/simple" }
@@ -413,8 +425,12 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "fastapi" },
+    { name = "httpx" },
     { name = "nonebot-adapter-onebot" },
+    { name = "nonebot-adapter-satori" },
     { name = "nonebot2", extra = ["fastapi"] },
+    { name = "websockets" },
 ]
 
 [package.metadata]
@@ -427,8 +443,12 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "fastapi", specifier = ">=0.114.0" },
+    { name = "httpx", specifier = ">=0.27.2" },
     { name = "nonebot-adapter-onebot", specifier = ">=2.4.4" },
+    { name = "nonebot-adapter-satori", specifier = ">=0.12.5" },
     { name = "nonebot2", extras = ["fastapi"], specifier = ">=2.3.3" },
+    { name = "websockets", specifier = ">=13.0.1" },
 ]
 
 [[package]]
