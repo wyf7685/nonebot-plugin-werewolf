@@ -61,7 +61,7 @@ async def rule_in_game(event: Event, target: MsgTarget) -> bool:
         return False
     if target.private:
         return user_in_game(target.id, None)
-    elif target.id in running_games:
+    if target.id in running_games:
         return user_in_game(event.get_user_id(), target.id)
     return False
 
@@ -105,8 +105,7 @@ async def _prepare_game_receive(
     async for user, name, text in wait(default=(None, "", "")):
         if user is None:
             continue
-        name = re.sub(r"[\u2066-\u2069]", "", name)
-        await queue.put((user, name, text))
+        await queue.put((user, re.sub(r"[\u2066-\u2069]", "", name), text))
 
 
 async def _prepare_game_handle(
@@ -194,7 +193,7 @@ async def prepare_game(event: Event, players: dict[str, str]) -> None:
             queue,
             event,
             UniMessage.get_target(event).id,
-        )
+        ),
     )
 
     try:

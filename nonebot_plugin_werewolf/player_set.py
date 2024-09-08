@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import asyncio
 import asyncio.timeouts
+from typing import TYPE_CHECKING
 
-from nonebot_plugin_alconna.uniseg import UniMessage
-
-from .constant import Role, RoleGroup
 from .player import Player
+
+if TYPE_CHECKING:
+    from nonebot_plugin_alconna.uniseg import UniMessage
+
+    from .constant import Role, RoleGroup
 
 
 class PlayerSet(set[Player]):

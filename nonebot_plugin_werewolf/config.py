@@ -3,6 +3,7 @@ from typing import Literal, overload
 from nonebot import get_plugin_config, logger
 from nonebot.compat import PYDANTIC_V2
 from pydantic import BaseModel, Field
+from typing_extensions import Self
 
 from .constant import (
     Role,
@@ -17,14 +18,14 @@ else:
     from pydantic import root_validator
 
     @overload
-    def model_validator(*, mode: Literal["before"]): ...
+    def model_validator(*, mode: Literal["before"]): ...  # noqa: ANN201
 
     @overload
-    def model_validator(*, mode: Literal["after"]): ...
+    def model_validator(*, mode: Literal["after"]): ...  # noqa: ANN201
 
     def model_validator(*, mode: Literal["before", "after"]):
         return root_validator(
-            pre=mode == "before",  # pyright:ignore[reportArgumentType]
+            pre=mode == "before",  # pyright: ignore[reportArgumentType]
             allow_reuse=True,
         )
 
@@ -42,7 +43,7 @@ class PluginConfig(BaseModel):
     )
 
     @model_validator(mode="after")
-    def _validate(self):
+    def _validate(self) -> Self:
         if isinstance(self.role_preset, list):
             for preset in self.role_preset:
                 if preset[0] != sum(preset[1:]):

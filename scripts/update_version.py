@@ -1,9 +1,13 @@
-# ruff: noqa: T201
+# ruff: noqa: T201, S605, S607, DTZ011
 
 import os
-import tomllib
 from datetime import date
 from pathlib import Path
+
+try:  # pragma: py-gte-311
+    import tomllib  # pyright: ignore[reportMissingImports]
+except ModuleNotFoundError:  # pragma: py-lt-311
+    import tomli as tomllib  # pyright: ignore[reportMissingImports]
 
 os.system("uv run scripts/lint.cmd")
 
@@ -24,7 +28,7 @@ while line := input("Input changelog: "):
     changelog.append(line)
 
 
-def replace_file(path: Path, old: str, new: str):
+def replace_file(path: Path, old: str, new: str) -> None:
     path.write_text(
         path.read_text(encoding="utf-8").replace(old, new),
         encoding="utf-8",

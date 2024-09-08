@@ -5,8 +5,8 @@ import asyncio.timeouts
 import contextlib
 import random
 import time
+from typing import TYPE_CHECKING, NoReturn
 
-from nonebot.adapters import Bot
 from nonebot.log import logger
 from nonebot_plugin_alconna import Target, UniMessage
 
@@ -15,6 +15,10 @@ from .constant import GameState, GameStatus, KillReason, Role, RoleGroup
 from .player import Player
 from .player_set import PlayerSet
 from .utils import InputStore
+
+if TYPE_CHECKING:
+    from nonebot.adapters import Bot
+    from nonebot_plugin_alconna.uniseg.message import Receipt
 
 starting_games: dict[str, dict[str, str]] = {}
 running_games: dict[str, Game] = {}
@@ -35,7 +39,7 @@ def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
     roles.extend(config.priesthood_proirity[: preset[1]])
     roles.extend([Role.Civilian] * preset[2])
 
-    r = random.Random(time.time())
+    r = random.Random(time.time())  # noqa: S311
     shuffled: list[Role] = []
     for _ in range(len(players)):
         idx = r.randint(0, len(roles) - 1)
@@ -43,7 +47,7 @@ def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
 
     logger.debug(f"职业分配: {shuffled}")
 
-    async def selector(target_: Target, b: Bot):
+    async def selector(target_: Target, b: Bot) -> bool:
         return target_.self_id == bot.self_id and b is bot
 
     return PlayerSet(
@@ -59,7 +63,7 @@ def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
             ),
             players[user_id],
         )
-        for user_id, role in zip(players, shuffled)
+        for user_id, role in zip(players, shuffled, strict=True)
     )
 
 
@@ -77,7 +81,7 @@ class Game:
         self.state = GameState(0)
         self.killed_players = []
 
-    async def send(self, message: str | UniMessage):
+    async def send(self, message: str | UniMessage) -> Receipt:
         if isinstance(message, str):
             message = UniMessage.text(message)
         logger.opt(colors=True).info(
@@ -150,7 +154,7 @@ class Game:
         if isinstance(players, Player):
             players = PlayerSet([players])
 
-        async def wait(p: Player):
+        async def wait(p: Player) -> None:
             while True:
                 msg = await InputStore.fetch(p.user_id, self.group.id)
                 if msg.extract_plain_text() == "/stop":
@@ -200,7 +204,7 @@ class Game:
             await self.interact(Role.Witch, 60)
         # 否则等待 5-20s
         else:
-            await asyncio.sleep(random.uniform(5, 20))
+            await asyncio.sleep(random.uniform(5, 20))  # noqa: S311
 
     async def handle_new_dead(self, players: Player | PlayerSet) -> None:
         if isinstance(players, Player):
@@ -245,9 +249,9 @@ class Game:
         # 筛选当前存活玩家
         players = self.players.alive()
 
-        # 被票玩家: [投票玩家]
+        # 被票玩家 => [投票玩家]
         vote_result: dict[Player, list[Player]] = await players.vote(60)
-        # 票数: [被票玩家]
+        # 票数 => [被票玩家]
         vote_reversed: dict[int, list[Player]] = {}
         # 收集到的总票数
         total_votes = sum(map(len, vote_result.values()))
@@ -303,19 +307,19 @@ class Game:
         loop = asyncio.get_event_loop()
         queue: asyncio.Queue[tuple[Player, UniMessage]] = asyncio.Queue()
 
-        async def send():
+        async def send() -> NoReturn:
             while True:
                 player, msg = await queue.get()
                 msg = f"玩家 {player.name}:\n" + msg
                 await self.players.killed().exclude(player).broadcast(msg)
                 queue.task_done()
 
-        async def recv(player: Player):
+        async def recv(player: Player) -> NoReturn:
             await player.killed.wait()
 
             counter = 0
 
-            def decrease():
+            def decrease() -> None:
                 nonlocal counter
                 counter -= 1
 
@@ -358,13 +362,13 @@ class Game:
             # 女巫的操作目标和内容
             potioned, (antidote, poison) = self.state.potion
 
-            # 狼人未空刀
-            if killed is not None:
-                # 除非守卫保护或女巫使用解药，否则狼人正常击杀玩家
-                if not ((killed is protected) or (antidote and potioned is killed)):
-                    await killed.kill(
-                        KillReason.Werewolf, *players.select(RoleGroup.Werewolf)
-                    )
+            # 狼人未空刀，除非守卫保护或女巫使用解药，否则狼人正常击杀玩家
+            if killed is not None and (
+                not ((killed is protected) or (antidote and potioned is killed))
+            ):
+                await killed.kill(
+                    KillReason.Werewolf, *players.select(RoleGroup.Werewolf)
+                )
             # 如果女巫使用毒药且守卫未保护，杀死该玩家
             if poison and (potioned is not None) and (potioned is not protected):
                 await potioned.kill(KillReason.Poison, *players.select(Role.Witch))
@@ -421,7 +425,7 @@ class Game:
         game_task.add_done_callback(lambda _: finished.set())
         dead_channel = asyncio.create_task(self.run_dead_channel())
 
-        async def daemon():
+        async def daemon() -> None:
             await finished.wait()
 
             try:
@@ -437,7 +441,7 @@ class Game:
                 dead_channel.cancel()
                 running_games.pop(self.group.id, None)
 
-        def daemon_callback(task: asyncio.Task[None]):
+        def daemon_callback(task: asyncio.Task[None]) -> None:
             if err := task.exception():
                 logger.opt(exception=err).error(
                     f"{self.group.id} 的狼人杀守护进程出现错误: {err!r}"

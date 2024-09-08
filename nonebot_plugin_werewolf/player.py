@@ -4,16 +4,19 @@ import asyncio
 import asyncio.timeouts
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, TypeVar, final
-from typing_extensions import override
 
-from nonebot.adapters import Bot
 from nonebot.log import logger
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
+from typing_extensions import override
 
 from .constant import KillReason, Role, RoleGroup, role_name_conv
 from .utils import InputStore, check_index
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
+    from nonebot.adapters import Bot
+
     from .game import Game
     from .player_set import PlayerSet
 
@@ -22,7 +25,7 @@ P = TypeVar("P", bound=type["Player"])
 PLAYER_CLASS: dict[Role, type[Player]] = {}
 
 
-def register_role(role: Role, role_group: RoleGroup, /):
+def register_role(role: Role, role_group: RoleGroup, /) -> Callable[[P], P]:
     def decorator(cls: P, /) -> P:
         cls.role = role
         cls.role_group = role_group
@@ -86,11 +89,11 @@ class Player:
         return role_name_conv[self.role]
 
     @final
-    def _log(self, text: str):
+    def _log(self, text: str) -> None:
         logger.opt(colors=True).info(
             f"<c>{self.game.group.id}</c> | "
             f"[<m>{self.role_name}</m>] <y>{self.name}</y>(<c>{self.user_id}</c>) | "
-            + text.replace("\n", "\\n")
+            + text.replace("\n", "\\n"),
         )
 
     @final
@@ -198,7 +201,7 @@ class CanShoot(Player):
             text = await self.receive_text()
             if text == "/stop":
                 await self.send("已取消技能")
-                return
+                return None
             index = check_index(text, len(players))
             if index is not None:
                 selected = index - 1
@@ -227,7 +230,7 @@ class Werewolf(Player):
         partners = players.select(RoleGroup.Werewolf).exclude(self)
 
         # 避免阻塞
-        def broadcast(msg: str | UniMessage):
+        def broadcast(msg: str | UniMessage) -> asyncio.Task[None]:
             return asyncio.create_task(partners.broadcast(msg))
 
         msg = UniMessage()
@@ -248,8 +251,8 @@ class Werewolf(Player):
         selected = None
         finished = False
         while selected is None or not finished:
-            input = await self.receive()
-            text = input.extract_plain_text()
+            input_msg = await self.receive()
+            text = input_msg.extract_plain_text()
             index = check_index(text, len(players))
             if index is not None:
                 selected = index - 1
@@ -263,7 +266,7 @@ class Werewolf(Player):
                     broadcast(f"队友 {self.name} 结束当前回合")
                 else:
                     await self.send("当前未选择玩家，无法结束回合")
-            broadcast(UniMessage.text(f"队友 {self.name}:\n") + input)
+            broadcast(UniMessage.text(f"队友 {self.name}:\n") + input_msg)
 
         self.selected = players[selected]
 
@@ -310,7 +313,7 @@ class Witch(Player):
         *,
         antidote: Player | None = None,
         posion: Player | None = None,
-    ):
+    ) -> None:
         if antidote is not None:
             self.antidote = 0
             self.selected = antidote
@@ -344,10 +347,9 @@ class Witch(Player):
                 self.set_state(antidote=killed)
                 await self.send(f"你对 {killed.name} 使用了解药，回合结束")
                 return True
-            elif text == "/stop":
+            if text == "/stop":
                 return False
-            else:
-                await self.send("输入错误: 请输入 “1” 或 “/stop”")
+            await self.send("输入错误: 请输入 “1” 或 “/stop”")
 
     @override
     async def interact(self) -> None:
@@ -374,12 +376,11 @@ class Witch(Player):
             if index is not None:
                 selected = index - 1
                 break
-            elif text == "/stop":
+            if text == "/stop":
                 await self.send("你选择不使用毒药，回合结束")
                 self.set_state()
                 return
-            else:
-                await self.send("输入错误: 请发送玩家编号或 “/stop”")
+            await self.send("输入错误: 请发送玩家编号或 “/stop”")
 
         self.poison = 0
         self.selected = player = players[selected]
@@ -444,7 +445,7 @@ class Idiot(Player):
             await self.game.send(
                 UniMessage.at(self.user_id)
                 .text(" 的身份是白痴\n")
-                .text("免疫本次投票放逐，且接下来无法参与投票")
+                .text("免疫本次投票放逐，且接下来无法参与投票"),
             )
             return False
         return await super().kill(reason, *killers)
