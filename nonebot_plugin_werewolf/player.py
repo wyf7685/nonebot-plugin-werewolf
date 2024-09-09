@@ -91,10 +91,12 @@ class Player:
 
     @final
     def _log(self, text: str) -> None:
+        text = text.replace("\n", "\\n")
         logger.opt(colors=True).info(
-            f"<c>{self.game.group.id}</c> | "
-            f"[<m>{self.role_name}</m>] <y>{self.name}</y>(<c>{self.user_id}</c>) | "
-            + text.replace("\n", "\\n"),
+            f"<b><e>{self.game.group.id}</e></b> | "
+            f"[<b><m>{self.role_name}</m></b>] "
+            f"<y>{self.name}</y>(<e>{self.user_id}</e>) | "
+            f"{text}",
         )
 
     @final
@@ -102,7 +104,7 @@ class Player:
         if isinstance(message, str):
             message = UniMessage.text(message)
 
-        self._log(f"<m>Send</m> | {message}")
+        self._log(f"<g>Send</g> | {message}")
         return await message.send(target=self.user, bot=self.bot)
 
     @final
@@ -111,7 +113,7 @@ class Player:
             await self.send(prompt)
 
         result = await InputStore.fetch(self.user.id)
-        self._log(f"<m>Recv</m> | {result}")
+        self._log(f"<y>Recv</y> | {result}")
         return result
 
     @final

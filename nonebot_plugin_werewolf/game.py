@@ -90,9 +90,8 @@ class Game:
     async def send(self, message: str | UniMessage) -> Receipt:
         if isinstance(message, str):
             message = UniMessage.text(message)
-        logger.opt(colors=True).info(
-            f"<c>{self.group.id}</c> | <m>Send</m> | {message}"
-        )
+        text = f"<b><e>{self.group.id}</e></b> | <g>Send</g> | {message}"
+        logger.opt(colors=True).info(text.replace("\n", "\\n"))
         return await message.send(self.group, self.bot)
 
     def at_all(self) -> UniMessage:
