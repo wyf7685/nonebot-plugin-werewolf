@@ -249,9 +249,9 @@ class Game:
         # 筛选当前存活玩家
         players = self.players.alive()
 
-        # 被票玩家 => [投票玩家]
+        # 被票玩家: [投票玩家]
         vote_result: dict[Player, list[Player]] = await players.vote(60)
-        # 票数 => [被票玩家]
+        # 票数: [被票玩家]
         vote_reversed: dict[int, list[Player]] = {}
         # 收集到的总票数
         total_votes = sum(map(len, vote_result.values()))

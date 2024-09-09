@@ -94,6 +94,7 @@ ignore = [
     "TRY003", # raise-vanilla-args
     "EM102",  # f-string-in-exception
     "COM812", # missing-trailing-comma
+    "ERA001", # commented-out-code
 ]
 
 [tool.pyright]
