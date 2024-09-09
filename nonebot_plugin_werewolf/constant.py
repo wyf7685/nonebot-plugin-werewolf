@@ -56,7 +56,7 @@ class GameState:
     potion: tuple[Player | None, tuple[bool, bool]] = (None, (False, False))
 
 
-role_name_conv: dict[Role, str] = {
+role_name_conv: dict[Role | RoleGroup, str] = {
     Role.Werewolf: "狼人",
     Role.WolfKing: "狼王",
     Role.Prophet: "预言家",
@@ -66,6 +66,9 @@ role_name_conv: dict[Role, str] = {
     Role.Idiot: "白痴",
     Role.Joker: "小丑",
     Role.Civilian: "平民",
+    RoleGroup.Werewolf: "狼人",
+    RoleGroup.GoodGuy: "好人",
+    RoleGroup.Others: "其他",
 }
 
 default_role_preset: dict[int, tuple[int, int, int]] = {

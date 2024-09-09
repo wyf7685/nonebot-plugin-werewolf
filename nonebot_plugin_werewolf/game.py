@@ -11,7 +11,7 @@ from nonebot.log import logger
 from nonebot_plugin_alconna import Target, UniMessage
 
 from .config import config
-from .constant import GameState, GameStatus, KillReason, Role, RoleGroup
+from .constant import GameState, GameStatus, KillReason, Role, RoleGroup, role_name_conv
 from .exception import GameFinishedError
 from .player import Player
 from .player_set import PlayerSet
@@ -184,9 +184,9 @@ class Game:
             type_.role_name  # Player
             if isinstance(type_, Player)
             else (
-                type_.name  # Role
+                role_name_conv[type_]  # Role
                 if isinstance(type_, Role)
-                else f"{type_.name}阵营"  # RoleGroup
+                else f"{role_name_conv[type_]}阵营"  # RoleGroup
             )
         )
 

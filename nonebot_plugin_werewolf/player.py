@@ -462,6 +462,7 @@ class Joker(Player):
     async def kill(self, reason: KillReason, *killers: Player) -> bool:
         result = await super().kill(reason, *killers)
         if reason == KillReason.Vote:
+            self.game.killed_players.append(self)
             raise GameFinishedError(GameStatus.Joker)
         return result
 
