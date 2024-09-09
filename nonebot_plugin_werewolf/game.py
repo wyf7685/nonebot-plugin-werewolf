@@ -3,8 +3,7 @@ from __future__ import annotations
 import asyncio
 import asyncio.timeouts
 import contextlib
-import random
-import time
+import secrets
 from typing import TYPE_CHECKING, NoReturn
 
 from nonebot.log import logger
@@ -35,20 +34,19 @@ def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
             f"应为 {', '.join(map(str, role_preset))} 人, 传入{len(players)}人"
         )
 
+    w, p, c = preset
     roles: list[Role] = []
-    roles.extend(config.werewolf_priority[: preset[0]])
-    roles.extend(config.priesthood_proirity[: preset[1]])
-    roles.extend([Role.Civilian] * preset[2])
+    roles.extend(config.werewolf_priority[:w])
+    roles.extend(config.priesthood_proirity[:p])
+    roles.extend([Role.Civilian] * c)
 
-    r = random.Random(time.time())  # noqa: S311
-
-    if roles.count(Role.Civilian) >= 2 and r.random() <= config.joker_probability:
+    if c >= 2 and secrets.randbelow(100) <= config.joker_probability * 100:
         roles.remove(Role.Civilian)
         roles.append(Role.Joker)
 
     shuffled: list[Role] = []
-    for _ in range(len(players)):
-        idx = r.randint(0, len(roles) - 1)
+    while roles:
+        idx = secrets.randbelow(len(roles))
         shuffled.append(roles.pop(idx))
 
     logger.debug(f"职业分配: {shuffled}")
@@ -220,7 +218,7 @@ class Game:
             await self.interact(Role.Witch, 60)
         # 否则等待 5-20s
         else:
-            await asyncio.sleep(random.uniform(5, 20))  # noqa: S311
+            await asyncio.sleep(5 + secrets.randbelow(15))
 
     async def handle_new_dead(self, players: Player | PlayerSet) -> None:
         if isinstance(players, Player):
