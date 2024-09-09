@@ -20,6 +20,11 @@ _✨ 简单的狼人杀插件 ✨_
 [![pyright](https://img.shields.io/badge/types-pyright-797952.svg?logo=python&logoColor=edb641)](https://github.com/Microsoft/pyright)
 [![ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
+[![commits](https://img.shields.io/github/commit-activity/w/wyf7685/nonebot-plugin-werewolf)](https://github.com/wyf7685/nonebot-plugin-werewolf/commits)
+[![pre-commit](https://results.pre-commit.ci/badge/github/wyf7685/nonebot-plugin-werewolf/master.svg)](https://results.pre-commit.ci/latest/github/wyf7685/nonebot-plugin-werewolf/master)
+[![pyright](https://github.com/wyf7685/nonebot-plugin-werewolf/actions/workflows/pyright.yml/badge.svg?branch=master&event=push)](https://github.com/wyf7685/nonebot-plugin-werewolf/actions/workflows/pyright.yml)
+[![publish](https://github.com/wyf7685/nonebot-plugin-werewolf/actions/workflows/pypi-publish.yml/badge.svg)](https://github.com/wyf7685/nonebot-plugin-werewolf/actions/workflows/pypi-publish.yml)
+
 [![NoneBot Registry](https://img.shields.io/endpoint?url=https%3A%2F%2Fnbbdg.lgc2333.top%2Fplugin%2Fnonebot-plugin-werewolf)](https://registry.nonebot.dev/plugin/nonebot-plugin-werewolf:nonebot_plugin_werewolf)
 [![Supported Adapters](https://img.shields.io/endpoint?url=https%3A%2F%2Fnbbdg.lgc2333.top%2Fplugin-adapters%2Fnonebot-plugin-werewolf)](https://registry.nonebot.dev/plugin/nonebot-plugin-werewolf:nonebot_plugin_werewolf)
 
