@@ -8,7 +8,7 @@ import time
 from typing import TYPE_CHECKING, NoReturn
 
 from nonebot.log import logger
-from nonebot_plugin_alconna import Target, UniMessage
+from nonebot_plugin_alconna import At, Target, UniMessage
 
 from .config import config
 from .constant import GameState, GameStatus, KillReason, Role, RoleGroup, role_name_conv
@@ -77,6 +77,7 @@ class Game:
     bot: Bot
     group: Target
     players: PlayerSet
+    _player_map: dict[str, Player]
     state: GameState
     killed_players: list[Player]
 
@@ -84,13 +85,19 @@ class Game:
         self.bot = bot
         self.group = group
         self.players = init_players(bot, self, players)
+        self._player_map = {p.user_id: p for p in self.players}
         self.state = GameState(0)
         self.killed_players = []
 
     async def send(self, message: str | UniMessage) -> Receipt:
         if isinstance(message, str):
             message = UniMessage.text(message)
-        text = f"<b><e>{self.group.id}</e></b> | <g>Send</g> | {message}"
+        text = f"<b><e>{self.group.id}</e></b> | <g>Send</g> | "
+        for seg in message:
+            if isinstance(seg, At):
+                text += f"<y>@{self._player_map[seg.target].name}</y>"
+            else:
+                text += str(seg)
         logger.opt(colors=True).info(text.replace("\n", "\\n"))
         return await message.send(self.group, self.bot)
 
