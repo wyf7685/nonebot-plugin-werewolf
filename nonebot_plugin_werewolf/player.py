@@ -307,23 +307,23 @@ class Witch(Player):
     antidote: int = 1
     poison: int = 1
 
-    def set_state(
-        self,
-        *,
-        antidote: Player | None = None,
-        posion: Player | None = None,
-    ) -> None:
-        if antidote is not None:
-            self.antidote = 0
-            self.selected = antidote
-            self.game.state.potion = (antidote, (True, False))
-        elif posion is not None:
-            self.poison = 0
-            self.selected = posion
-            self.game.state.potion = (posion, (False, True))
-        else:
-            self.selected = None
-            self.game.state.potion = (None, (False, False))
+    # def set_state(
+    #     self,
+    #     *,
+    #     antidote: Player | None = None,
+    #     posion: Player | None = None,
+    # ) -> None:
+    #     if antidote is not None:
+    #         self.antidote = 0
+    #         self.selected = antidote
+    #         self.game.state.potion = (antidote, (True, False))
+    #     elif posion is not None:
+    #         self.poison = 0
+    #         self.selected = posion
+    #         self.game.state.potion = (posion, (False, True))
+    #     else:
+    #         self.selected = None
+    #         self.game.state.potion = (None, (False, False))
 
     async def handle_killed(self) -> bool:
         msg = UniMessage()
@@ -343,7 +343,7 @@ class Witch(Player):
             text = await self.receive_text()
             if text == "1":
                 self.antidote = 0
-                self.set_state(antidote=killed)
+                self.game.state.antidote.add(killed)
                 await self.send(f"你对 {killed.name} 使用了解药，回合结束")
                 return True
             if text == "/stop":
@@ -357,7 +357,6 @@ class Witch(Player):
 
         if not self.poison:
             await self.send("你没有可以使用的药水，回合结束")
-            self.set_state()
             return
 
         players = self.game.players.alive()
@@ -377,13 +376,12 @@ class Witch(Player):
                 break
             if text == "/stop":
                 await self.send("你选择不使用毒药，回合结束")
-                self.set_state()
                 return
             await self.send("输入错误: 请发送玩家编号或 “/stop”")
 
         self.poison = 0
-        self.selected = player = players[selected]
-        self.set_state(posion=player)
+        player = players[selected]
+        self.game.state.poison.add((self, player))
         await self.send(f"当前回合选择对玩家 {player.name} 使用毒药\n回合结束")
 
 
@@ -418,7 +416,8 @@ class Guard(Player):
                 break
             await self.send("输入错误，请发送编号选择玩家")
 
-        self.game.state.protected = self.selected = players[selected]
+        self.selected = players[selected]
+        self.game.state.protected.add(self.selected)
         await self.send(f"本回合保护的玩家: {self.selected.name}")
 
 

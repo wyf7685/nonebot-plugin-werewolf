@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
+import dataclasses
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
@@ -47,13 +47,14 @@ class GameStatus(Enum):
     Joker = auto()
 
 
-@dataclass
+@dataclasses.dataclass
 class GameState:
     day: int
     killed: Player | None = None
     shoot: tuple[Player, Player] | tuple[None, None] = (None, None)
-    protected: Player | None = None
-    potion: tuple[Player | None, tuple[bool, bool]] = (None, (False, False))
+    antidote: set[Player] = dataclasses.field(default_factory=set)
+    poison: set[tuple[Player, Player]] = dataclasses.field(default_factory=set)
+    protected: set[Player] = dataclasses.field(default_factory=set)
 
 
 role_name_conv: dict[Role | RoleGroup, str] = {

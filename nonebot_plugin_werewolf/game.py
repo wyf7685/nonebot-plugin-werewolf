@@ -375,22 +375,22 @@ class Game:
             )
 
             # 狼人击杀目标
-            killed = self.state.killed
-            # 守卫保护目标
-            protected = self.state.protected
-            # 女巫的操作目标和内容
-            potioned, (antidote, poison) = self.state.potion
-
-            # 狼人未空刀，除非守卫保护或女巫使用解药，否则狼人正常击杀玩家
-            if killed is not None and (
-                not ((killed is protected) or (antidote and potioned is killed))
+            if (
+                (killed := self.state.killed)  # 狼人未空刀
+                and killed not in self.state.protected  # 守卫保护
+                and killed not in self.state.antidote  # 女巫使用解药
             ):
+                # 狼人正常击杀玩家
                 await killed.kill(
-                    KillReason.Werewolf, *players.select(RoleGroup.Werewolf)
+                    KillReason.Werewolf,
+                    *players.select(RoleGroup.Werewolf),
                 )
-            # 如果女巫使用毒药且守卫未保护，杀死该玩家
-            if poison and (potioned is not None) and (potioned is not protected):
-                await potioned.kill(KillReason.Poison, *players.select(Role.Witch))
+
+            # 女巫操作目标
+            for witch, potioned in self.state.poison:
+                if potioned not in self.state.protected:  # 守卫未保护
+                    # 女巫毒杀玩家
+                    await potioned.kill(KillReason.Poison, witch)
 
             day_count += 1
             msg = UniMessage.text(f"『第{day_count}天』天亮了...\n")
