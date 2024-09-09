@@ -62,7 +62,7 @@ with contextlib.suppress(ImportError):
                 group_id=int(group_id),
                 user_id=int(user_id),
             )
-            players[user_id] = res.get("nickname") or user_id
+            players[user_id] = res.get("card") or res.get("nickname") or user_id
             await bot.send(event, MessageSegment.at(user_id) + "成功加入游戏")
 
     def ob11_ext_enabled() -> bool:

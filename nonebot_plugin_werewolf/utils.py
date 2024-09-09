@@ -187,16 +187,16 @@ async def _prepare_game_handle(
 
 
 async def prepare_game(event: Event, players: dict[str, str]) -> None:
+    from .game import starting_games
+
+    group_id = UniMessage.get_target(event).id
+    starting_games[group_id] = players
+
     queue: asyncio.Queue[tuple[str, str, str]] = asyncio.Queue()
-    task_receive = asyncio.create_task(
-        _prepare_game_receive(
-            queue,
-            event,
-            UniMessage.get_target(event).id,
-        ),
-    )
+    task_receive = asyncio.create_task(_prepare_game_receive(queue, event, group_id))
 
     try:
         await _prepare_game_handle(queue, players, event.get_user_id())
     finally:
         task_receive.cancel()
+        del starting_games[group_id]

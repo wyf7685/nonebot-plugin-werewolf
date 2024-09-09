@@ -9,7 +9,7 @@ from nonebot.rule import to_me
 from nonebot_plugin_alconna import MsgTarget, UniMessage, UniMsg
 from nonebot_plugin_userinfo import EventUserInfo, UserInfo
 
-from .game import Game, running_games, starting_games
+from .game import Game
 from .ob11_ext import ob11_ext_enabled
 from .utils import InputStore, is_group, prepare_game, rule_in_game, rule_not_in_game
 
@@ -36,9 +36,6 @@ async def handle_start(
     target: MsgTarget,
     admin_info: Annotated[UserInfo, EventUserInfo()],
 ) -> None:
-    if target.id in running_games:
-        await UniMessage.text("当前群聊内有正在进行的游戏，无法创建游戏").finish()
-
     admin_id = event.get_user_id()
     msg = (
         UniMessage.at(admin_id)
@@ -52,7 +49,7 @@ async def handle_start(
         msg.text("\n可使用戳一戳代替游戏交互中的 “/stop” 命令")
     await msg.text("\n\n游戏准备阶段限时5分钟，超时将自动结束").send()
 
-    players = starting_games[target.id] = {admin_id: admin_info.user_name}
+    players = {admin_id: admin_info.user_name}
 
     try:
         async with asyncio.timeouts.timeout(5 * 60):
@@ -61,7 +58,5 @@ async def handle_start(
         raise
     except TimeoutError:
         await UniMessage.text("游戏准备超时，已自动结束").finish()
-    finally:
-        del starting_games[target.id]
 
     Game(bot, target, players).start()
