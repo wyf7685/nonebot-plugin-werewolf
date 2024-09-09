@@ -59,4 +59,5 @@ async def handle_start(
     except TimeoutError:
         await UniMessage.text("游戏准备超时，已自动结束").finish()
 
-    Game(bot, target, players).start()
+    game = Game(bot, target, players)
+    game.start()

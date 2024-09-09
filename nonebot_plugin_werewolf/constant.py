@@ -20,6 +20,9 @@ class Role(Enum):
     Guard = 14
     Idiot = 15
 
+    # 其他
+    Joker = 51
+
     # 平民
     Civilian = 0
 
@@ -27,6 +30,7 @@ class Role(Enum):
 class RoleGroup(Enum):
     Werewolf = auto()
     GoodGuy = auto()
+    Others = auto()
 
 
 class KillReason(Enum):
@@ -37,9 +41,10 @@ class KillReason(Enum):
 
 
 class GameStatus(Enum):
-    Good = auto()
-    Bad = auto()
+    GoodGuy = auto()
+    Werewolf = auto()
     Unset = auto()
+    Joker = auto()
 
 
 @dataclass
@@ -59,9 +64,11 @@ role_name_conv: dict[Role | RoleGroup, str] = {
     Role.Hunter: "猎人",
     Role.Guard: "守卫",
     Role.Idiot: "白痴",
+    Role.Joker: "小丑",
     Role.Civilian: "平民",
     RoleGroup.Werewolf: "狼人",
     RoleGroup.GoodGuy: "好人",
+    RoleGroup.Others: "其他",
 }
 
 default_role_preset: dict[int, tuple[int, int, int]] = {

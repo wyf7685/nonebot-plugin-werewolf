@@ -11,7 +11,8 @@ from nonebot.log import logger
 from nonebot_plugin_alconna import Target, UniMessage
 
 from .config import config
-from .constant import GameState, GameStatus, KillReason, Role, RoleGroup
+from .constant import GameState, GameStatus, KillReason, Role, RoleGroup, role_name_conv
+from .exception import GameFinishedError
 from .player import Player
 from .player_set import PlayerSet
 from .utils import InputStore
@@ -40,6 +41,11 @@ def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
     roles.extend([Role.Civilian] * preset[2])
 
     r = random.Random(time.time())  # noqa: S311
+
+    if roles.count(Role.Civilian) >= 2 and r.random() <= config.joker_probability:
+        roles.remove(Role.Civilian)
+        roles.append(Role.Joker)
+
     shuffled: list[Role] = []
     for _ in range(len(players)):
         idx = r.randint(0, len(roles) - 1)
@@ -100,14 +106,18 @@ class Game:
         w = players.select(RoleGroup.Werewolf)
         p = players.exclude(RoleGroup.Werewolf)
 
+        # 狼人数量大于其他职业数量
         if w.size >= p.size:
-            return GameStatus.Bad
-        if not p.select(Role.Civilian):
-            return GameStatus.Bad
-        if not p.exclude(Role.Civilian):
-            return GameStatus.Bad
+            raise GameFinishedError(GameStatus.Werewolf)
+        # 屠边-村民/中立全灭
+        if not p.select(Role.Civilian, RoleGroup.Others).size:
+            raise GameFinishedError(GameStatus.Werewolf)
+        # 屠边-神职全灭
+        if not p.exclude(Role.Civilian).size:
+            raise GameFinishedError(GameStatus.Werewolf)
+        # 狼人全灭
         if not w.size:
-            return GameStatus.Good
+            raise GameFinishedError(GameStatus.GoodGuy)
 
         return GameStatus.Unset
 
@@ -174,9 +184,9 @@ class Game:
             type_.role_name  # Player
             if isinstance(type_, Player)
             else (
-                type_.name  # Role
+                role_name_conv[type_]  # Role
                 if isinstance(type_, Role)
-                else f"{type_.name}阵营"  # RoleGroup
+                else f"{role_name_conv[type_]}阵营"  # RoleGroup
             )
         )
 
@@ -334,13 +344,14 @@ class Game:
 
         await asyncio.gather(send(), *[recv(p) for p in self.players])
 
-    async def run(self) -> None:
+    async def run(self) -> NoReturn:
         # 告知玩家角色信息
         await self.notify_player_role()
         # 天数记录 主要用于第一晚狼人击杀的遗言
         day_count = 0
 
-        while self.check_game_status() == GameStatus.Unset:
+        # 游戏主循环
+        while True:
             # 重置游戏状态，进入下一夜
             self.state = GameState(day_count)
             players = self.players.alive()
@@ -349,10 +360,12 @@ class Game:
             # 狼人、预言家、守卫 同时交互，女巫在狼人后交互
             await asyncio.gather(
                 self.select_killed(),
-                players.select(Role.Witch).broadcast("请等待狼人决定目标..."),
-                players.select(Role.Civilian).broadcast("请等待其他玩家结束交互..."),
                 self.interact(Role.Prophet, 60),
                 self.interact(Role.Guard, 60),
+                players.select(Role.Witch).broadcast("请等待狼人决定目标..."),
+                players.select(Role.Civilian, RoleGroup.Others).broadcast(
+                    "请等待其他玩家结束交互..."
+                ),
             )
 
             # 狼人击杀目标
@@ -397,8 +410,7 @@ class Game:
             await self.post_kill(dead)
 
             # 判断游戏状态
-            if self.check_game_status() != GameStatus.Unset:
-                break
+            self.check_game_status()
 
             # 公示存活玩家
             await self.send(f"当前存活玩家: \n\n{self.players.alive().show()}")
@@ -411,13 +423,25 @@ class Game:
             await self.send("讨论结束, 进入投票环节，限时1分钟\n请在私聊中进行投票交互")
             await self.run_vote()
 
-        # 游戏结束
-        winner = "好人" if self.check_game_status() == GameStatus.Good else "狼人"
+            # 判断游戏状态
+            self.check_game_status()
+
+    async def handle_game_finish(self, status: GameStatus) -> None:
+        match status:
+            case GameStatus.GoodGuy:
+                winner = "好人"
+            case GameStatus.Werewolf:
+                winner = "狼人"
+            case GameStatus.Joker:
+                winner = "小丑"
+            case GameStatus.Unset:
+                raise RuntimeError(f"错误的游戏状态: {status!r}")
+
         msg = UniMessage.text(f"🎉游戏结束，{winner}获胜\n\n")
         for p in sorted(self.players, key=lambda p: (p.role.value, p.user_id)):
             msg.at(p.user_id).text(f": {p.role_name}\n")
         await self.send(msg)
-        await self.send(f"玩家死亡报告:\n\n{self.show_killed_players()}")
+        await self.send(f"📌玩家死亡报告:\n\n{self.show_killed_players()}")
 
     def start(self) -> None:
         finished = asyncio.Event()
@@ -430,11 +454,13 @@ class Game:
 
             try:
                 game_task.result()
+            except asyncio.CancelledError:
+                logger.warning(f"{self.group.id} 的狼人杀游戏进程被取消")
+            except GameFinishedError as result:
+                await self.handle_game_finish(result.status)
                 logger.info(f"{self.group.id} 的狼人杀游戏进程正常退出")
-            except asyncio.CancelledError as err:
-                logger.warning(f"{self.group.id} 的狼人杀游戏进程被取消: {err}")
             except Exception as err:
-                msg = f"{self.group.id} 的狼人杀游戏进程出现错误: {err!r}"
+                msg = f"{self.group.id} 的狼人杀游戏进程出现未知错误: {err!r}"
                 logger.opt(exception=err).error(msg)
                 await self.send(msg)
             finally:

@@ -41,6 +41,7 @@ class PluginConfig(BaseModel):
     priesthood_proirity: list[Role] = Field(
         default_factory=default_priesthood_proirity.copy
     )
+    joker_probability: float = Field(default=0.0, ge=0.0, le=1.0)
 
     @model_validator(mode="after")
     def _validate(self) -> Self:

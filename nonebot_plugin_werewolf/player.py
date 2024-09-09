@@ -9,7 +9,8 @@ from nonebot.log import logger
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 from typing_extensions import override
 
-from .constant import KillReason, Role, RoleGroup, role_name_conv
+from .constant import GameStatus, KillReason, Role, RoleGroup, role_name_conv
+from .exception import GameFinishedError
 from .utils import InputStore, check_index
 
 if TYPE_CHECKING:
@@ -123,11 +124,7 @@ class Player:
     async def notify_role(self) -> None:
         await self.send(f"你的身份: {self.role_name}")
 
-    async def kill(
-        self,
-        reason: KillReason,
-        *killers: Player,
-    ) -> bool:
+    async def kill(self, reason: KillReason, *killers: Player) -> bool:
         from .player_set import PlayerSet
 
         self.alive = False
@@ -299,7 +296,7 @@ class Prophet(Player):
             await self.send("输入错误，请发送编号选择玩家")
 
         player = players[selected]
-        result = role_name_conv[player.role_group]
+        result = "狼人" if player.role_group == RoleGroup.Werewolf else "好人"
         await self.send(f"玩家 {player.name} 的阵营是『{result}』")
 
 
@@ -435,11 +432,7 @@ class Idiot(Player):
         )
 
     @override
-    async def kill(
-        self,
-        reason: KillReason,
-        *killers: Player,
-    ) -> bool:
+    async def kill(self, reason: KillReason, *killers: Player) -> bool:
         if reason == KillReason.Vote and not self.voted:
             self.voted = True
             await self.game.send(
@@ -456,6 +449,22 @@ class Idiot(Player):
             await self.send("你已经发动过白痴身份的技能，无法参与本次投票")
             return None
         return await super().vote(players)
+
+
+@register_role(Role.Joker, RoleGroup.Others)
+class Joker(Player):
+    @override
+    async def notify_role(self) -> None:
+        await super().notify_role()
+        await self.send("你的胜利条件: 被投票放逐")
+
+    @override
+    async def kill(self, reason: KillReason, *killers: Player) -> bool:
+        result = await super().kill(reason, *killers)
+        if reason == KillReason.Vote:
+            self.game.killed_players.append(self)
+            raise GameFinishedError(GameStatus.Joker)
+        return result
 
 
 @register_role(Role.Civilian, RoleGroup.GoodGuy)
