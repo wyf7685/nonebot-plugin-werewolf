@@ -307,24 +307,6 @@ class Witch(Player):
     antidote: int = 1
     poison: int = 1
 
-    # def set_state(
-    #     self,
-    #     *,
-    #     antidote: Player | None = None,
-    #     posion: Player | None = None,
-    # ) -> None:
-    #     if antidote is not None:
-    #         self.antidote = 0
-    #         self.selected = antidote
-    #         self.game.state.potion = (antidote, (True, False))
-    #     elif posion is not None:
-    #         self.poison = 0
-    #         self.selected = posion
-    #         self.game.state.potion = (posion, (False, True))
-    #     else:
-    #         self.selected = None
-    #         self.game.state.potion = (None, (False, False))
-
     async def handle_killed(self) -> bool:
         msg = UniMessage()
         if (killed := self.game.state.killed) is not None:
@@ -461,11 +443,11 @@ class Joker(Player):
 
     @override
     async def kill(self, reason: KillReason, *killers: Player) -> bool:
-        result = await super().kill(reason, *killers)
+        await super().kill(reason, *killers)
         if reason == KillReason.Vote:
             self.game.killed_players.append(self)
             raise GameFinishedError(GameStatus.Joker)
-        return result
+        return True
 
 
 @register_role(Role.Civilian, RoleGroup.GoodGuy)
