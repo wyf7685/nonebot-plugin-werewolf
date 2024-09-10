@@ -105,7 +105,7 @@ class Game:
             msg.at(p.user_id)
         return msg
 
-    def check_game_status(self) -> GameStatus:
+    def check_game_status(self) -> None:
         players = self.players.alive()
         w = players.select(RoleGroup.Werewolf)
         p = players.exclude(RoleGroup.Werewolf)
@@ -122,8 +122,6 @@ class Game:
         # 狼人全灭
         if not w.size:
             raise GameFinishedError(GameStatus.GoodGuy)
-
-        return GameStatus.Unset
 
     def show_killed_players(self) -> str:
         msg = ""
@@ -367,9 +365,9 @@ class Game:
                 self.interact(Role.Prophet, 60),
                 self.interact(Role.Guard, 60),
                 players.select(Role.Witch).broadcast("请等待狼人决定目标..."),
-                players.select(Role.Civilian, RoleGroup.Others).broadcast(
-                    "请等待其他玩家结束交互..."
-                ),
+                players.exclude(
+                    RoleGroup.Werewolf, Role.Prophet, Role.Witch, Role.Guard
+                ).broadcast("请等待其他玩家结束交互..."),
             )
 
             # 狼人击杀目标
@@ -438,8 +436,6 @@ class Game:
                 winner = "狼人"
             case GameStatus.Joker:
                 winner = "小丑"
-            case GameStatus.Unset:
-                raise RuntimeError(f"错误的游戏状态: {status!r}")
 
         msg = UniMessage.text(f"🎉游戏结束，{winner}获胜\n\n")
         for p in sorted(self.players, key=lambda p: (p.role.value, p.user_id)):

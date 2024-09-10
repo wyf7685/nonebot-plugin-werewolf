@@ -43,7 +43,6 @@ class KillReason(Enum):
 class GameStatus(Enum):
     GoodGuy = auto()
     Werewolf = auto()
-    Unset = auto()
     Joker = auto()
 
 
