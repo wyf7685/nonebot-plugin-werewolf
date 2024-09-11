@@ -1,9 +1,8 @@
-from typing import Literal, overload
+from typing import Literal, Self, overload
 
 from nonebot import get_plugin_config, logger
 from nonebot.compat import PYDANTIC_V2
 from pydantic import BaseModel, Field
-from typing_extensions import Self
 
 from .constant import (
     Role,
