@@ -36,6 +36,10 @@ _✨ 简单的狼人杀插件 ✨_
 
 ## 💿 安装
 
+> [!note]
+> 
+> 请确保 NoneBot2 使用的 Python 解释器版本 >=3.11
+
 <details open>
 <summary>使用 nb-cli 安装</summary>
 在 nonebot2 项目的根目录下打开命令行, 输入以下指令即可安装
