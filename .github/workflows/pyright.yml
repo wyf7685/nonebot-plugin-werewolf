@@ -16,11 +16,14 @@ on:
 
 jobs:
   pyright:
-    name: Pyright Lint
+    name: Pyright Lint (${{ matrix.python-version }})
     runs-on: ubuntu-latest
     concurrency:
       group: pyright-${{ github.ref }}
       cancel-in-progress: true
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
 
     steps:
       - uses: actions/checkout@v4
@@ -32,8 +35,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv python install 3.11
-          uv sync --python 3.11
+          uv python install ${{ matrix.python-version }}
+          uv sync --python ${{ matrix.python-version }}
 
       - name: Configure venv
         run: echo "$PWD/.venv/bin" >> $GITHUB_PATH
