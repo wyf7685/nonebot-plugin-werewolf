@@ -9,7 +9,7 @@ dependencies = [
     "nonebot-plugin-userinfo>=0.2.6",
     "nonebot-plugin-waiter>=0.7.1",
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 readme = "README.md"
 license = { text = "MIT" }
 
@@ -25,7 +25,7 @@ dev-dependencies = [
 
 [tool.black]
 line-length = 88
-target-version = ["py310"]
+target-version = ["py311"]
 include = '\.pyi?$'
 extend-exclude = '''
 '''
@@ -36,7 +36,7 @@ line_length = 88
 
 [tool.ruff]
 line-length = 88
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = [
@@ -98,7 +98,7 @@ ignore = [
 ]
 
 [tool.pyright]
-pythonVersion = "3.10"
+pythonVersion = "3.11"
 pythonPlatform = "All"
 typeCheckingMode = "standard"
 reportShadowedImports = false
