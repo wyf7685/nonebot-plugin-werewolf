@@ -19,7 +19,7 @@ jobs:
     name: Pyright Lint (${{ matrix.python-version }})
     runs-on: ubuntu-latest
     concurrency:
-      group: pyright-${{ github.ref }}
+      group: pyright-${{ github.ref }}-${{ matrix.python-version }}
       cancel-in-progress: true
     strategy:
       matrix:
