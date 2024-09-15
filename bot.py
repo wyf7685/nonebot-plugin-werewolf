@@ -1,19 +1,18 @@
-import shutil
-from pathlib import Path
-
 import nonebot
 from nonebot.adapters.onebot.v11 import Adapter as OB11Adapter
 from nonebot.adapters.satori import Adapter as SatoriAdapter
 
 
-def clean_pycache(path: Path = Path()) -> None:
-    for p in path.iterdir():
-        if not p.is_dir():
-            continue
-        if p.name == "__pycache__":
-            shutil.rmtree(p)
-        else:
-            clean_pycache(p)
+def clean_pycache() -> None:
+    from pathlib import Path
+    from queue import Queue
+    from shutil import rmtree
+
+    que = Queue[Path]()
+    (put := que.put)(Path())
+    while not que.empty():
+        for p in filter(Path.is_dir, que.get().iterdir()):
+            (rmtree if p.name == "__pycache__" else put)(p)
 
 
 nonebot.init()
