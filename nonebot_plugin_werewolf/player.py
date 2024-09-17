@@ -11,7 +11,7 @@ from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 from typing_extensions import override
 
 from .constant import GameStatus, KillReason, Role, RoleGroup, role_name_conv
-from .exception import GameFinishedError
+from .exception import GameFinished
 from .utils import InputStore, check_index
 
 if TYPE_CHECKING:
@@ -453,7 +453,7 @@ class Joker(Player):
         await super().kill(reason, *killers)
         if reason == KillReason.Vote:
             self.game.killed_players.append(self)
-            raise GameFinishedError(GameStatus.Joker)
+            raise GameFinished(GameStatus.Joker)
         return True
 
 

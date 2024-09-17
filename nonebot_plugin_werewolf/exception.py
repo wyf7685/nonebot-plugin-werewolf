@@ -10,7 +10,7 @@ class Error(Exception):
     """插件错误类型基类"""
 
 
-class GameFinishedError(Error):
+class GameFinished(Error):  # noqa: N818
     """游戏结束时抛出，无视游戏进程进入结算"""
 
     status: GameStatus

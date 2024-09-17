@@ -11,7 +11,7 @@ from nonebot_plugin_alconna import At, Target, UniMessage
 
 from .config import config
 from .constant import GameState, GameStatus, KillReason, Role, RoleGroup, role_name_conv
-from .exception import GameFinishedError
+from .exception import GameFinished
 from .player import Player
 from .player_set import PlayerSet
 from .utils import InputStore
@@ -112,16 +112,16 @@ class Game:
 
         # 狼人数量大于其他职业数量
         if w.size >= p.size:
-            raise GameFinishedError(GameStatus.Werewolf)
+            raise GameFinished(GameStatus.Werewolf)
         # 屠边-村民/中立全灭
         if not p.select(Role.Civilian, RoleGroup.Others).size:
-            raise GameFinishedError(GameStatus.Werewolf)
+            raise GameFinished(GameStatus.Werewolf)
         # 屠边-神职全灭
         if not p.exclude(Role.Civilian).size:
-            raise GameFinishedError(GameStatus.Werewolf)
+            raise GameFinished(GameStatus.Werewolf)
         # 狼人全灭
         if not w.size:
-            raise GameFinishedError(GameStatus.GoodGuy)
+            raise GameFinished(GameStatus.GoodGuy)
 
     def show_killed_players(self) -> str:
         msg = ""
@@ -456,7 +456,7 @@ class Game:
                 game_task.result()
             except asyncio.CancelledError:
                 logger.warning(f"{self.group.id} 的狼人杀游戏进程被取消")
-            except GameFinishedError as result:
+            except GameFinished as result:
                 await self.handle_game_finish(result.status)
                 logger.info(f"{self.group.id} 的狼人杀游戏进程正常退出")
             except Exception as err:
