@@ -47,7 +47,7 @@ class PluginConfig(BaseModel):
         if isinstance(self.role_preset, list):
             for preset in self.role_preset:
                 if preset[0] != sum(preset[1:]):
-                    raise RuntimeError(
+                    raise ValueError(
                         "配置项 `role_preset` 错误: "
                         f"预设总人数为 {preset[0]}, 实际总人数为 {sum(preset[1:])} "
                         f"({', '.join(map(str, preset[1:]))})"
@@ -59,13 +59,13 @@ class PluginConfig(BaseModel):
 
         min_length = max(i[0] for i in self.role_preset.values())
         if len(self.werewolf_priority) < min_length:
-            raise RuntimeError(
+            raise ValueError(
                 f"配置项 `werewolf_priority` 错误: 应至少为 {min_length} 项"
             )
 
         min_length = max(i[1] for i in self.role_preset.values())
         if len(self.priesthood_proirity) < min_length:
-            raise RuntimeError(
+            raise ValueError(
                 f"配置项 `priesthood_proirity` 错误: 应至少为 {min_length} 项"
             )
 
