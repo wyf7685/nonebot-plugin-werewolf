@@ -23,6 +23,8 @@ else:
             self._state = _State.CREATED
             self._timeout_handler: asyncio.Handle | None = None
             self._task: asyncio.Task | None = None
+            if when is not None:
+                when = asyncio.get_running_loop().time() + when
             self._when = when
 
         def when(self) -> float | None:
@@ -102,8 +104,7 @@ else:
             self._timeout_handler = None
 
     def timeout(delay: float | None) -> Timeout:
-        when = asyncio.get_running_loop().time() + delay if delay is not None else None
-        return Timeout(when)
+        return Timeout(delay)
 
 
 __all__ = ["timeout"]
