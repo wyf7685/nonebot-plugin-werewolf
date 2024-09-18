@@ -101,7 +101,7 @@ class Player:
         logger.opt(colors=True).info(
             f"<b><e>{self.game.group.id}</e></b> | "
             f"[<b><m>{self.role_name}</m></b>] "
-            f"<y>{self.name}</y>(<e>{self.user_id}</e>) | "
+            f"<y>{self.name}</y>(<b><e>{self.user_id}</e></b>) | "
             f"{text}",
         )
 
