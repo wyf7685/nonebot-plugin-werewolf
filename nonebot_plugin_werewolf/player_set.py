@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import asyncio
-import asyncio.timeouts
 from typing import TYPE_CHECKING
 
+from ._timeout import timeout
 from .player import Player
 
 if TYPE_CHECKING:
@@ -54,13 +54,13 @@ class PlayerSet(set[Player]):
         return sorted(self, key=lambda p: p.user_id)
 
     async def interact(self, timeout_secs: float = 60) -> None:
-        async with asyncio.timeouts.timeout(timeout_secs):
+        async with timeout(timeout_secs):
             await asyncio.gather(*[p.interact() for p in self.alive()])
 
     async def vote(self, timeout_secs: float = 60) -> dict[Player, list[Player]]:
         async def vote(player: Player) -> tuple[Player, Player] | None:
             try:
-                async with asyncio.timeouts.timeout(timeout_secs):
+                async with timeout(timeout_secs):
                     return await player.vote(self)
             except TimeoutError:
                 await player.send("投票超时，将视为弃票")

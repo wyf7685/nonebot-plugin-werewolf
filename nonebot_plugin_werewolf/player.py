@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import asyncio.timeouts
 import weakref
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, TypeVar, final
@@ -86,7 +85,7 @@ class Player:
     def game(self) -> Game:
         if game := self._game_ref():
             return game
-        raise ValueError("Game not exist")  # noqa: EM101
+        raise ValueError("Game not exist")
 
     @property
     def user_id(self) -> str:

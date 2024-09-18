@@ -1,5 +1,3 @@
-import asyncio
-import asyncio.timeouts
 from typing import Annotated
 
 from nonebot import on_command, on_message
@@ -9,6 +7,7 @@ from nonebot.rule import to_me
 from nonebot_plugin_alconna import MsgTarget, UniMessage, UniMsg
 from nonebot_plugin_userinfo import EventUserInfo, UserInfo
 
+from ._timeout import timeout
 from .game import Game
 from .ob11_ext import ob11_ext_enabled
 from .utils import InputStore, is_group, prepare_game, rule_in_game, rule_not_in_game
@@ -52,7 +51,7 @@ async def handle_start(
     players = {admin_id: admin_info.user_name}
 
     try:
-        async with asyncio.timeouts.timeout(5 * 60):
+        async with timeout(5 * 60):
             await prepare_game(event, players)
     except FinishedException:
         raise

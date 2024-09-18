@@ -1,5 +1,4 @@
 import asyncio
-import asyncio.timeouts
 import re
 from collections import defaultdict
 from typing import Annotated, Any, ClassVar

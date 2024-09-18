@@ -9,7 +9,7 @@ dependencies = [
     "nonebot-plugin-userinfo>=0.2.6",
     "nonebot-plugin-waiter>=0.7.1",
 ]
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 readme = "README.md"
 license = { text = "MIT" }
 
@@ -25,7 +25,7 @@ dev-dependencies = [
 
 [tool.black]
 line-length = 88
-target-version = ["py311"]
+target-version = ["py310"]
 include = '\.pyi?$'
 extend-exclude = '''
 '''
@@ -36,7 +36,7 @@ line_length = 88
 
 [tool.ruff]
 line-length = 88
-target-version = "py311"
+target-version = "py310"
 
 [tool.ruff.lint]
 select = [
@@ -95,10 +95,11 @@ ignore = [
     "EM102",  # f-string-in-exception
     "COM812", # missing-trailing-comma
     "ERA001", # commented-out-code
+    "EM101",  # raw-string-in-exception
 ]
 
 [tool.pyright]
-pythonVersion = "3.11"
+pythonVersion = "3.10"
 pythonPlatform = "All"
 typeCheckingMode = "standard"
 reportShadowedImports = false

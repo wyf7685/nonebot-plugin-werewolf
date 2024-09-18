@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import asyncio
-import asyncio.timeouts
 import contextlib
 import secrets
 from typing import TYPE_CHECKING, NoReturn
@@ -9,6 +8,7 @@ from typing import TYPE_CHECKING, NoReturn
 from nonebot.log import logger
 from nonebot_plugin_alconna import At, Target, UniMessage
 
+from ._timeout import timeout
 from .config import config
 from .constant import GameState, GameStatus, KillReason, Role, RoleGroup, role_name_conv
 from .exception import GameFinished
@@ -173,7 +173,7 @@ class Game:
                     break
 
         with contextlib.suppress(TimeoutError):
-            async with asyncio.timeouts.timeout(timeout_secs):
+            async with timeout(timeout_secs):
                 await asyncio.gather(*[wait(p) for p in players])
 
     async def interact(

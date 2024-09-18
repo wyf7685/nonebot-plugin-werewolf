@@ -12,7 +12,7 @@ _✨ 简单的狼人杀插件 ✨_
 
 [![license](https://img.shields.io/github/license/wyf7685/nonebot-plugin-werewolf.svg)](./LICENSE)
 [![pypi](https://img.shields.io/pypi/v/nonebot-plugin-werewolf?logo=python&logoColor=edb641)](https://pypi.python.org/pypi/nonebot-plugin-werewolf)
-[![python](https://img.shields.io/badge/python-3.11+-blue?logo=python&logoColor=edb641)](https://www.python.org/)
+[![python](https://img.shields.io/badge/python-3.10+-blue?logo=python&logoColor=edb641)](https://www.python.org/)
 
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/charliermarsh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -38,7 +38,7 @@ _✨ 简单的狼人杀插件 ✨_
 
 > [!note]
 > 
-> 请确保 NoneBot2 使用的 Python 解释器版本 >=3.11
+> 请确保 NoneBot2 使用的 Python 解释器版本 >=3.10
 
 <details open>
 <summary>使用 nb-cli 安装</summary>
