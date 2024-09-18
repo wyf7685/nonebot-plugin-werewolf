@@ -332,6 +332,7 @@ class Witch(Player):
             text = await self.receive_text()
             if text == "1":
                 self.antidote = 0
+                self.selected = killed
                 self.game.state.antidote.add(killed)
                 await self.send(f"你对 {killed.name} 使用了解药，回合结束")
                 return True
@@ -369,9 +370,9 @@ class Witch(Player):
             await self.send("输入错误: 请发送玩家编号或 “/stop”")
 
         self.poison = 0
-        player = players[selected]
-        self.game.state.poison.add((self, player))
-        await self.send(f"当前回合选择对玩家 {player.name} 使用毒药\n回合结束")
+        self.selected = players[selected]
+        self.game.state.poison.add(self)
+        await self.send(f"当前回合选择对玩家 {self.selected.name} 使用毒药\n回合结束")
 
 
 @register_role(Role.Hunter, RoleGroup.GoodGuy)

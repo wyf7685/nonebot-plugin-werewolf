@@ -372,7 +372,7 @@ class Game:
 
             # 狼人击杀目标
             if (
-                (killed := self.state.killed)  # 狼人未空刀
+                (killed := self.state.killed) is not None  # 狼人未空刀
                 and killed not in self.state.protected  # 守卫保护
                 and killed not in self.state.antidote  # 女巫使用解药
             ):
@@ -383,10 +383,12 @@ class Game:
                 )
 
             # 女巫操作目标
-            for witch, potioned in self.state.poison:
-                if potioned not in self.state.protected:  # 守卫未保护
+            for witch in self.state.poison:
+                if witch.selected is None:
+                    continue
+                if witch.selected not in self.state.protected:  # 守卫未保护
                     # 女巫毒杀玩家
-                    await potioned.kill(KillReason.Poison, witch)
+                    await witch.selected.kill(KillReason.Poison, witch)
 
             day_count += 1
             msg = UniMessage.text(f"『第{day_count}天』天亮了...\n")

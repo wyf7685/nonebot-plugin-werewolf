@@ -52,7 +52,7 @@ class GameState:
     killed: Player | None = None
     shoot: tuple[Player, Player] | tuple[None, None] = (None, None)
     antidote: set[Player] = dataclasses.field(default_factory=set)
-    poison: set[tuple[Player, Player]] = dataclasses.field(default_factory=set)
+    poison: set[Player] = dataclasses.field(default_factory=set)
     protected: set[Player] = dataclasses.field(default_factory=set)
 
 
