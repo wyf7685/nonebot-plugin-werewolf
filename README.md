@@ -226,6 +226,10 @@ werewolf__priesthood_proirity=[11, 12, 13, 14, 15]
 
 <!-- CHANGELOG -->
 
+- 2024.09.18 v1.1.2
+
+  - 修改 Python 需求为 `>=3.10`
+
 - 2024.09.11 v1.1.1
 
   - 修改 Python 需求为 `>=3.11`
