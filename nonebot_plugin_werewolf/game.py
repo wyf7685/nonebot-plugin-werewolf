@@ -462,7 +462,7 @@ class Game:
                 await self.handle_game_finish(result.status)
                 logger.info(f"{self.group.id} 的狼人杀游戏进程正常退出")
             except Exception as err:
-                msg = f"{self.group.id} 的狼人杀游戏进程出现未知错误: {err!r}"
+                msg = f"❌{self.group.id} 的狼人杀游戏进程出现未知错误: {err!r}"
                 logger.opt(exception=err).error(msg)
                 await self.send(msg)
             finally:
