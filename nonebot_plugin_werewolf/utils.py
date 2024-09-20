@@ -3,10 +3,11 @@ import re
 from collections import defaultdict
 from typing import Annotated, Any, ClassVar
 
+import nonebot
 import nonebot_plugin_waiter as waiter
 from nonebot.adapters import Event
-from nonebot.log import logger
 from nonebot.rule import to_me
+from nonebot.utils import escape_tag
 from nonebot_plugin_alconna import MsgTarget, UniMessage, UniMsg
 from nonebot_plugin_userinfo import EventUserInfo, UserInfo
 
@@ -43,24 +44,28 @@ class InputStore:
 
 
 def user_in_game(user_id: str, group_id: str | None) -> bool:
-    from .game import running_games
+    from .game import Game
 
-    if group_id is not None and group_id not in running_games:
+    if group_id is not None and group_id not in {t.id for t in Game.running_games}:
         return False
-    games = running_games.values() if group_id is None else [running_games[group_id]]
+    games = (
+        Game.running_games.values()
+        if group_id is None
+        else [next(g for t, g in Game.running_games.items() if t.id == group_id)]
+    )
     for game in games:
         return any(user_id == player.user_id for player in game.players)
     return False
 
 
 async def rule_in_game(event: Event, target: MsgTarget) -> bool:
-    from .game import running_games
+    from .game import Game
 
-    if not running_games:
+    if not Game.running_games:
         return False
     if target.private:
         return user_in_game(target.id, None)
-    if target.id in running_games:
+    if target.id in Game.running_games:
         return user_in_game(event.get_user_id(), target.id)
     return False
 
@@ -88,23 +93,19 @@ async def _prepare_game_receive(
     )
     def wait(
         event: Event,
-        info: Annotated[UserInfo | None, EventUserInfo()],
         msg: UniMsg,
+        info: Annotated[UserInfo | None, EventUserInfo()],
     ) -> tuple[str, str, str]:
         return (
             event.get_user_id(),
-            (
-                (info.user_displayname or info.user_name)
-                if info is not None
-                else event.get_user_id()
-            ),
             msg.extract_plain_text().strip(),
+            info and (info.user_displayname or info.user_name) or event.get_user_id(),
         )
 
-    async for user, name, text in wait(default=(None, "", "")):
+    async for user, text, name in wait(default=(None, "", "")):
         if user is None:
             continue
-        await queue.put((user, re.sub(r"[\u2066-\u2069]", "", name), text))
+        await queue.put((user, text, re.sub(r"[\u2066-\u2069]", "", name)))
 
 
 async def _prepare_game_handle(
@@ -112,12 +113,12 @@ async def _prepare_game_handle(
     players: dict[str, str],
     admin_id: str,
 ) -> None:
-    log = logger.opt(colors=True)
+    logger = nonebot.logger.opt(colors=True)
 
     while True:
-        user, name, text = await queue.get()
+        user, text, name = await queue.get()
         msg = UniMessage.at(user)
-        colored = f"<y>{name}</y>(<c>{user}</c>)"
+        colored = f"<y>{escape_tag(name)}</y>(<c>{escape_tag(user)}</c>)"
 
         match (text, user == admin_id):
             case ("开始游戏", True):
@@ -143,14 +144,14 @@ async def _prepare_game_handle(
                     )
                 else:
                     await msg.text("游戏即将开始...").send()
-                    log.info(f"游戏发起者 {colored} 开始游戏")
+                    logger.info(f"游戏发起者 {colored} 开始游戏")
                     return
 
             case ("开始游戏", False):
                 await msg.text("只有游戏发起者可以开始游戏").send()
 
             case ("结束游戏", True):
-                log.info(f"游戏发起者 {colored} 结束游戏")
+                logger.info(f"游戏发起者 {colored} 结束游戏")
                 await msg.text("已结束当前游戏").finish()
 
             case ("结束游戏", False):
@@ -162,7 +163,7 @@ async def _prepare_game_handle(
             case ("加入游戏", False):
                 if user not in players:
                     players[user] = name
-                    log.info(f"玩家 {colored} 加入游戏")
+                    logger.info(f"玩家 {colored} 加入游戏")
                     await msg.text("成功加入游戏").send()
                 else:
                     await msg.text("你已经加入游戏了").send()
@@ -173,7 +174,7 @@ async def _prepare_game_handle(
             case ("退出游戏", False):
                 if user in players:
                     del players[user]
-                    log.info(f"玩家 {colored} 退出游戏")
+                    logger.info(f"玩家 {colored} 退出游戏")
                     await msg.text("成功退出游戏").send()
                 else:
                     await msg.text("你还没有加入游戏").send()
@@ -186,16 +187,16 @@ async def _prepare_game_handle(
 
 
 async def prepare_game(event: Event, players: dict[str, str]) -> None:
-    from .game import starting_games
+    from .game import Game
 
-    group_id = UniMessage.get_target(event).id
-    starting_games[group_id] = players
+    group = UniMessage.get_target(event)
+    Game.starting_games[group] = players
 
     queue: asyncio.Queue[tuple[str, str, str]] = asyncio.Queue()
-    task_receive = asyncio.create_task(_prepare_game_receive(queue, event, group_id))
+    task_receive = asyncio.create_task(_prepare_game_receive(queue, event, group.id))
 
     try:
         await _prepare_game_handle(queue, players, event.get_user_id())
     finally:
         task_receive.cancel()
-        del starting_games[group_id]
+        del Game.starting_games[group]

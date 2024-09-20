@@ -2,10 +2,10 @@ import contextlib
 
 from nonebot import on_type
 from nonebot.internal.matcher import current_bot
-from nonebot_plugin_alconna import UniMessage
+from nonebot_plugin_alconna import MsgTarget, UniMessage
 
 from .config import config
-from .game import starting_games
+from .game import Game
 from .utils import InputStore, user_in_game
 
 
@@ -14,7 +14,7 @@ def ob11_ext_enabled() -> bool:
 
 
 with contextlib.suppress(ImportError):
-    from nonebot.adapters.onebot.v11 import Bot, MessageSegment
+    from nonebot.adapters.onebot.v11 import Bot
     from nonebot.adapters.onebot.v11.event import PokeNotifyEvent
 
     # 游戏内戳一戳等效 "/stop"
@@ -48,14 +48,18 @@ with contextlib.suppress(ImportError):
         return (
             (event.target_id == event.self_id)
             and not user_in_game(user_id, group_id)
-            and group_id in starting_games
+            and group_id in Game.starting_games
         )
 
     @on_type(PokeNotifyEvent, rule=_rule_poke_2).handle()
-    async def handle_poke_2(bot: Bot, event: PokeNotifyEvent) -> None:
-        user_id = str(event.user_id)
-        group_id = str(event.group_id)
-        players = starting_games[group_id]
+    async def handle_poke_2(
+        bot: Bot,
+        event: PokeNotifyEvent,
+        target: MsgTarget,
+    ) -> None:
+        user_id = event.get_user_id()
+        group_id = target.id
+        players = Game.starting_games[target]
 
         if user_id not in players:
             res: dict[str, str] = await bot.get_group_member_info(
@@ -63,7 +67,7 @@ with contextlib.suppress(ImportError):
                 user_id=int(user_id),
             )
             players[user_id] = res.get("card") or res.get("nickname") or user_id
-            await bot.send(event, MessageSegment.at(user_id) + "成功加入游戏")
+            await UniMessage.at(user_id).text("成功加入游戏").send(target, bot)
 
     def ob11_ext_enabled() -> bool:
         if not config.enable_poke:

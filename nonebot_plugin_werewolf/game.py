@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import secrets
-from typing import TYPE_CHECKING, NoReturn
+from typing import TYPE_CHECKING, ClassVar, NoReturn
 
 from nonebot.log import logger
 from nonebot_plugin_alconna import At, Target, UniMessage
@@ -19,9 +19,6 @@ from .utils import InputStore
 if TYPE_CHECKING:
     from nonebot.adapters import Bot
     from nonebot_plugin_alconna.uniseg.message import Receipt
-
-starting_games: dict[str, dict[str, str]] = {}
-running_games: dict[str, Game] = {}
 
 
 def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
@@ -72,6 +69,9 @@ def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
 
 
 class Game:
+    starting_games: ClassVar[dict[Target, dict[str, str]]] = {}
+    running_games: ClassVar[dict[Target, Game]] = {}
+
     bot: Bot
     group: Target
     players: PlayerSet
@@ -462,18 +462,17 @@ class Game:
                 await self.handle_game_finish(result.status)
                 logger.info(f"{self.group.id} 的狼人杀游戏进程正常退出")
             except Exception as err:
-                msg = f"❌{self.group.id} 的狼人杀游戏进程出现未知错误: {err!r}"
+                msg = f"{self.group.id} 的狼人杀游戏进程出现未知错误: {err!r}"
                 logger.opt(exception=err).error(msg)
-                await self.send(msg)
+                await self.send(f"❌狼人杀游戏进程出现未知错误: {err!r}")
             finally:
                 dead_channel.cancel()
-                running_games.pop(self.group.id, None)
+                self.running_games.pop(self.group, None)
 
         def daemon_callback(task: asyncio.Task[None]) -> None:
             if err := task.exception():
-                logger.opt(exception=err).error(
-                    f"{self.group.id} 的狼人杀守护进程出现错误: {err!r}"
-                )
+                msg = f"{self.group.id} 的狼人杀守护进程出现错误: {err!r}"
+                logger.opt(exception=err).error(msg)
 
-        running_games[self.group.id] = self
+        self.running_games[self.group] = self
         asyncio.create_task(daemon()).add_done_callback(daemon_callback)

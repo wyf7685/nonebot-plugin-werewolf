@@ -28,7 +28,7 @@ async def handle_input(event: Event, target: MsgTarget, msg: UniMsg) -> None:
 
 
 @start_game.handle()
-async def handle_start_warings(target: MsgTarget) -> None:
+async def handle_start_warning(target: MsgTarget) -> None:
     if target.private:
         await UniMessage("⚠️请在群组中创建新游戏").finish(reply_to=True)
 
@@ -61,5 +61,4 @@ async def handle_start(
     except TimeoutError:
         await UniMessage.text("游戏准备超时，已自动结束").finish()
 
-    game = Game(bot, target, players)
-    game.start()
+    Game(bot, target, players).start()
