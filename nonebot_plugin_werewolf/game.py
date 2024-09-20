@@ -69,7 +69,7 @@ def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
 
 
 class Game:
-    starting_games: ClassVar[dict[Target, dict[str, str]]] = {}
+    starting_games: ClassVar[dict[int, dict[str, str]]] = {}
     running_games: ClassVar[dict[Target, Game]] = {}
 
     bot: Bot

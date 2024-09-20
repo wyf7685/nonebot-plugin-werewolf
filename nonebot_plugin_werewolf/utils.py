@@ -190,7 +190,7 @@ async def prepare_game(event: Event, players: dict[str, str]) -> None:
     from .game import Game
 
     group = UniMessage.get_target(event)
-    Game.starting_games[group] = players
+    Game.starting_games[hash(group)] = players
 
     queue: asyncio.Queue[tuple[str, str, str]] = asyncio.Queue()
     task_receive = asyncio.create_task(_prepare_game_receive(queue, event, group.id))
@@ -199,4 +199,4 @@ async def prepare_game(event: Event, players: dict[str, str]) -> None:
         await _prepare_game_handle(queue, players, event.get_user_id())
     finally:
         task_receive.cancel()
-        del Game.starting_games[group]
+        del Game.starting_games[hash(group)]

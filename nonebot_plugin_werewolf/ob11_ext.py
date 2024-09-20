@@ -39,7 +39,7 @@ with contextlib.suppress(ImportError):
         )
 
     # 准备阶段戳一戳等效加入游戏
-    async def _rule_poke_2(event: PokeNotifyEvent) -> bool:
+    async def _rule_poke_2(event: PokeNotifyEvent, target: MsgTarget) -> bool:
         if not config.enable_poke or event.group_id is None:
             return False
 
@@ -48,7 +48,7 @@ with contextlib.suppress(ImportError):
         return (
             (event.target_id == event.self_id)
             and not user_in_game(user_id, group_id)
-            and group_id in Game.starting_games
+            and hash(target) in Game.starting_games
         )
 
     @on_type(PokeNotifyEvent, rule=_rule_poke_2).handle()
@@ -59,7 +59,7 @@ with contextlib.suppress(ImportError):
     ) -> None:
         user_id = event.get_user_id()
         group_id = target.id
-        players = Game.starting_games[target]
+        players = Game.starting_games[hash(target)]
 
         if user_id not in players:
             res: dict[str, str] = await bot.get_group_member_info(
