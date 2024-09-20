@@ -5,7 +5,7 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .player import Player
+    from .players import Player
 
 
 class Role(Enum):

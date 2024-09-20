@@ -12,8 +12,8 @@ from ._timeout import timeout
 from .config import config
 from .constant import GameState, GameStatus, KillReason, Role, RoleGroup, role_name_conv
 from .exception import GameFinished
-from .player import Player
 from .player_set import PlayerSet
+from .players import Player
 from .utils import InputStore
 
 if TYPE_CHECKING:

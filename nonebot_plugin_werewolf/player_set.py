@@ -4,7 +4,7 @@ import asyncio
 from typing import TYPE_CHECKING
 
 from ._timeout import timeout
-from .player import Player
+from .players import Player
 
 if TYPE_CHECKING:
     from nonebot_plugin_alconna.uniseg import UniMessage
