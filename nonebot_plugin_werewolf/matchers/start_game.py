@@ -1,30 +1,21 @@
 from typing import Annotated
 
-from nonebot import on_command, on_message
+from nonebot import on_command
 from nonebot.adapters import Bot, Event
 from nonebot.rule import to_me
-from nonebot_plugin_alconna import MsgTarget, UniMessage, UniMsg
+from nonebot_plugin_alconna import MsgTarget, UniMessage
 from nonebot_plugin_userinfo import EventUserInfo, UserInfo
 
-from ._timeout import timeout
-from .game import Game
-from .ob11_ext import ob11_ext_enabled
-from .utils import InputStore, prepare_game, rule_in_game, rule_not_in_game
+from .._timeout import timeout
+from ..game import Game
+from ..ob11_ext import ob11_ext_enabled
+from ..utils import prepare_game, rule_not_in_game
 
-in_game_message = on_message(rule=rule_in_game)
 start_game = on_command(
     "werewolf",
     rule=to_me() & rule_not_in_game,
     aliases={"狼人杀"},
 )
-
-
-@in_game_message.handle()
-async def handle_input(event: Event, target: MsgTarget, msg: UniMsg) -> None:
-    if target.private:
-        InputStore.put(target.id, None, msg)
-    else:
-        InputStore.put(event.get_user_id(), target.id, msg)
 
 
 @start_game.handle()
@@ -43,7 +34,7 @@ async def handle_start(
     admin_id = event.get_user_id()
     msg = (
         UniMessage.at(admin_id)
-        .text("⚙️成功创建游戏\n")
+        .text("\n⚙️成功创建游戏\n\n")
         .text("玩家请 @我 发送 “加入游戏”、“退出游戏”\n")
         .text("玩家 @我 发送 “当前玩家” 可查看玩家列表\n")
         .text("游戏发起者 @我 发送 “结束游戏” 可结束当前游戏\n")

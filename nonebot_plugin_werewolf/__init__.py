@@ -5,8 +5,7 @@ require("nonebot_plugin_alconna")
 require("nonebot_plugin_userinfo")
 require("nonebot_plugin_waiter")
 
-from . import matchers as matchers
-from . import players as players
+from . import matchers, players
 from .config import Config
 
 __version__ = "1.1.2"
@@ -25,4 +24,5 @@ __plugin_meta__ = PluginMetadata(
     extra={"author": "wyf7685"},
 )
 
+matchers.load()
 players.load()
