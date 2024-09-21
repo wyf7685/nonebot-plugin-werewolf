@@ -11,6 +11,7 @@ from .player import Player, register_role
 if TYPE_CHECKING:
     from ..player_set import PlayerSet
 
+
 @register_role(Role.Idiot, RoleGroup.GoodGuy)
 class Idiot(Player):
     voted: bool = False
