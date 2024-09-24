@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import functools
 from typing import TYPE_CHECKING
 
 from ._timeout import timeout
@@ -50,6 +51,7 @@ class PlayerSet(set[Player]):
     def player_selected(self) -> PlayerSet:
         return PlayerSet(p.selected for p in self.alive() if p.selected is not None)
 
+    @functools.cached_property
     def sorted(self) -> list[Player]:
         return sorted(self, key=lambda p: p.user_id)
 
@@ -77,7 +79,7 @@ class PlayerSet(set[Player]):
         await asyncio.gather(*[p.send(message) for p in self])
 
     def show(self) -> str:
-        return "\n".join(f"{i}. {p.name}" for i, p in enumerate(self.sorted(), 1))
+        return "\n".join(f"{i}. {p.name}" for i, p in enumerate(self.sorted, 1))
 
     def __getitem__(self, __index: int) -> Player:
-        return self.sorted()[__index]
+        return self.sorted[__index]

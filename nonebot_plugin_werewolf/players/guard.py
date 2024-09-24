@@ -14,10 +14,10 @@ class Guard(Player):
     async def interact(self) -> None:
         players = self.game.players.alive()
         await self.send(
-            UniMessage.text("🛡️请选择需要保护的玩家:\n")
+            UniMessage.text("💫请选择需要保护的玩家:\n")
             .text(players.show())
-            .text("\n\n发送编号选择玩家")
-            .text("\n发送 “/stop” 结束回合")
+            .text("\n\n🛡️发送编号选择玩家")
+            .text("\n❌发送 “/stop” 结束回合")
         )
 
         while True:

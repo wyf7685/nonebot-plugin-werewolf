@@ -18,7 +18,7 @@ with contextlib.suppress(ImportError):
     from nonebot.adapters.onebot.v11.event import PokeNotifyEvent
 
     # 游戏内戳一戳等效 "/stop"
-    async def _rule_poke_1(event: PokeNotifyEvent) -> bool:
+    async def _rule_poke_stop(event: PokeNotifyEvent) -> bool:
         if not config.enable_poke:
             return False
 
@@ -30,16 +30,16 @@ with contextlib.suppress(ImportError):
             and user_in_game(user_id, group_id)
         )
 
-    @on_type(PokeNotifyEvent, rule=_rule_poke_1).handle()
-    async def handle_poke_1(event: PokeNotifyEvent) -> None:
+    @on_type(PokeNotifyEvent, rule=_rule_poke_stop).handle()
+    async def handle_poke_stop(event: PokeNotifyEvent) -> None:
         InputStore.put(
+            msg=UniMessage.text("/stop"),
             user_id=str(event.user_id),
             group_id=str(event.group_id) if event.group_id is not None else None,
-            msg=UniMessage.text("/stop"),
         )
 
     # 准备阶段戳一戳等效加入游戏
-    async def _rule_poke_2(event: PokeNotifyEvent, target: MsgTarget) -> bool:
+    async def _rule_poke_join(event: PokeNotifyEvent, target: MsgTarget) -> bool:
         if not config.enable_poke or event.group_id is None:
             return False
 
@@ -51,8 +51,8 @@ with contextlib.suppress(ImportError):
             and hash(target) in Game.starting_games
         )
 
-    @on_type(PokeNotifyEvent, rule=_rule_poke_2).handle()
-    async def handle_poke_2(
+    @on_type(PokeNotifyEvent, rule=_rule_poke_join).handle()
+    async def handle_poke_join(
         bot: Bot,
         event: PokeNotifyEvent,
         target: MsgTarget,
@@ -67,7 +67,7 @@ with contextlib.suppress(ImportError):
                 user_id=int(user_id),
             )
             players[user_id] = res.get("card") or res.get("nickname") or user_id
-            await UniMessage.at(user_id).text("✅成功加入游戏").send(target, bot)
+            await UniMessage.at(user_id).text("\n✅成功加入游戏").send(target, bot)
 
     def ob11_ext_enabled() -> bool:
         if not config.enable_poke:

@@ -10,6 +10,6 @@ message_in_game = on_message(rule=rule_in_game)
 @message_in_game.handle()
 async def handle_input(event: Event, target: MsgTarget, msg: UniMsg) -> None:
     if target.private:
-        InputStore.put(target.id, None, msg)
+        InputStore.put(msg, target.id)
     else:
-        InputStore.put(event.get_user_id(), target.id, msg)
+        InputStore.put(msg, event.get_user_id(), target.id)

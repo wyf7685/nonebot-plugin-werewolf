@@ -178,19 +178,16 @@ class Game:
 
     async def interact(
         self,
-        type_: Player | Role | RoleGroup,
+        player_type: Player | Role | RoleGroup,
         timeout_secs: float,
     ) -> None:
-        players = self.players.alive().select(type_)
-        text = (
-            type_.role_name  # Player
-            if isinstance(type_, Player)
-            else (
-                role_name_conv[type_]  # Role
-                if isinstance(type_, Role)
-                else f"{role_name_conv[type_]}阵营"  # RoleGroup
-            )
-        )
+        players = self.players.alive().select(player_type)
+        if isinstance(player_type, Player):
+            text = player_type.role_name
+        elif isinstance(player_type, Role):
+            text = role_name_conv[player_type]
+        else:  # RoleGroup
+            text = f"{role_name_conv[player_type]}阵营"
 
         await players.broadcast(f"✏️{text}交互开始，限时 {timeout_secs/60:.2f} 分钟")
         try:
@@ -316,7 +313,7 @@ class Game:
         await self.wait_stop(voted, 60)
         await self.post_kill(voted)
 
-    async def run_dead_channel(self) -> None:
+    async def run_dead_channel(self) -> NoReturn:
         loop = asyncio.get_event_loop()
         queue: asyncio.Queue[tuple[Player, UniMessage]] = asyncio.Queue()
 
@@ -399,7 +396,7 @@ class Game:
             # 有玩家死亡，公布死者名单
             else:
                 msg.text("☠️昨晚的死者是:")
-                for p in dead.sorted():
+                for p in dead.sorted:
                     msg.text("\n").at(p.user_id)
                 await self.send(msg)
 

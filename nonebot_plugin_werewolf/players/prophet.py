@@ -14,9 +14,9 @@ class Prophet(Player):
     async def interact(self) -> None:
         players = self.game.players.alive().exclude(self)
         await self.send(
-            UniMessage.text("🔮请选择需要查验身份的玩家:\n")
+            UniMessage.text("💫请选择需要查验身份的玩家:\n")
             .text(players.show())
-            .text("\n\n发送编号选择玩家")
+            .text("\n\n🔮发送编号选择玩家")
         )
 
         while True:

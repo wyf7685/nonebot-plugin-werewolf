@@ -39,11 +39,11 @@ class Werewolf(Player):
                 .text("\n所有私聊消息将被转发至队友\n\n")
             )
         await self.send(
-            msg.text("🔪请选择今晚的目标:\n")
+            msg.text("💫请选择今晚的目标:\n")
             .text(players.show())
-            .text("\n\n发送编号选择玩家")
-            .text("\n发送 “/stop” 结束回合")
-            .text("\n\n意见未统一将空刀")
+            .text("\n\n🔪发送编号选择玩家")
+            .text("\n❌发送 “/stop” 结束回合")
+            .text("\n\n⚠️意见未统一将空刀")
         )
 
         selected = None

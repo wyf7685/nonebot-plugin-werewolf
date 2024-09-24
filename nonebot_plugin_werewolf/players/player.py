@@ -133,8 +133,8 @@ class Player:
 
     async def vote(self, players: PlayerSet) -> tuple[Player, Player] | None:
         await self.send(
-            f"🗳️请选择需要投票的玩家:\n{players.show()}"
-            "\n\n发送编号选择玩家\n发送 “/stop” 弃票"
+            f"💫请选择需要投票的玩家:\n{players.show()}"
+            "\n\n🗳️发送编号选择玩家\n❌发送 “/stop” 弃票"
         )
 
         while True:

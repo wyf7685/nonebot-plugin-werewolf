@@ -40,10 +40,10 @@ class CanShoot(Player):
     async def shoot(self) -> Player | None:
         players = self.game.players.alive().exclude(self)
         await self.send(
-            "🔫请选择需要射杀的玩家:\n"
+            "💫请选择需要射杀的玩家:\n"
             + players.show()
-            + "\n\n发送编号选择玩家"
-            + "\n发送 “/stop” 取消技能"
+            + "\n\n🔫发送编号选择玩家"
+            + "\n❌发送 “/stop” 取消技能"
         )
 
         while True:

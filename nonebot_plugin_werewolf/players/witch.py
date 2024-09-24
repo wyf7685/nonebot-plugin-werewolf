@@ -50,11 +50,11 @@ class Witch(Player):
 
         players = self.game.players.alive()
         await self.send(
-            UniMessage.text("🧪你有一瓶毒药\n")
+            UniMessage.text("💫你有一瓶毒药\n")
             .text("玩家列表:\n")
             .text(players.show())
-            .text("\n\n发送玩家编号使用毒药")
-            .text("\n发送 “/stop” 结束回合(不使用药水)")
+            .text("\n\n🧪发送玩家编号使用毒药")
+            .text("\n❌发送 “/stop” 结束回合(不使用药水)")
         )
 
         while True:
