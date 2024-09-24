@@ -63,7 +63,7 @@ class PlayerSet(set[Player]):
                 async with timeout(timeout_secs):
                     return await player.vote(self)
             except TimeoutError:
-                await player.send("投票超时，将视为弃票")
+                await player.send("⚠️投票超时，将视为弃票")
                 return None
 
         result: dict[Player, list[Player]] = {}

@@ -67,7 +67,7 @@ with contextlib.suppress(ImportError):
                 user_id=int(user_id),
             )
             players[user_id] = res.get("card") or res.get("nickname") or user_id
-            await UniMessage.at(user_id).text("成功加入游戏").send(target, bot)
+            await UniMessage.at(user_id).text("✅成功加入游戏").send(target, bot)
 
     def ob11_ext_enabled() -> bool:
         if not config.enable_poke:

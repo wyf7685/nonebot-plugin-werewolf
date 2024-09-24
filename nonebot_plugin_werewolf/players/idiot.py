@@ -28,7 +28,8 @@ class Idiot(Player):
         if reason == KillReason.Vote and not self.voted:
             self.voted = True
             await self.game.send(
-                UniMessage.at(self.user_id)
+                UniMessage.text("⚙️玩家")
+                .at(self.user_id)
                 .text(" 的身份是白痴\n")
                 .text("免疫本次投票放逐，且接下来无法参与投票"),
             )
@@ -38,6 +39,6 @@ class Idiot(Player):
     @override
     async def vote(self, players: PlayerSet) -> tuple[Player, Player] | None:
         if self.voted:
-            await self.send("你已经发动过白痴身份的技能，无法参与本次投票")
+            await self.send("ℹ️你已经发动过白痴身份的技能，无法参与本次投票")
             return None
         return await super().vote(players)

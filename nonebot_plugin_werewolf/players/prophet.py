@@ -14,7 +14,7 @@ class Prophet(Player):
     async def interact(self) -> None:
         players = self.game.players.alive().exclude(self)
         await self.send(
-            UniMessage.text("请选择需要查验身份的玩家:\n")
+            UniMessage.text("🔮请选择需要查验身份的玩家:\n")
             .text(players.show())
             .text("\n\n发送编号选择玩家")
         )
@@ -25,8 +25,8 @@ class Prophet(Player):
             if index is not None:
                 selected = index - 1
                 break
-            await self.send("输入错误，请发送编号选择玩家")
+            await self.send("⚠️输入错误，请发送编号选择玩家")
 
         player = players[selected]
         result = "狼人" if player.role_group == RoleGroup.Werewolf else "好人"
-        await self.send(f"玩家 {player.name} 的阵营是『{result}』")
+        await self.send(f"✏️玩家 {player.name} 的阵营是『{result}』")

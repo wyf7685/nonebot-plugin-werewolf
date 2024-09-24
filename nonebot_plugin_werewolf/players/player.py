@@ -119,7 +119,7 @@ class Player:
         return
 
     async def notify_role(self) -> None:
-        await self.send(f"你的身份: {self.role_name}")
+        await self.send(f"⚙️你的身份: {self.role_name}")
 
     async def kill(self, reason: KillReason, *killers: Player) -> bool:
         from ..player_set import PlayerSet
@@ -133,23 +133,23 @@ class Player:
 
     async def vote(self, players: PlayerSet) -> tuple[Player, Player] | None:
         await self.send(
-            f"请选择需要投票的玩家:\n{players.show()}"
+            f"🗳️请选择需要投票的玩家:\n{players.show()}"
             "\n\n发送编号选择玩家\n发送 “/stop” 弃票"
         )
 
         while True:
             text = await self.receive_text()
             if text == "/stop":
-                await self.send("你选择了弃票")
+                await self.send("⚠️你选择了弃票")
                 return None
             index = check_index(text, len(players))
             if index is not None:
                 selected = index - 1
                 break
-            await self.send("输入错误，请发送编号选择玩家")
+            await self.send("⚠️输入错误，请发送编号选择玩家")
 
         player = players[selected]
-        await self.send(f"投票的玩家: {player.name}")
+        await self.send(f"🔨投票的玩家: {player.name}")
         return self, player
 
 

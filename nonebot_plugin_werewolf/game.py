@@ -124,34 +124,34 @@ class Game:
             raise GameFinished(GameStatus.GoodGuy)
 
     def show_killed_players(self) -> str:
-        msg = ""
+        result: list[str] = []
 
         for player in self.killed_players:
             if player.kill_info is None:
                 continue
 
-            msg += f"{player.name} 被 " + ", ".join(
+            line = f"{player.name} 被 " + ", ".join(
                 p.name for p in player.kill_info.killers
             )
             match player.kill_info.reason:
                 case KillReason.Werewolf:
-                    msg += " 刀了"
+                    line = f"🔪 {line} 刀了"
                 case KillReason.Poison:
-                    msg += " 毒死"
+                    line = f"🧪 {line} 毒死"
                 case KillReason.Shoot:
-                    msg += " 射杀"
+                    line = f"🔫 {line} 射杀"
                 case KillReason.Vote:
-                    msg += " 票出"
-            msg += "\n\n"
+                    line = f"🗳️ {line} 票出"
+            result.append(line)
 
-        return msg.strip()
+        return "\n\n".join(result)
 
     async def notify_player_role(self) -> None:
         preset = config.get_role_preset()[len(self.players)]
         await asyncio.gather(
             self.send(
                 self.at_all()
-                .text("\n\n正在分配职业，请注意查看私聊消息\n")
+                .text("\n\n📝正在分配职业，请注意查看私聊消息\n")
                 .text(f"当前玩家数: {len(self.players)}\n")
                 .text(f"职业分配: 狼人x{preset[0]}, 神职x{preset[1]}, 平民x{preset[2]}")
             ),
@@ -192,12 +192,12 @@ class Game:
             )
         )
 
-        await players.broadcast(f"{text}交互开始，限时 {timeout_secs/60:.2f} 分钟")
+        await players.broadcast(f"✏️{text}交互开始，限时 {timeout_secs/60:.2f} 分钟")
         try:
             await players.interact(timeout_secs)
         except TimeoutError:
-            logger.opt(colors=True).debug(f"{text}交互超时 (<y>{timeout_secs}</y>s)")
-            await players.broadcast(f"{text}交互时间结束")
+            logger.opt(colors=True).debug(f"⚠️{text}交互超时 (<y>{timeout_secs}</y>s)")
+            await players.broadcast(f"ℹ️{text}交互时间结束")
 
     async def select_killed(self) -> None:
         players = self.players.alive()
@@ -207,9 +207,9 @@ class Game:
         await self.interact(RoleGroup.Werewolf, 120)
         if (s := w.player_selected()).size == 1:
             self.state.killed = s.pop()
-            await w.broadcast(f"今晚选择的目标为: {self.state.killed.name}")
+            await w.broadcast(f"🔪今晚选择的目标为: {self.state.killed.name}")
         else:
-            await w.broadcast("狼人阵营意见未统一，此晚空刀")
+            await w.broadcast("⚠️狼人阵营意见未统一，此晚空刀")
 
         # 如果女巫存活，正常交互，限时1分钟
         if players.include(Role.Witch):
@@ -226,12 +226,12 @@ class Game:
 
         await asyncio.gather(
             players.broadcast(
-                "你已加入死者频道，请勿在群内继续发言\n"
+                "ℹ️你已加入死者频道，请勿在群内继续发言\n"
                 "私聊发送消息将转发至其他已死亡玩家"
             ),
             self.players.dead()
             .exclude(*players)
-            .broadcast(f"玩家 {', '.join(p.name for p in players)} 加入了死者频道"),
+            .broadcast(f"ℹ️玩家 {', '.join(p.name for p in players)} 加入了死者频道"),
         )
 
     async def post_kill(self, players: Player | PlayerSet) -> None:
@@ -271,33 +271,34 @@ class Game:
         logger.debug(f"投票结果: {vote_result}")
 
         # 投票结果公示
-        msg = UniMessage.text("投票结果:\n")
+        msg = UniMessage.text("📊投票结果:\n")
         for p, v in sorted(vote_result.items(), key=lambda x: len(x[1]), reverse=True):
             if p is not None:
                 msg.at(p.user_id).text(f": {len(v)} 票\n")
                 vote_reversed[len(v)] = [*vote_reversed.get(len(v), []), p]
         if v := (len(players) - total_votes):
-            msg.text(f"弃票: {v} 票\n")
-        await self.send(msg)
+            msg.text(f"弃票: {v} 票\n\n")
 
         # 全员弃票  # 不是哥们？
         if total_votes == 0:
-            await self.send("没有人被票出")
+            await self.send(msg.text("🔨没有人被票出"))
             return
 
         # 弃票大于最高票
         if (len(players) - total_votes) >= max(vote_reversed.keys()):
-            await self.send("弃票数大于最高票数, 没有人被票出")
+            await self.send(msg.text("🔨弃票数大于最高票数, 没有人被票出"))
             return
 
         # 平票
         if len(vs := vote_reversed[max(vote_reversed.keys())]) != 1:
             await self.send(
-                UniMessage.text("玩家 ")
+                msg.text("🔨玩家 ")
                 .text(", ".join(p.name for p in vs))
                 .text(" 平票, 没有人被票出")
             )
             return
+
+        await self.send(msg)
 
         # 仅有一名玩家票数最高
         voted = vs.pop()
@@ -307,7 +308,7 @@ class Game:
 
         # 遗言
         await self.send(
-            UniMessage.text("玩家 ")
+            UniMessage.text("🔨玩家 ")
             .at(voted.user_id)
             .text(" 被投票放逐, 请发表遗言\n")
             .text("限时1分钟, 发送 “/stop” 结束发言")
@@ -342,7 +343,7 @@ class Game:
                     await queue.put((player, msg))
                     loop.call_later(60, decrease)
                 else:
-                    await player.send("发言频率超过限制, 该消息被屏蔽")
+                    await player.send("❌发言频率超过限制, 该消息被屏蔽")
 
         await asyncio.gather(send(), *[recv(p) for p in self.players])
 
@@ -357,17 +358,17 @@ class Game:
             # 重置游戏状态，进入下一夜
             self.state = GameState(day_count)
             players = self.players.alive()
-            await self.send("天黑请闭眼...")
+            await self.send("🌙天黑请闭眼...")
 
             # 狼人、预言家、守卫 同时交互，女巫在狼人后交互
             await asyncio.gather(
                 self.select_killed(),
                 self.interact(Role.Prophet, 60),
                 self.interact(Role.Guard, 60),
-                players.select(Role.Witch).broadcast("请等待狼人决定目标..."),
+                players.select(Role.Witch).broadcast("ℹ️请等待狼人决定目标..."),
                 players.exclude(
                     RoleGroup.Werewolf, Role.Prophet, Role.Witch, Role.Guard
-                ).broadcast("请等待其他玩家结束交互..."),
+                ).broadcast("ℹ️请等待其他玩家结束交互..."),
             )
 
             # 狼人击杀目标
@@ -391,13 +392,13 @@ class Game:
                     await witch.selected.kill(KillReason.Poison, witch)
 
             day_count += 1
-            msg = UniMessage.text(f"『第{day_count}天』天亮了...\n")
+            msg = UniMessage.text(f"『第{day_count}天』☀️天亮了...\n")
             # 没有玩家死亡，平安夜
             if not (dead := players.dead()):
                 await self.send(msg.text("昨晚是平安夜"))
             # 有玩家死亡，公布死者名单
             else:
-                msg.text("昨晚的死者是:")
+                msg.text("☠️昨晚的死者是:")
                 for p in dead.sorted():
                     msg.text("\n").at(p.user_id)
                 await self.send(msg)
@@ -405,7 +406,7 @@ class Game:
             # 第一晚被狼人杀死的玩家发表遗言
             if day_count == 1 and killed is not None and not killed.alive:
                 await self.send(
-                    UniMessage.text("当前为第一天\n请被狼人杀死的 ")
+                    UniMessage.text("⚙️当前为第一天\n请被狼人杀死的 ")
                     .at(killed.user_id)
                     .text(" 发表遗言\n")
                     .text("限时1分钟, 发送 “/stop” 结束发言")
@@ -417,14 +418,18 @@ class Game:
             self.check_game_status()
 
             # 公示存活玩家
-            await self.send(f"当前存活玩家: \n\n{self.players.alive().show()}")
+            await self.send(f"📝当前存活玩家: \n\n{self.players.alive().show()}")
 
             # 开始自由讨论
-            await self.send("接下来开始自由讨论\n限时2分钟, 全员发送 “/stop” 结束发言")
+            await self.send(
+                "💬接下来开始自由讨论\n限时2分钟, 全员发送 “/stop” 结束发言"
+            )
             await self.wait_stop(self.players.alive(), 120)
 
             # 开始投票
-            await self.send("讨论结束, 进入投票环节，限时1分钟\n请在私聊中进行投票交互")
+            await self.send(
+                "🗳️讨论结束, 进入投票环节，限时1分钟\n请在私聊中进行投票交互"
+            )
             await self.run_vote()
 
             # 判断游戏状态
@@ -475,4 +480,5 @@ class Game:
                 logger.opt(exception=err).error(msg)
 
         self.running_games[self.group] = self
-        asyncio.create_task(daemon()).add_done_callback(daemon_callback)
+        daemon_task = asyncio.create_task(daemon())
+        daemon_task.add_done_callback(daemon_callback)

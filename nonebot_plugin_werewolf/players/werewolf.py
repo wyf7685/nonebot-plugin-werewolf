@@ -18,7 +18,7 @@ class Werewolf(Player):
         partners = self.game.players.alive().select(RoleGroup.Werewolf).exclude(self)
         if partners:
             await self.send(
-                "你的队友:\n"
+                "🐺你的队友:\n"
                 + "\n".join(f"  {p.role_name}: {p.name}" for p in partners)
             )
 
@@ -34,12 +34,12 @@ class Werewolf(Player):
         msg = UniMessage()
         if partners:
             msg = (
-                msg.text("你的队友:\n")
+                msg.text("🐺你的队友:\n")
                 .text("\n".join(f"  {p.role_name}: {p.name}" for p in partners))
                 .text("\n所有私聊消息将被转发至队友\n\n")
             )
         await self.send(
-            msg.text("请选择今晚的目标:\n")
+            msg.text("🔪请选择今晚的目标:\n")
             .text(players.show())
             .text("\n\n发送编号选择玩家")
             .text("\n发送 “/stop” 结束回合")
@@ -55,15 +55,15 @@ class Werewolf(Player):
             if index is not None:
                 selected = index - 1
                 msg = f"当前选择玩家: {players[selected].name}"
-                await self.send(f"{msg}\n发送 “/stop” 结束回合")
-                broadcast(f"队友 {self.name} {msg}")
+                await self.send(f"🎯{msg}\n发送 “/stop” 结束回合")
+                broadcast(f"📝队友 {self.name} {msg}")
             if text == "/stop":
                 if selected is not None:
                     finished = True
-                    await self.send("你已结束当前回合")
-                    broadcast(f"队友 {self.name} 结束当前回合")
+                    await self.send("✅你已结束当前回合")
+                    broadcast(f"📝队友 {self.name} 结束当前回合")
                 else:
-                    await self.send("当前未选择玩家，无法结束回合")
-            broadcast(UniMessage.text(f"队友 {self.name}:\n") + input_msg)
+                    await self.send("⚠️当前未选择玩家，无法结束回合")
+            broadcast(UniMessage.text(f"💬队友 {self.name}:\n") + input_msg)
 
         self.selected = players[selected]

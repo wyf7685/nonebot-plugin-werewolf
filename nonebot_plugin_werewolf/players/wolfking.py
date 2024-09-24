@@ -13,4 +13,4 @@ class WolfKing(CanShoot, Werewolf):
     @override
     async def notify_role(self) -> None:
         await super().notify_role()
-        await self.send("作为狼王，你可以在死后射杀一名玩家")
+        await self.send("⚙️作为狼王，你可以在死后射杀一名玩家")

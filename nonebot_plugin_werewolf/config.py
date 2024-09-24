@@ -1,4 +1,4 @@
-from typing import Literal, overload
+from typing import Any, Literal, overload
 
 from nonebot import get_plugin_config, logger
 from nonebot.compat import PYDANTIC_V2
@@ -7,6 +7,8 @@ from typing_extensions import Self
 
 from .constant import (
     Role,
+    RolePresetConfig,
+    RolePresetDict,
     default_priesthood_proirity,
     default_role_preset,
     default_werewolf_priority,
@@ -18,12 +20,12 @@ else:
     from pydantic import root_validator
 
     @overload
-    def model_validator(*, mode: Literal["before"]): ...  # noqa: ANN201
+    def model_validator(*, mode: Literal["before"]) -> Any: ...  # noqa: ANN401
 
     @overload
-    def model_validator(*, mode: Literal["after"]): ...  # noqa: ANN201
+    def model_validator(*, mode: Literal["after"]) -> Any: ...  # noqa: ANN401
 
-    def model_validator(*, mode: Literal["before", "after"]):
+    def model_validator(*, mode: Literal["before", "after"]) -> Any:
         return root_validator(
             pre=mode == "before",  # pyright: ignore[reportArgumentType]
             allow_reuse=True,
@@ -31,16 +33,10 @@ else:
 
 
 class PluginConfig(BaseModel):
-    enable_poke: bool = Field(default=True)
-    role_preset: list[tuple[int, int, int, int]] | dict[int, tuple[int, int, int]] = (
-        Field(default_factory=default_role_preset.copy)
-    )
-    werewolf_priority: list[Role] = Field(
-        default_factory=default_werewolf_priority.copy
-    )
-    priesthood_proirity: list[Role] = Field(
-        default_factory=default_priesthood_proirity.copy
-    )
+    enable_poke: bool = True
+    role_preset: RolePresetConfig = default_role_preset.copy()
+    werewolf_priority: list[Role] = default_werewolf_priority.copy()
+    priesthood_proirity: list[Role] = default_priesthood_proirity.copy()
     joker_probability: float = Field(default=0.0, ge=0.0, le=1.0)
 
     @model_validator(mode="after")
@@ -72,7 +68,7 @@ class PluginConfig(BaseModel):
 
         return self
 
-    def get_role_preset(self) -> dict[int, tuple[int, int, int]]:
+    def get_role_preset(self) -> RolePresetDict:
         if isinstance(self.role_preset, list):
             self.role_preset = {i[0]: i[1:] for i in self.role_preset}
         return self.role_preset

@@ -71,7 +71,10 @@ role_name_conv: dict[Role | RoleGroup, str] = {
     RoleGroup.Others: "其他",
 }
 
-default_role_preset: dict[int, tuple[int, int, int]] = {
+RolePresetDict = dict[int, tuple[int, int, int]]
+RolePresetConfig = RolePresetDict | list[tuple[int, int, int, int]]
+
+default_role_preset: RolePresetDict = {
     # 总人数: (狼, 神, 民)
     6: (1, 2, 3),
     7: (2, 2, 3),

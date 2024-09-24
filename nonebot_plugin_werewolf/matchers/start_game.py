@@ -29,27 +29,30 @@ async def handle_start(
     bot: Bot,
     event: Event,
     target: MsgTarget,
-    admin_info: Annotated[UserInfo, EventUserInfo()],
+    info: Annotated[UserInfo | None, EventUserInfo()],
 ) -> None:
     admin_id = event.get_user_id()
     msg = (
         UniMessage.at(admin_id)
         .text("\n⚙️成功创建游戏\n\n")
-        .text("玩家请 @我 发送 “加入游戏”、“退出游戏”\n")
-        .text("玩家 @我 发送 “当前玩家” 可查看玩家列表\n")
-        .text("游戏发起者 @我 发送 “结束游戏” 可结束当前游戏\n")
-        .text("玩家均加入后，游戏发起者请 @我 发送 “开始游戏”\n")
+        .text("  玩家请 @我 发送 “加入游戏”、“退出游戏”\n")
+        .text("  玩家 @我 发送 “当前玩家” 可查看玩家列表\n")
+        .text("  游戏发起者 @我 发送 “结束游戏” 可结束当前游戏\n")
+        .text("  玩家均加入后，游戏发起者请 @我 发送 “开始游戏”\n")
     )
     if ob11_ext_enabled():
         msg.text("\n可使用戳一戳代替游戏交互中的 “/stop” 命令\n")
     await msg.text("\n游戏准备阶段限时5分钟，超时将自动结束").send()
 
-    players = {admin_id: admin_info.user_name}
+    admin_name = admin_id
+    if info is not None:
+        admin_name = info.user_displayname or info.user_name
+    players = {admin_id: admin_name}
 
     try:
         async with timeout(5 * 60):
             await prepare_game(event, players)
     except TimeoutError:
-        await UniMessage.text("游戏准备超时，已自动结束").finish()
+        await UniMessage.text("⚠️游戏准备超时，已自动结束").finish()
 
     Game(bot, target, players).start()

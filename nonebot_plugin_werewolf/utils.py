@@ -8,7 +8,7 @@ import nonebot_plugin_waiter as waiter
 from nonebot.adapters import Event
 from nonebot.rule import to_me
 from nonebot.utils import escape_tag
-from nonebot_plugin_alconna import MsgTarget, UniMessage, UniMsg
+from nonebot_plugin_alconna import MsgTarget, Target, UniMessage, UniMsg
 from nonebot_plugin_userinfo import EventUserInfo, UserInfo
 
 from .config import config
@@ -81,10 +81,10 @@ async def is_group(target: MsgTarget) -> bool:
 async def _prepare_game_receive(
     queue: asyncio.Queue[tuple[str, str, str]],
     event: Event,
-    group_id: str,
+    group: Target,
 ) -> None:
-    async def rule(target_: MsgTarget) -> bool:
-        return not target_.private and target_.id == group_id
+    async def rule(target: MsgTarget) -> bool:
+        return group.verify(target)
 
     @waiter.waiter(
         waits=[event.get_type()],
@@ -97,9 +97,9 @@ async def _prepare_game_receive(
         info: Annotated[UserInfo | None, EventUserInfo()],
     ) -> tuple[str, str, str]:
         return (
-            event.get_user_id(),
+            (user_id := event.get_user_id()),
             msg.extract_plain_text().strip(),
-            info and (info.user_displayname or info.user_name) or event.get_user_id(),
+            info and (info.user_displayname or info.user_name) or user_id,
         )
 
     async for user, text, name in wait(default=(None, "", "")):
@@ -117,7 +117,7 @@ async def _prepare_game_handle(
 
     while True:
         user, text, name = await queue.get()
-        msg = UniMessage.at(user)
+        msg = UniMessage.at(user).text("\n")
         colored = f"<y>{escape_tag(name)}</y>(<c>{escape_tag(user)}</c>)"
 
         match (text, user == admin_id):
@@ -126,61 +126,61 @@ async def _prepare_game_handle(
                 role_preset = config.get_role_preset()
                 if player_num < min(role_preset):
                     await (
-                        msg.text(f"游戏至少需要 {min(role_preset)} 人, ")
+                        msg.text(f"⚠️游戏至少需要 {min(role_preset)} 人, ")
                         .text(f"当前已有 {player_num} 人")
                         .send()
                     )
                 elif player_num > max(role_preset):
                     await (
-                        msg.text(f"游戏最多需要 {max(role_preset)} 人, ")
+                        msg.text(f"⚠️游戏最多需要 {max(role_preset)} 人, ")
                         .text(f"当前已有 {player_num} 人")
                         .send()
                     )
                 elif player_num not in role_preset:
                     await (
-                        msg.text(f"不存在总人数为 {player_num} 的预设, ")
+                        msg.text(f"⚠️不存在总人数为 {player_num} 的预设, ")
                         .text("无法开始游戏")
                         .send()
                     )
                 else:
-                    await msg.text("游戏即将开始...").send()
+                    await msg.text("✏️游戏即将开始...").send()
                     logger.info(f"游戏发起者 {colored} 开始游戏")
                     return
 
             case ("开始游戏", False):
-                await msg.text("只有游戏发起者可以开始游戏").send()
+                await msg.text("⚠️只有游戏发起者可以开始游戏").send()
 
             case ("结束游戏", True):
                 logger.info(f"游戏发起者 {colored} 结束游戏")
-                await msg.text("已结束当前游戏").finish()
+                await msg.text("ℹ️已结束当前游戏").finish()
 
             case ("结束游戏", False):
-                await msg.text("只有游戏发起者可以结束游戏").send()
+                await msg.text("⚠️只有游戏发起者可以结束游戏").send()
 
             case ("加入游戏", True):
-                await msg.text("游戏发起者已经加入游戏了").send()
+                await msg.text("ℹ️游戏发起者已经加入游戏了").send()
 
             case ("加入游戏", False):
                 if user not in players:
                     players[user] = name
                     logger.info(f"玩家 {colored} 加入游戏")
-                    await msg.text("成功加入游戏").send()
+                    await msg.text("✅成功加入游戏").send()
                 else:
-                    await msg.text("你已经加入游戏了").send()
+                    await msg.text("ℹ️你已经加入游戏了").send()
 
             case ("退出游戏", True):
-                await msg.text("游戏发起者无法退出游戏").send()
+                await msg.text("ℹ️游戏发起者无法退出游戏").send()
 
             case ("退出游戏", False):
                 if user in players:
                     del players[user]
                     logger.info(f"玩家 {colored} 退出游戏")
-                    await msg.text("成功退出游戏").send()
+                    await msg.text("✅成功退出游戏").send()
                 else:
-                    await msg.text("你还没有加入游戏").send()
+                    await msg.text("ℹ️你还没有加入游戏").send()
 
             case ("当前玩家", _):
-                msg.text("\n当前玩家:\n")
+                msg.text("✨当前玩家:\n")
                 for idx, name in enumerate(players.values(), 1):
                     msg.text(f"\n{idx}. {name}")
                 await msg.send()
@@ -193,7 +193,7 @@ async def prepare_game(event: Event, players: dict[str, str]) -> None:
     Game.starting_games[hash(group)] = players
 
     queue: asyncio.Queue[tuple[str, str, str]] = asyncio.Queue()
-    task_receive = asyncio.create_task(_prepare_game_receive(queue, event, group.id))
+    task_receive = asyncio.create_task(_prepare_game_receive(queue, event, group))
 
     try:
         await _prepare_game_handle(queue, players, event.get_user_id())
