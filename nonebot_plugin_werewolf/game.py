@@ -41,31 +41,19 @@ def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
         roles.remove(Role.Civilian)
         roles.append(Role.Joker)
 
-    shuffled: list[Role] = []
-    while roles:
-        idx = secrets.randbelow(len(roles))
-        shuffled.append(roles.pop(idx))
-
-    logger.debug(f"职业分配: {shuffled}")
-
-    async def selector(target_: Target, b: Bot) -> bool:
-        return target_.self_id == bot.self_id and b is bot
-
-    return PlayerSet(
+    player_set = PlayerSet(
         Player.new(
-            role,
-            bot,
-            game,
-            Target(
-                user_id,
-                private=True,
-                self_id=bot.self_id,
-                selector=selector,
-            ),
-            players[user_id],
+            role=roles.pop(secrets.randbelow(len(roles))),
+            bot=bot,
+            game=game,
+            user_id=user_id,
+            name=players[user_id],
         )
-        for user_id, role in zip(players, shuffled, strict=True)
+        for user_id in players
     )
+    logger.debug(f"职业分配完成: {player_set}")
+
+    return player_set
 
 
 class Game:
@@ -158,18 +146,11 @@ class Game:
             *[p.notify_role() for p in self.players],
         )
 
-    async def wait_stop(
-        self,
-        players: Player | PlayerSet,
-        timeout_secs: float,
-    ) -> None:
-        if isinstance(players, Player):
-            players = PlayerSet([players])
-
+    async def wait_stop(self, *players: Player, timeout_secs: float) -> None:
         async def wait(p: Player) -> None:
             while True:
                 msg = await InputStore.fetch(p.user_id, self.group.id)
-                if msg.extract_plain_text() == "/stop":
+                if msg.extract_plain_text().strip() == "/stop":
                     break
 
         with contextlib.suppress(TimeoutError):
@@ -250,7 +231,7 @@ class Game:
                     .text(f" 被{shooter.role_name}射杀, 请发表遗言\n")
                     .text("限时1分钟, 发送 “/stop” 结束发言")
                 )
-                await self.wait_stop(shoot, 60)
+                await self.wait_stop(shoot, timeout_secs=60)
                 self.state.shoot = (None, None)
                 await self.post_kill(shoot)
 
@@ -310,7 +291,7 @@ class Game:
             .text(" 被投票放逐, 请发表遗言\n")
             .text("限时1分钟, 发送 “/stop” 结束发言")
         )
-        await self.wait_stop(voted, 60)
+        await self.wait_stop(voted, timeout_secs=60)
         await self.post_kill(voted)
 
     async def run_dead_channel(self) -> NoReturn:
@@ -408,7 +389,7 @@ class Game:
                     .text(" 发表遗言\n")
                     .text("限时1分钟, 发送 “/stop” 结束发言")
                 )
-                await self.wait_stop(killed, 60)
+                await self.wait_stop(killed, timeout_secs=60)
             await self.post_kill(dead)
 
             # 判断游戏状态
@@ -421,7 +402,7 @@ class Game:
             await self.send(
                 "💬接下来开始自由讨论\n限时2分钟, 全员发送 “/stop” 结束发言"
             )
-            await self.wait_stop(self.players.alive(), 120)
+            await self.wait_stop(*self.players.alive(), timeout_secs=120)
 
             # 开始投票
             await self.send(

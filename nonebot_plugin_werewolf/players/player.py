@@ -4,7 +4,7 @@ import asyncio
 import functools
 import weakref
 from dataclasses import dataclass
-from typing import TYPE_CHECKING, ClassVar, TypeVar, final
+from typing import TYPE_CHECKING, ClassVar, Final, TypeVar, final
 
 from nonebot.log import logger
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
@@ -35,37 +35,35 @@ class Player:
     role: ClassVar[Role]
     role_group: ClassVar[RoleGroup]
 
-    bot: Bot
-    _game_ref: weakref.ReferenceType[Game]
-    user: Target
-    name: str
+    bot: Final[Bot]
+    _game_ref: Final[weakref.ReferenceType[Game]]
+    user: Final[Target]
+    name: Final[str]
     alive: bool = True
-    killed: asyncio.Event
+    killed: Final[asyncio.Event]
     kill_info: KillInfo | None = None
     selected: Player | None = None
 
     @final
-    def __init__(self, bot: Bot, game: Game, user: Target, name: str) -> None:
+    def __init__(self, bot: Bot, game: Game, user_id: str, name: str) -> None:
         self.bot = bot
         self._game_ref = weakref.ref(game)
-        self.user = user
+        self.user = Target(
+            user_id,
+            private=True,
+            self_id=bot.self_id,
+            adapter=bot.adapter.get_name(),
+        )
         self.name = name
         self.killed = asyncio.Event()
 
     @final
     @classmethod
-    def new(
-        cls,
-        role: Role,
-        bot: Bot,
-        game: Game,
-        user: Target,
-        name: str,
-    ) -> Player:
+    def new(cls, role: Role, bot: Bot, game: Game, user_id: str, name: str) -> Player:
         if role not in PLAYER_CLASS:
             raise ValueError(f"Unexpected role: {role!r}")
 
-        return PLAYER_CLASS[role](bot, game, user, name)
+        return PLAYER_CLASS[role](bot, game, user_id, name)
 
     def __repr__(self) -> str:
         return f"<{self.role_name}: user={self.name!r} alive={self.alive}>"
@@ -125,7 +123,7 @@ class Player:
         from ..player_set import PlayerSet
 
         self.alive = False
-        self.kill_info = KillInfo(reason, PlayerSet(killers))
+        self.kill_info = KillInfo(reason=reason, killers=PlayerSet(killers))
         return True
 
     async def post_kill(self) -> None:
@@ -146,7 +144,7 @@ class Player:
             if index is not None:
                 selected = index - 1
                 break
-            await self.send("⚠️输入错误，请发送编号选择玩家")
+            await self.send("⚠️输入错误: 请发送编号选择玩家")
 
         player = players[selected]
         await self.send(f"🔨投票的玩家: {player.name}")

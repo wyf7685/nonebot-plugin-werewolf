@@ -55,7 +55,7 @@ class CanShoot(Player):
             if index is not None:
                 selected = index - 1
                 break
-            await self.send("⚠️输入错误，请发送编号选择玩家")
+            await self.send("⚠️输入错误: 请发送编号选择玩家")
 
         await self.send(f"🎯选择射杀的玩家: {players[selected].name}")
         return players[selected]

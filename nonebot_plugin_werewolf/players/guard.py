@@ -32,7 +32,7 @@ class Guard(Player):
                     await self.send("⚠️守卫不能连续两晚保护同一目标，请重新选择")
                     continue
                 break
-            await self.send("⚠️输入错误，请发送编号选择玩家")
+            await self.send("⚠️输入错误: 请发送编号选择玩家")
 
         self.selected = players[selected]
         self.game.state.protected.add(self.selected)
