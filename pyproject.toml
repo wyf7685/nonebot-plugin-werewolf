@@ -13,6 +13,11 @@ requires-python = ">=3.10"
 readme = "README.md"
 license = { text = "MIT" }
 
+[project.urls]
+homepage = "https://github.com/wyf7685/nonebot-plugin-werewolf"
+repository = "https://github.com/wyf7685/nonebot-plugin-werewolf"
+bug-tracker = "https://github.com/wyf7685/nonebot-plugin-werewolf/issues"
+
 [tool.uv]
 dev-dependencies = [
     "nonebot2[fastapi]>=2.3.3",

@@ -21,7 +21,10 @@ __plugin_meta__ = PluginMetadata(
         "nonebot_plugin_userinfo",
         "nonebot_plugin_waiter",
     ),
-    extra={"author": "wyf7685"},
+    extra={
+        "Author": "wyf7685",
+        "Bug Tracker": "https://github.com/wyf7685/nonebot-plugin-werewolf/issues",
+    },
 )
 
 matchers.load()
