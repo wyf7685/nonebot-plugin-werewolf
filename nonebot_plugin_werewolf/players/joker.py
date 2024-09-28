@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing_extensions import override
 
 from ..constant import GameStatus, KillReason, Role, RoleGroup

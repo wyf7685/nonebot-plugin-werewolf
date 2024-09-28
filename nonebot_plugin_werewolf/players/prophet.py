@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from nonebot_plugin_alconna.uniseg import UniMessage
 from typing_extensions import override
 

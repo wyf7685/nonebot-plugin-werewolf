@@ -66,7 +66,7 @@ class Player:
         return PLAYER_CLASS[role](bot, game, user_id, name)
 
     def __repr__(self) -> str:
-        return f"<{self.role_name}: user={self.name!r} alive={self.alive}>"
+        return f"<Player {self.role_name}: user={self.name!r} alive={self.alive}>"
 
     @property
     def game(self) -> Game:

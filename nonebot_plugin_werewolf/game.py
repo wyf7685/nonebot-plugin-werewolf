@@ -24,8 +24,7 @@ if TYPE_CHECKING:
 def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
     logger.opt(colors=True).debug(f"初始化 <c>{game.group.id}</c> 的玩家职业")
     role_preset = config.get_role_preset()
-    preset = role_preset.get(len(players))
-    if preset is None:
+    if (preset := role_preset.get(len(players))) is None:
         raise ValueError(
             f"玩家人数不符: "
             f"应为 {', '.join(map(str, role_preset))} 人, 传入{len(players)}人"
@@ -41,14 +40,11 @@ def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
         roles.remove(Role.Civilian)
         roles.append(Role.Joker)
 
+    def _select_role() -> Role:
+        return roles.pop(secrets.randbelow(len(roles)))
+
     player_set = PlayerSet(
-        Player.new(
-            role=roles.pop(secrets.randbelow(len(roles))),
-            bot=bot,
-            game=game,
-            user_id=user_id,
-            name=players[user_id],
-        )
+        Player.new(_select_role(), bot, game, user_id, players[user_id])
         for user_id in players
     )
     logger.debug(f"职业分配完成: {player_set}")
