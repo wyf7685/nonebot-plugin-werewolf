@@ -1,10 +1,10 @@
+from .civilian import Civilian as Civilian
+from .guard import Guard as Guard
+from .hunter import Hunter as Hunter
+from .idiot import Idiot as Idiot
+from .joker import Joker as Joker
 from .player import Player as Player
-
-
-def load() -> None:
-    import importlib
-    import pathlib
-
-    for path in pathlib.Path(__file__).parent.iterdir():
-        if not path.name.startswith("_") and path.suffix == ".py":
-            importlib.import_module(f"{__name__}.{path.stem}")
+from .prophet import Prophet as Prophet
+from .werewolf import Werewolf as Werewolf
+from .witch import Witch as Witch
+from .wolfking import WolfKing as WolfKing
