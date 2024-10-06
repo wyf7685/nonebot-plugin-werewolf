@@ -23,7 +23,7 @@ class Witch(Player):
             await self.send(msg.text("⚙️你已经用过解药了"))
             return False
 
-        await self.send(msg.text("✏️使用解药请发送 “1”\n不使用解药请发送 “/stop”"))
+        await self.send(msg.text("✏️使用解药请发送 “1”\n❌不使用解药请发送 “/stop”"))
 
         while True:
             text = await self.receive_text()
