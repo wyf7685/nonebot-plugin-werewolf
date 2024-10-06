@@ -226,6 +226,11 @@ werewolf__priesthood_proirity=[11, 12, 13, 14, 15]
 
 <!-- CHANGELOG -->
 
+- 2024.10.06 v1.1.3
+
+  - 使用 `RF-Tar-Railt/nonebot-plugin-uninfo` 获取用户数据
+  - 优化交互文本
+
 - 2024.09.18 v1.1.2
 
   - 修改 Python 需求为 `>=3.10`

@@ -9,7 +9,7 @@ from . import matchers as matchers
 from . import players as players
 from .config import Config
 
-__version__ = "1.1.2"
+__version__ = "1.1.3"
 __plugin_meta__ = PluginMetadata(
     name="狼人杀",
     description="适用于 Nonebot2 的狼人杀插件",
@@ -27,4 +27,3 @@ __plugin_meta__ = PluginMetadata(
         "Bug Tracker": "https://github.com/wyf7685/nonebot-plugin-werewolf/issues",
     },
 )
-
