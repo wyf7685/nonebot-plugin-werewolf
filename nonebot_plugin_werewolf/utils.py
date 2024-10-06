@@ -81,9 +81,7 @@ async def rule_in_game(bot: Bot, event: Event, target: MsgTarget) -> bool:
         return False
     if target.private:
         return user_in_game(bot.self_id, target.id, None)
-    if target.id in Game.running_games:
-        return user_in_game(bot.self_id, event.get_user_id(), target.id)
-    return False
+    return user_in_game(bot.self_id, event.get_user_id(), target.id)
 
 
 async def rule_not_in_game(bot: Bot, event: Event, target: MsgTarget) -> bool:
