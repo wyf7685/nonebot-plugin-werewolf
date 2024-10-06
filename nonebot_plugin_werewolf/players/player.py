@@ -9,7 +9,7 @@ from typing import TYPE_CHECKING, ClassVar, Final, TypeVar, final
 from nonebot.log import logger
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 
-from ..constant import KillReason, Role, RoleGroup, role_name_conv
+from ..constant import KillReason, Role, RoleGroup, role_emoji, role_name_conv
 from ..utils import InputStore, check_index
 
 if TYPE_CHECKING:
@@ -117,7 +117,7 @@ class Player:
         return
 
     async def notify_role(self) -> None:
-        await self.send(f"⚙️你的身份: {self.role_name}")
+        await self.send(f"⚙️你的身份: {role_emoji[self.role]}{self.role_name}")
 
     async def kill(self, reason: KillReason, *killers: Player) -> bool:
         from ..player_set import PlayerSet

@@ -71,6 +71,18 @@ role_name_conv: dict[Role | RoleGroup, str] = {
     RoleGroup.Others: "其他",
 }
 
+role_emoji: dict[Role, str] = {
+    Role.Werewolf: "🐺",
+    Role.WolfKing: "🐺👑",
+    Role.Prophet: "🔮",
+    Role.Witch: "🧙‍♀️",
+    Role.Hunter: "🕵️",
+    Role.Guard: "🛡️",
+    Role.Idiot: "👨🏻‍🦲",
+    Role.Joker: "🤡",
+    Role.Civilian: "👨🏻‍🌾",
+}
+
 RolePresetDict = dict[int, tuple[int, int, int]]
 RolePresetConfig = RolePresetDict | list[tuple[int, int, int, int]]
 
