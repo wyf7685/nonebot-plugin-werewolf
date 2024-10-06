@@ -2,9 +2,11 @@ from nonebot import require
 from nonebot.plugin import PluginMetadata, inherit_supported_adapters
 
 require("nonebot_plugin_alconna")
-require("nonebot_plugin_userinfo")
+require("nonebot_plugin_uninfo")
 require("nonebot_plugin_waiter")
 
+from . import matchers as matchers
+from . import players as players
 from .config import Config
 
 __version__ = "1.1.2"
@@ -17,7 +19,7 @@ __plugin_meta__ = PluginMetadata(
     config=Config,
     supported_adapters=inherit_supported_adapters(
         "nonebot_plugin_alconna",
-        "nonebot_plugin_userinfo",
+        "nonebot_plugin_uninfo",
         "nonebot_plugin_waiter",
     ),
     extra={
@@ -26,5 +28,3 @@ __plugin_meta__ = PluginMetadata(
     },
 )
 
-from . import matchers as matchers
-from . import players as players

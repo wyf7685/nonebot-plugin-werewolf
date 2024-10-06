@@ -57,15 +57,6 @@ wheels = [
 ]
 
 [[package]]
-name = "cachetools"
-version = "5.5.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/c3/38/a0f315319737ecf45b4319a8cd1f3a908e29d9277b46942263292115eee7/cachetools-5.5.0.tar.gz", hash = "sha256:2cc24fb4cbe39633fb7badd9db9ca6295d766d9c2995f245725a46715d050f2a", size = 27661 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a4/07/14f8ad37f2d12a5ce41206c21820d8cb6561b728e51fad4530dff0552a67/cachetools-5.5.0-py3-none-any.whl", hash = "sha256:02134e8439cdc2ffb62023ce1debca2944c3f289d66bb17ead3ab3dede74b292", size = 9524 },
-]
-
-[[package]]
 name = "certifi"
 version = "2024.8.30"
 source = { registry = "https://pypi.org/simple" }
@@ -93,18 +84,6 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d8/53/6f443c9a4a8358a93a6792e2acffb9d9d5cb0a5cfd8802644b7b1c9a02e4/colorama-0.4.6.tar.gz", hash = "sha256:08695f5cb7ed6e0531a20572697297273c47b8cae5a63ffc6d6ed5c201be6e44", size = 27697 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d1/d6/3965ed04c63042e047cb6a3e6ed1a63a35087b6a609aa3a15ed8ac56c221/colorama-0.4.6-py2.py3-none-any.whl", hash = "sha256:4f1d9991f5acc0ca119f9d443620b77f9d6b33703e51011c16baf57afb285fc6", size = 25335 },
-]
-
-[[package]]
-name = "emoji"
-version = "2.12.1"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "typing-extensions" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/1b/13/ae307086e7d761fb7fdb2e3439bdd4628b10b7b372639e33fac4e52cfbc2/emoji-2.12.1.tar.gz", hash = "sha256:4aa0488817691aa58d83764b6c209f8a27c0b3ab3f89d1b8dceca1a62e4973eb", size = 442019 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/e6/90/20ad30babfa8f2b5ab46281d8e17bdfdbb3ac294cda14d525b9c2d958846/emoji-2.12.1-py3-none-any.whl", hash = "sha256:a00d62173bdadc2510967a381810101624a2f0986145b8da0cffa42e29430235", size = 431357 },
 ]
 
 [[package]]
@@ -414,19 +393,16 @@ wheels = [
 ]
 
 [[package]]
-name = "nonebot-plugin-userinfo"
-version = "0.2.6"
+name = "nonebot-plugin-uninfo"
+version = "0.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "cachetools" },
-    { name = "emoji" },
-    { name = "httpx" },
+    { name = "importlib-metadata" },
     { name = "nonebot2" },
-    { name = "strenum" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/5e/b9/605b5bd26374ef2276c857ee7848eb5b16e537e89511883ae2d1975d0359/nonebot_plugin_userinfo-0.2.6.tar.gz", hash = "sha256:0d1ce897e94a9d4c0b5300bc8f239a4676f9bb62c78a14e0f0527e5398ffc840", size = 10856 }
+sdist = { url = "https://files.pythonhosted.org/packages/4c/b3/01bc7571f39b46726775d98c8074ceede9e928e400b1b575059d66d8bdf1/nonebot_plugin_uninfo-0.4.0.tar.gz", hash = "sha256:3e1a494d05639a0227a8565d5cde90ec9724934a7ec32bf1e0bd40404faf9713", size = 32493 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/af/50/95dd4b6e4f0577e9e6a52e034d2b6cb165a17dfe3860a24bae1e9961da67/nonebot_plugin_userinfo-0.2.6-py3-none-any.whl", hash = "sha256:79d2481af08a5ec77cf171c685eecd14eaf1ce4d5a1ec1fd22fbb0b85e06c260", size = 17408 },
+    { url = "https://files.pythonhosted.org/packages/9b/35/409391b45a3887339731fe3b3cc1820d9ca8d554d27a4eb0218e83868fd2/nonebot_plugin_uninfo-0.4.0-py3-none-any.whl", hash = "sha256:d60a8491af52b1b2c0cdb3f2e4a4a8d02e66216a33e8d162f1da8bec73b3b701", size = 51441 },
 ]
 
 [[package]]
@@ -447,7 +423,7 @@ version = "1.1.2"
 source = { virtual = "." }
 dependencies = [
     { name = "nonebot-plugin-alconna" },
-    { name = "nonebot-plugin-userinfo" },
+    { name = "nonebot-plugin-uninfo" },
     { name = "nonebot-plugin-waiter" },
     { name = "nonebot2" },
 ]
@@ -465,7 +441,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "nonebot-plugin-alconna", specifier = ">=0.52.1" },
-    { name = "nonebot-plugin-userinfo", specifier = ">=0.2.6" },
+    { name = "nonebot-plugin-uninfo", specifier = ">=0.4.0" },
     { name = "nonebot-plugin-waiter", specifier = ">=0.7.1" },
     { name = "nonebot2", specifier = ">=2.3.3" },
 ]
@@ -666,15 +642,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/13/aa/57975da16ca0c368bbb5687daa6ad79561c2328a44667a1d6802e94df3e5/starlette-0.38.5.tar.gz", hash = "sha256:04a92830a9b6eb1442c766199d62260c3d4dc9c4f9188360626b1e0273cb7077", size = 2569511 }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/90/1a/8853ba4cea1ec99535ac9be5795a50ca92cddd04d57bbaa56e866cb7548c/starlette-0.38.5-py3-none-any.whl", hash = "sha256:632f420a9d13e3ee2a6f18f437b0a9f1faecb0bc42e1942aa2ea0e379a4c4206", size = 71447 },
-]
-
-[[package]]
-name = "strenum"
-version = "0.4.15"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/85/ad/430fb60d90e1d112a62ff57bdd1f286ec73a2a0331272febfddd21f330e1/StrEnum-0.4.15.tar.gz", hash = "sha256:878fb5ab705442070e4dd1929bb5e2249511c0bcf2b0eeacf3bcd80875c82eff", size = 23384 }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/81/69/297302c5f5f59c862faa31e6cb9a4cd74721cd1e052b38e464c5b402df8b/StrEnum-0.4.15-py3-none-any.whl", hash = "sha256:a30cda4af7cc6b5bf52c8055bc4bf4b2b6b14a93b574626da33df53cf7740659", size = 8851 },
 ]
 
 [[package]]

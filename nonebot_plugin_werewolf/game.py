@@ -53,8 +53,8 @@ def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
 
 
 class Game:
-    starting_games: ClassVar[dict[int, dict[str, str]]] = {}
-    running_games: ClassVar[dict[Target, Game]] = {}
+    starting_games: ClassVar[dict[Target, dict[str, str]]] = {}
+    running_games: ClassVar[set[Game]] = set()
 
     bot: Bot
     group: Target
@@ -446,13 +446,13 @@ class Game:
                 await self.send(f"❌狼人杀游戏进程出现未知错误: {err!r}")
             finally:
                 dead_channel.cancel()
-                self.running_games.pop(self.group, None)
+                self.running_games.discard(self)
 
         def daemon_callback(task: asyncio.Task[None]) -> None:
             if err := task.exception():
                 msg = f"{self.group.id} 的狼人杀守护进程出现错误: {err!r}"
                 logger.opt(exception=err).error(msg)
 
-        self.running_games[self.group] = self
+        self.running_games.add(self)
         daemon_task = asyncio.create_task(daemon())
         daemon_task.add_done_callback(daemon_callback)

@@ -1,15 +1,13 @@
-from typing import Annotated
-
 from nonebot import on_command
 from nonebot.adapters import Bot, Event
 from nonebot.rule import to_me
 from nonebot_plugin_alconna import MsgTarget, UniMessage
-from nonebot_plugin_userinfo import EventUserInfo, UserInfo
+from nonebot_plugin_uninfo import Uninfo
 
 from .._timeout import timeout
 from ..game import Game
-from ..ob11_ext import ob11_ext_enabled
 from ..utils import prepare_game, rule_not_in_game
+from .ob11_ext import ob11_ext_enabled
 
 start_game = on_command(
     "werewolf",
@@ -29,7 +27,7 @@ async def handle_start(
     bot: Bot,
     event: Event,
     target: MsgTarget,
-    info: Annotated[UserInfo | None, EventUserInfo()],
+    session: Uninfo,
 ) -> None:
     admin_id = event.get_user_id()
     msg = (
@@ -44,9 +42,9 @@ async def handle_start(
         msg.text("\n可使用戳一戳代替游戏交互中的 “/stop” 命令\n")
     await msg.text("\n游戏准备阶段限时5分钟，超时将自动结束").send()
 
-    admin_name = admin_id
-    if info is not None:
-        admin_name = info.user_displayname or info.user_name
+    admin_name = session.user.nick or session.user.name or admin_id
+    if session.member:
+        admin_name = session.member.nick or admin_name
     players = {admin_id: admin_name}
 
     try:

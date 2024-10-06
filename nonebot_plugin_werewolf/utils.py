@@ -1,15 +1,16 @@
 import asyncio
+import itertools
 import re
 from collections import defaultdict
-from typing import Annotated, Any, ClassVar
+from typing import Any, ClassVar
 
 import nonebot
 import nonebot_plugin_waiter as waiter
-from nonebot.adapters import Event
+from nonebot.adapters import Bot, Event
 from nonebot.rule import to_me
 from nonebot.utils import escape_tag
 from nonebot_plugin_alconna import MsgTarget, Target, UniMessage, UniMsg
-from nonebot_plugin_userinfo import EventUserInfo, UserInfo
+from nonebot_plugin_uninfo import Uninfo
 
 from .config import config
 
@@ -55,35 +56,38 @@ class InputStore:
             future.set_result(msg)
 
 
-def user_in_game(user_id: str, group_id: str | None) -> bool:
+def user_in_game(self_id: str, user_id: str, group_id: str | None) -> bool:
     from .game import Game
 
-    if group_id is not None and group_id not in {t.id for t in Game.running_games}:
-        return False
-    games = (
-        Game.running_games.values()
-        if group_id is None
-        else [next(g for t, g in Game.running_games.items() if t.id == group_id)]
-    )
-    for game in games:
+    if group_id is None:
+        return any(
+            self_id == p.user.self_id and user_id == p.user_id
+            for p in itertools.chain(*[g.players for g in Game.running_games])
+        )
+
+    def check(game: Game) -> bool:
+        return self_id == game.group.self_id and group_id == game.group.id
+
+    if game := next(filter(check, Game.running_games), None):
         return any(user_id == player.user_id for player in game.players)
+
     return False
 
 
-async def rule_in_game(event: Event, target: MsgTarget) -> bool:
+async def rule_in_game(bot: Bot, event: Event, target: MsgTarget) -> bool:
     from .game import Game
 
     if not Game.running_games:
         return False
     if target.private:
-        return user_in_game(target.id, None)
+        return user_in_game(bot.self_id, target.id, None)
     if target.id in Game.running_games:
-        return user_in_game(event.get_user_id(), target.id)
+        return user_in_game(bot.self_id, event.get_user_id(), target.id)
     return False
 
 
-async def rule_not_in_game(event: Event, target: MsgTarget) -> bool:
-    return not await rule_in_game(event, target)
+async def rule_not_in_game(bot: Bot, event: Event, target: MsgTarget) -> bool:
+    return not await rule_in_game(bot, event, target)
 
 
 async def is_group(target: MsgTarget) -> bool:
@@ -95,23 +99,27 @@ async def _prepare_game_receive(
     event: Event,
     group: Target,
 ) -> None:
-    async def rule(target: MsgTarget) -> bool:
+    async def same_group(target: MsgTarget) -> bool:
         return group.verify(target)
 
     @waiter.waiter(
         waits=[event.get_type()],
         keep_session=False,
-        rule=to_me() & rule & rule_not_in_game,
+        rule=to_me() & same_group & rule_not_in_game,
     )
     def wait(
         event: Event,
         msg: UniMsg,
-        info: Annotated[UserInfo | None, EventUserInfo()],
+        session: Uninfo,
     ) -> tuple[str, str, str]:
+        user_id = event.get_user_id()
+        name = session.user.nick or session.user.name or user_id
+        if session.member:
+            name = session.member.nick or name
         return (
-            (user_id := event.get_user_id()),
+            user_id,
             msg.extract_plain_text().strip(),
-            info and (info.user_displayname or info.user_name) or user_id,
+            name,
         )
 
     async for user, text, name in wait(default=(None, "", "")):
@@ -202,7 +210,7 @@ async def prepare_game(event: Event, players: dict[str, str]) -> None:
     from .game import Game
 
     group = UniMessage.get_target(event)
-    Game.starting_games[hash(group)] = players
+    Game.starting_games[group] = players
 
     queue: asyncio.Queue[tuple[str, str, str]] = asyncio.Queue()
     task_receive = asyncio.create_task(_prepare_game_receive(queue, event, group))
@@ -211,4 +219,4 @@ async def prepare_game(event: Event, players: dict[str, str]) -> None:
         await _prepare_game_handle(queue, players, event.get_user_id())
     finally:
         task_receive.cancel()
-        del Game.starting_games[hash(group)]
+        del Game.starting_games[group]
