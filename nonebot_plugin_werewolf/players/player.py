@@ -35,9 +35,9 @@ class Player:
     role: ClassVar[Role]
     role_group: ClassVar[RoleGroup]
 
+    __user: Final[Target]
+    __game_ref: Final[weakref.ReferenceType[Game]]
     bot: Final[Bot]
-    _game_ref: Final[weakref.ReferenceType[Game]]
-    user: Final[Target]
     name: Final[str]
     alive: bool = True
     killed: Final[asyncio.Event]
@@ -46,14 +46,14 @@ class Player:
 
     @final
     def __init__(self, bot: Bot, game: Game, user_id: str, name: str) -> None:
-        self.bot = bot
-        self._game_ref = weakref.ref(game)
-        self.user = Target(
+        self.__user = Target(
             user_id,
             private=True,
             self_id=bot.self_id,
             adapter=bot.adapter.get_name(),
         )
+        self.__game_ref = weakref.ref(game)
+        self.bot = bot
         self.name = name
         self.killed = asyncio.Event()
 
@@ -66,17 +66,20 @@ class Player:
         return PLAYER_CLASS[role](bot, game, user_id, name)
 
     def __repr__(self) -> str:
-        return f"<Player {self.role_name}: user={self.name!r} alive={self.alive}>"
+        return (
+            f"<Player {self.role_name}: user={self.user_id!r} "
+            f"name={self.name!r} alive={self.alive}>"
+        )
 
     @property
     def game(self) -> Game:
-        if game := self._game_ref():
+        if game := self.__game_ref():
             return game
         raise ValueError("Game not exist")
 
     @functools.cached_property
     def user_id(self) -> str:
-        return self.user.id
+        return self.__user.id
 
     @functools.cached_property
     def role_name(self) -> str:
@@ -98,14 +101,14 @@ class Player:
             message = UniMessage.text(message)
 
         self._log(f"<g>Send</g> | {message}")
-        return await message.send(target=self.user, bot=self.bot)
+        return await message.send(target=self.__user, bot=self.bot)
 
     @final
     async def receive(self, prompt: str | UniMessage | None = None) -> UniMessage:
         if prompt:
             await self.send(prompt)
 
-        result = await InputStore.fetch(self.user.id)
+        result = await InputStore.fetch(self.user_id)
         self._log(f"<y>Recv</y> | {result}")
         return result
 
