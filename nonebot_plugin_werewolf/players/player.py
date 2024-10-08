@@ -129,7 +129,7 @@ class Player:
     async def post_kill(self) -> None:
         self.killed.set()
 
-    async def vote(self, players: PlayerSet) -> tuple[Player, Player] | None:
+    async def vote(self, players: PlayerSet) -> Player | None:
         await self.send(
             f"💫请选择需要投票的玩家:\n{players.show()}"
             "\n\n🗳️发送编号选择玩家\n❌发送 “/stop” 弃票"
@@ -148,7 +148,7 @@ class Player:
 
         player = players[selected]
         await self.send(f"🔨投票的玩家: {player.name}")
-        return self, player
+        return player
 
 
 def register_role(role: Role, role_group: RoleGroup, /) -> Callable[[P], P]:

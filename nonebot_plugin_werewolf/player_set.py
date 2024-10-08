@@ -60,18 +60,17 @@ class PlayerSet(set[Player]):
             await asyncio.gather(*[p.interact() for p in self.alive()])
 
     async def vote(self, timeout_secs: float = 60) -> dict[Player, list[Player]]:
-        async def vote(player: Player) -> tuple[Player, Player] | None:
+        async def vote(player: Player) -> tuple[Player, Player | None]:
             try:
                 async with timeout(timeout_secs):
-                    return await player.vote(self)
+                    return player, await player.vote(self.alive())
             except TimeoutError:
                 await player.send("⚠️投票超时，将视为弃票")
-                return None
+                return player, None
 
         result: dict[Player, list[Player]] = {}
-        for item in await asyncio.gather(*[vote(p) for p in self.alive()]):
-            if item is not None:
-                player, voted = item
+        for player, voted in await asyncio.gather(*[vote(p) for p in self.alive()]):
+            if voted is not None:
                 result[voted] = [*result.get(voted, []), player]
         return result
 
