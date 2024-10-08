@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, Final, TypeVar, final
 
 from nonebot.log import logger
+from nonebot.utils import escape_tag
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 
 from ..constant import KillReason, Role, RoleGroup, role_emoji, role_name_conv
@@ -100,7 +101,7 @@ class Player:
         if isinstance(message, str):
             message = UniMessage.text(message)
 
-        self._log(f"<g>Send</g> | {message}")
+        self._log(f"<g>Send</g> | {escape_tag(str(message))}")
         return await message.send(target=self.__user, bot=self.bot)
 
     @final
@@ -109,7 +110,7 @@ class Player:
             await self.send(prompt)
 
         result = await InputStore.fetch(self.user_id)
-        self._log(f"<y>Recv</y> | {result}")
+        self._log(f"<y>Recv</y> | {escape_tag(str(result))}")
         return result
 
     @final

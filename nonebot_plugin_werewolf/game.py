@@ -6,6 +6,7 @@ import secrets
 from typing import TYPE_CHECKING, ClassVar, NoReturn
 
 from nonebot.log import logger
+from nonebot.utils import escape_tag
 from nonebot_plugin_alconna import At, Target, UniMessage
 
 from ._timeout import timeout
@@ -80,7 +81,7 @@ class Game:
                 text += f"<y>@{self._player_map[seg.target].name}</y>"
             else:
                 text += str(seg)
-        logger.opt(colors=True).info(text.replace("\n", "\\n"))
+        logger.opt(colors=True).info(escape_tag(text.replace("\n", "\\n")))
         return await message.send(self.group, self.bot)
 
     def at_all(self) -> UniMessage:
