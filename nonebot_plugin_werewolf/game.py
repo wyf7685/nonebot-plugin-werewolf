@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import secrets
-from typing import TYPE_CHECKING, ClassVar, NoReturn
+from typing import TYPE_CHECKING, Any, ClassVar, NoReturn
 
 from nonebot.log import logger
 from nonebot.utils import escape_tag
@@ -18,6 +18,8 @@ from .players import Player
 from .utils import InputStore
 
 if TYPE_CHECKING:
+    from collections.abc import Coroutine
+
     from nonebot.adapters import Bot
     from nonebot_plugin_alconna.uniseg.message import Receipt
 
@@ -426,10 +428,18 @@ class Game:
         await self.send(f"📌玩家死亡报告:\n\n{self.show_killed_players()}")
 
     def start(self) -> None:
+        tasks = set()
         finished = asyncio.Event()
-        game_task = asyncio.create_task(self.run())
+
+        def create_task(coro: Coroutine[None, None, Any], /) -> asyncio.Task[Any]:
+            task = asyncio.create_task(coro)
+            tasks.add(task)
+            task.add_done_callback(tasks.discard)
+            return task
+
+        game_task = create_task(self.run())
         game_task.add_done_callback(lambda _: finished.set())
-        dead_channel = asyncio.create_task(self.run_dead_channel())
+        dead_channel = create_task(self.run_dead_channel())
 
         async def daemon() -> None:
             await finished.wait()
@@ -443,17 +453,16 @@ class Game:
                 logger.info(f"{self.group.id} 的狼人杀游戏进程正常退出")
             except Exception as err:
                 msg = f"{self.group.id} 的狼人杀游戏进程出现未知错误: {err!r}"
-                logger.opt(exception=err).error(msg)
+                logger.exception(msg)
                 await self.send(f"❌狼人杀游戏进程出现未知错误: {err!r}")
             finally:
                 dead_channel.cancel()
                 self.running_games.discard(self)
 
-        def daemon_callback(task: asyncio.Task[None]) -> None:
+        @create_task(daemon()).add_done_callback
+        def _(task: asyncio.Task[None]) -> None:
             if err := task.exception():
                 msg = f"{self.group.id} 的狼人杀守护进程出现错误: {err!r}"
                 logger.opt(exception=err).error(msg)
 
         self.running_games.add(self)
-        daemon_task = asyncio.create_task(daemon())
-        daemon_task.add_done_callback(daemon_callback)
