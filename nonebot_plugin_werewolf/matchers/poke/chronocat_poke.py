@@ -44,8 +44,8 @@ with contextlib.suppress(ImportError):
     async def _rule_poke_stop(bot: Bot, event: MessageCreatedEvent) -> bool:
         if not config.enable_poke:
             return False
-        return check_poke_tome(event) and user_in_game(
-            bot.self_id, *extract_user_group(event)
+        return check_poke_tome(event) and (
+            user_in_game(bot.self_id, *extract_user_group(event))
         )
 
     @on_message(rule=_rule_poke_stop).handle()
