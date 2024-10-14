@@ -3,10 +3,10 @@ from typing_extensions import override
 
 from ..constant import Role, RoleGroup
 from ..utils import check_index
-from .player import Player, register_role
+from .player import Player
 
 
-@register_role(Role.Guard, RoleGroup.GoodGuy)
+@Player.register_role(Role.Guard, RoleGroup.GoodGuy)
 class Guard(Player):
     @override
     async def interact(self) -> None:

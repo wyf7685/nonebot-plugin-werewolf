@@ -3,10 +3,10 @@ from typing_extensions import override
 
 from ..constant import Role, RoleGroup
 from ..utils import check_index
-from .player import Player, register_role
+from .player import Player
 
 
-@register_role(Role.Witch, RoleGroup.GoodGuy)
+@Player.register_role(Role.Witch, RoleGroup.GoodGuy)
 class Witch(Player):
     antidote: int = 1
     poison: int = 1

@@ -6,7 +6,8 @@ from nonebot_plugin_alconna import MsgTarget, UniMessage
 
 from ..config import config
 from ..game import Game
-from ..utils import InputStore, user_in_game
+from ..utils import InputStore
+from .depends import user_in_game
 
 
 def ob11_ext_enabled() -> bool:

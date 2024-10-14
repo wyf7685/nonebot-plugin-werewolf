@@ -2,10 +2,10 @@ from typing_extensions import override
 
 from ..constant import GameStatus, KillReason, Role, RoleGroup
 from ..exception import GameFinished
-from .player import Player, register_role
+from .player import Player
 
 
-@register_role(Role.Joker, RoleGroup.Others)
+@Player.register_role(Role.Joker, RoleGroup.Others)
 class Joker(Player):
     @override
     async def notify_role(self) -> None:

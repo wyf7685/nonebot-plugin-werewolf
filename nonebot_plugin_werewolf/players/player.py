@@ -23,7 +23,6 @@ if TYPE_CHECKING:
 
 
 P = TypeVar("P", bound=type["Player"])
-PLAYER_CLASS: dict[Role, type[Player]] = {}
 
 
 @dataclass
@@ -33,6 +32,7 @@ class KillInfo:
 
 
 class Player:
+    __player_class: ClassVar[dict[Role, type[Player]]] = {}
     role: ClassVar[Role]
     role_group: ClassVar[RoleGroup]
 
@@ -58,13 +58,23 @@ class Player:
         self.name = name
         self.killed = asyncio.Event()
 
+    @classmethod
+    def register_role(cls, role: Role, role_group: RoleGroup, /) -> Callable[[P], P]:
+        def decorator(c: P, /) -> P:
+            c.role = role
+            c.role_group = role_group
+            cls.__player_class[role] = c
+            return c
+
+        return decorator
+
     @final
     @classmethod
     def new(cls, role: Role, bot: Bot, game: Game, user_id: str, name: str) -> Player:
-        if role not in PLAYER_CLASS:
+        if role not in cls.__player_class:
             raise ValueError(f"Unexpected role: {role!r}")
 
-        return PLAYER_CLASS[role](bot, game, user_id, name)
+        return cls.__player_class[role](bot, game, user_id, name)
 
     def __repr__(self) -> str:
         return (
@@ -150,16 +160,6 @@ class Player:
                 break
             await self.send("⚠️输入错误: 请发送编号选择玩家")
 
-        player = players[selected]
-        await self.send(f"🔨投票的玩家: {player.name}")
-        return player
-
-
-def register_role(role: Role, role_group: RoleGroup, /) -> Callable[[P], P]:
-    def decorator(cls: P, /) -> P:
-        cls.role = role
-        cls.role_group = role_group
-        PLAYER_CLASS[role] = cls
-        return cls
-
-    return decorator
+        vote = players[selected]
+        await self.send(f"🔨投票的玩家: {vote.name}")
+        return vote

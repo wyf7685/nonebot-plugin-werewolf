@@ -5,10 +5,10 @@ from typing_extensions import override
 
 from ..constant import Role, RoleGroup
 from ..utils import check_index
-from .player import Player, register_role
+from .player import Player
 
 
-@register_role(Role.Werewolf, RoleGroup.Werewolf)
+@Player.register_role(Role.Werewolf, RoleGroup.Werewolf)
 class Werewolf(Player):
     @override
     async def notify_role(self) -> None:

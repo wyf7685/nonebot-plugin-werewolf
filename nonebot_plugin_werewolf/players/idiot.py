@@ -6,13 +6,13 @@ from nonebot_plugin_alconna.uniseg import UniMessage
 from typing_extensions import override
 
 from ..constant import KillReason, Role, RoleGroup
-from .player import Player, register_role
+from .player import Player
 
 if TYPE_CHECKING:
     from ..player_set import PlayerSet
 
 
-@register_role(Role.Idiot, RoleGroup.GoodGuy)
+@Player.register_role(Role.Idiot, RoleGroup.GoodGuy)
 class Idiot(Player):
     voted: bool = False
 

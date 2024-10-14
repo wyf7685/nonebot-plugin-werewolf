@@ -2,7 +2,8 @@ from nonebot import on_message
 from nonebot.adapters import Event
 from nonebot_plugin_alconna import MsgTarget, UniMsg
 
-from ..utils import InputStore, rule_in_game
+from ..utils import InputStore
+from .depends import rule_in_game
 
 message_in_game = on_message(rule=rule_in_game)
 

@@ -1,7 +1,7 @@
 from ..constant import Role, RoleGroup
-from .player import Player, register_role
+from .player import Player
 
 
-@register_role(Role.Civilian, RoleGroup.GoodGuy)
+@Player.register_role(Role.Civilian, RoleGroup.GoodGuy)
 class Civilian(Player):
     pass
