@@ -1,7 +1,7 @@
 import contextlib
 
 from nonebot import on_message
-from nonebot.internal.matcher import current_bot
+from nonebot.internal.matcher import current_event
 from nonebot_plugin_alconna import MsgTarget, UniMessage
 
 from ...config import config
@@ -21,9 +21,7 @@ with contextlib.suppress(ImportError):
         PublicMessageCreatedEvent,
     )
 
-    def check_poke_tome(
-        event: MessageCreatedEvent,
-    ) -> bool:
+    def check_poke_tome(event: MessageCreatedEvent) -> bool:
         if event.login and event.login.platform and event.login.platform != "chronocat":
             return False
 
@@ -54,7 +52,9 @@ with contextlib.suppress(ImportError):
 
     # 准备阶段戳一戳等效加入游戏
     async def _rule_poke_join(
-        bot: Bot, event: MessageCreatedEvent, target: MsgTarget
+        bot: Bot,
+        event: MessageCreatedEvent,
+        target: MsgTarget,
     ) -> bool:
         if not config.enable_poke:
             return False
@@ -85,4 +85,8 @@ with contextlib.suppress(ImportError):
         if not config.enable_poke:
             return False
 
-        return isinstance(current_bot.get(), Bot)
+        return (
+            isinstance((event := current_event.get()), MessageCreatedEvent)
+            and event.login is not None
+            and event.login.platform == "chronocat"
+        )
