@@ -74,6 +74,11 @@ async def _prepare_game_handle(
         msg = UniMessage.at(user).text("\n")
         colored = f"<y>{escape_tag(name)}</y>(<c>{escape_tag(user)}</c>)"
 
+        # 更新用户名
+        # 当用户通过 chronoca:poke 加入游戏时, 插件无法获取用户名, 原字典值为用户ID
+        if user in players:
+            players[user] = name
+
         match (text, user == admin_id):
             case ("开始游戏", True):
                 player_num = len(players)
