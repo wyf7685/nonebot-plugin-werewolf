@@ -1,8 +1,11 @@
 import asyncio
 from collections import defaultdict
-from typing import Any, ClassVar
+from typing import Any, ClassVar, TypeVar
 
 from nonebot_plugin_alconna import UniMessage
+from nonebot_plugin_uninfo import Session
+
+T = TypeVar("T")
 
 
 def check_index(text: str, arrlen: int) -> int | None:
@@ -15,6 +18,14 @@ def check_index(text: str, arrlen: int) -> int | None:
 
 def link(text: str, url: str | None) -> str:
     return f"\u001b]8;;{url}\u0007{text}\u001b]8;;\u0007"
+
+
+def extract_session_member_nick(session: Session) -> str | None:
+    return (
+        (session.member and session.member.nick)
+        or session.user.nick
+        or session.user.name
+    )
 
 
 class InputStore:

@@ -62,40 +62,54 @@ with contextlib.suppress(ImportError):
     # 准备阶段戳一戳等效加入游戏
     async def _rule_poke_join(
         bot: Bot,
-        event: MessageCreatedEvent,
+        event: PublicMessageCreatedEvent,
         target: MsgTarget,
     ) -> bool:
         if not config.enable_poke:
             return False
 
-        user_id, group_id = extract_user_group(event)
-
         return (
-            group_id is not None
-            and extract_poke_tome(event) is not None
-            and not user_in_game(bot.self_id, user_id, group_id)
+            (user_id := extract_poke_tome(event)) is not None
+            and not user_in_game(
+                self_id=bot.self_id,
+                user_id=user_id,
+                group_id=(event.guild and event.guild.id) or event.channel.id,
+            )
             and any(target.verify(group) for group in Game.starting_games)
         )
 
     @on_message(rule=_rule_poke_join).handle()
     async def handle_poke_join(
         bot: Bot,
-        event: MessageCreatedEvent,
+        event: PublicMessageCreatedEvent,
         target: MsgTarget,
     ) -> None:
         user_id = extract_poke_tome(event) or event.get_user_id()
         players = next(p for g, p in Game.starting_games.items() if target.verify(g))
 
         if user_id not in players:
-            players.add(user_id)
+            member = await bot.guild_member_get(
+                guild_id=(event.guild and event.guild.id) or event.channel.id,
+                user_id=user_id,
+            )
+            name = member.nick or (
+                member.user and (member.user.nick or member.user.name)
+            )
+            if name is None:
+                user = await bot.user_get(user_id=user_id)
+                name = user.nick or user.name
+            players[user_id] = name or user_id
             await UniMessage.at(user_id).text("\n✅成功加入游戏").send(target, bot)
 
     def chronocat_poke_enabled() -> bool:
         if not config.enable_poke:
             return False
 
-        return (
-            isinstance((event := current_event.get()), MessageCreatedEvent)
-            and event.login is not None
-            and event.login.platform == "chronocat"
-        )
+        event = current_event.get()
+        if not isinstance(event, MessageCreatedEvent):
+            return False
+
+        if event.login is not None:
+            return event.login.platform == "chronocat"
+
+        return True

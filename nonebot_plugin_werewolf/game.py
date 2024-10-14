@@ -52,7 +52,7 @@ def init_players(bot: Bot, game: "Game", players: set[str]) -> PlayerSet:
 
 
 class Game:
-    starting_games: ClassVar[dict[Target, set[str]]] = {}
+    starting_games: ClassVar[dict[Target, dict[str, str]]] = {}
     running_games: ClassVar[set[Self]] = set()
 
     bot: Bot

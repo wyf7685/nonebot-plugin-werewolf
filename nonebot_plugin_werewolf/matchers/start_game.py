@@ -13,6 +13,7 @@ from nonebot_plugin_uninfo import QryItrface, Uninfo
 from .._timeout import timeout
 from ..config import config
 from ..game import Game
+from ..utils import extract_session_member_nick
 from .depends import rule_not_in_game
 from .poke import poke_enabled
 
@@ -48,12 +49,7 @@ async def _prepare_game_receive(
         session: Uninfo,
     ) -> tuple[str, str, str]:
         user_id = event.get_user_id()
-        name = (
-            (session.member and session.member.nick)
-            or session.user.nick
-            or session.user.name
-            or user_id
-        )
+        name = extract_session_member_nick(session) or user_id
         return (
             user_id,
             msg.extract_plain_text().strip(),
@@ -68,7 +64,7 @@ async def _prepare_game_receive(
 
 async def _prepare_game_handle(
     queue: asyncio.Queue[tuple[str, str, str]],
-    players: set[str],
+    players: dict[str, str],
     admin_id: str,
 ) -> None:
     logger = nonebot.logger.opt(colors=True)
@@ -120,7 +116,7 @@ async def _prepare_game_handle(
 
             case ("加入游戏", False):
                 if user not in players:
-                    players.add(user)
+                    players[user] = name
                     logger.info(f"玩家 {colored} 加入游戏")
                     await msg.text("✅成功加入游戏").send()
                 else:
@@ -131,7 +127,7 @@ async def _prepare_game_handle(
 
             case ("退出游戏", False):
                 if user in players:
-                    players.discard(user)
+                    del players[user]
                     logger.info(f"玩家 {colored} 退出游戏")
                     await msg.text("✅成功退出游戏").send()
                 else:
@@ -139,12 +135,12 @@ async def _prepare_game_handle(
 
             case ("当前玩家", _):
                 msg.text("✨当前玩家:\n")
-                for idx, name in enumerate(players, 1):
-                    msg.text(f"\n{idx}. {name}")
+                for idx, user_id in enumerate(players, 1):
+                    msg.text(f"\n{idx}. {players[user_id]}")
                 await msg.send()
 
 
-async def prepare_game(event: Event, players: set[str]) -> None:
+async def prepare_game(event: Event, players: dict[str, str]) -> None:
     group = UniMessage.get_target(event)
     Game.starting_games[group] = players
 
@@ -179,10 +175,8 @@ async def handle_start(
         msg.text("\n可使用戳一戳代替游戏交互中的 “/stop” 命令\n")
     await msg.text("\n游戏准备阶段限时5分钟，超时将自动结束").send()
 
-    admin_name = session.user.nick or session.user.name or admin_id
-    if session.member:
-        admin_name = session.member.nick or admin_name
-    players = {admin_id}
+    admin_name = extract_session_member_nick(session) or admin_id
+    players = {admin_id: admin_name}
 
     try:
         async with timeout(5 * 60):
@@ -190,4 +184,4 @@ async def handle_start(
     except TimeoutError:
         await UniMessage.text("⚠️游戏准备超时，已自动结束").finish()
 
-    Game(bot, target, players, interface).start()
+    Game(bot, target, set(players), interface).start()
