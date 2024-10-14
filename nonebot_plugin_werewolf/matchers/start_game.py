@@ -8,7 +8,7 @@ from nonebot.adapters import Bot, Event
 from nonebot.rule import to_me
 from nonebot.utils import escape_tag
 from nonebot_plugin_alconna import MsgTarget, Target, UniMessage, UniMsg
-from nonebot_plugin_uninfo import Uninfo
+from nonebot_plugin_uninfo import QryItrface, Uninfo
 
 from .._timeout import timeout
 from ..config import config
@@ -48,9 +48,12 @@ async def _prepare_game_receive(
         session: Uninfo,
     ) -> tuple[str, str, str]:
         user_id = event.get_user_id()
-        name = session.user.nick or session.user.name or user_id
-        if session.member:
-            name = session.member.nick or name
+        name = (
+            (session.member and session.member.nick)
+            or session.user.nick
+            or session.user.name
+            or user_id
+        )
         return (
             user_id,
             msg.extract_plain_text().strip(),
@@ -65,7 +68,7 @@ async def _prepare_game_receive(
 
 async def _prepare_game_handle(
     queue: asyncio.Queue[tuple[str, str, str]],
-    players: dict[str, str],
+    players: set[str],
     admin_id: str,
 ) -> None:
     logger = nonebot.logger.opt(colors=True)
@@ -117,7 +120,7 @@ async def _prepare_game_handle(
 
             case ("加入游戏", False):
                 if user not in players:
-                    players[user] = name
+                    players.add(user)
                     logger.info(f"玩家 {colored} 加入游戏")
                     await msg.text("✅成功加入游戏").send()
                 else:
@@ -128,7 +131,7 @@ async def _prepare_game_handle(
 
             case ("退出游戏", False):
                 if user in players:
-                    del players[user]
+                    players.discard(user)
                     logger.info(f"玩家 {colored} 退出游戏")
                     await msg.text("✅成功退出游戏").send()
                 else:
@@ -136,12 +139,12 @@ async def _prepare_game_handle(
 
             case ("当前玩家", _):
                 msg.text("✨当前玩家:\n")
-                for idx, name in enumerate(players.values(), 1):
+                for idx, name in enumerate(players, 1):
                     msg.text(f"\n{idx}. {name}")
                 await msg.send()
 
 
-async def prepare_game(event: Event, players: dict[str, str]) -> None:
+async def prepare_game(event: Event, players: set[str]) -> None:
     group = UniMessage.get_target(event)
     Game.starting_games[group] = players
 
@@ -161,6 +164,7 @@ async def handle_start(
     event: Event,
     target: MsgTarget,
     session: Uninfo,
+    interface: QryItrface,
 ) -> None:
     admin_id = event.get_user_id()
     msg = (
@@ -178,7 +182,7 @@ async def handle_start(
     admin_name = session.user.nick or session.user.name or admin_id
     if session.member:
         admin_name = session.member.nick or admin_name
-    players = {admin_id: admin_name}
+    players = {admin_id}
 
     try:
         async with timeout(5 * 60):
@@ -186,4 +190,4 @@ async def handle_start(
     except TimeoutError:
         await UniMessage.text("⚠️游戏准备超时，已自动结束").finish()
 
-    Game(bot, target, players).start()
+    Game(bot, target, players, interface).start()

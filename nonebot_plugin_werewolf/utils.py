@@ -13,6 +13,10 @@ def check_index(text: str, arrlen: int) -> int | None:
     return None
 
 
+def link(text: str, url: str | None) -> str:
+    return f"\u001b]8;;{url}\u0007{text}\u001b]8;;\u0007"
+
+
 class InputStore:
     locks: ClassVar[dict[str, asyncio.Lock]] = defaultdict(asyncio.Lock)
     futures: ClassVar[dict[str, asyncio.Future[UniMessage]]] = {}

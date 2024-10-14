@@ -1,13 +1,16 @@
-from __future__ import annotations
-
 import asyncio
 import contextlib
 import secrets
-from typing import TYPE_CHECKING, Any, ClassVar, NoReturn
+from collections.abc import Coroutine
+from typing import Any, ClassVar, NoReturn
 
+from nonebot.adapters import Bot
 from nonebot.log import logger
 from nonebot.utils import escape_tag
 from nonebot_plugin_alconna import At, Target, UniMessage
+from nonebot_plugin_alconna.uniseg.message import Receipt
+from nonebot_plugin_uninfo import Interface, SceneType
+from typing_extensions import Self
 
 from ._timeout import timeout
 from .config import config
@@ -15,16 +18,10 @@ from .constant import GameState, GameStatus, KillReason, Role, RoleGroup, role_n
 from .exception import GameFinished
 from .player_set import PlayerSet
 from .players import Player
-from .utils import InputStore
-
-if TYPE_CHECKING:
-    from collections.abc import Coroutine
-
-    from nonebot.adapters import Bot
-    from nonebot_plugin_alconna.uniseg.message import Receipt
+from .utils import InputStore, link
 
 
-def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
+def init_players(bot: Bot, game: "Game", players: set[str]) -> PlayerSet:
     logger.opt(colors=True).debug(f"初始化 <c>{game.group.id}</c> 的玩家职业")
     role_preset = config.get_role_preset()
     if (preset := role_preset.get(len(players))) is None:
@@ -47,8 +44,7 @@ def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
         return roles.pop(secrets.randbelow(len(roles)))
 
     player_set = PlayerSet(
-        Player.new(_select_role(), bot, game, user_id, players[user_id])
-        for user_id in players
+        Player.new(_select_role(), bot, game, user_id) for user_id in players
     )
     logger.debug(f"职业分配完成: {player_set}")
 
@@ -56,34 +52,64 @@ def init_players(bot: Bot, game: Game, players: dict[str, str]) -> PlayerSet:
 
 
 class Game:
-    starting_games: ClassVar[dict[Target, dict[str, str]]] = {}
-    running_games: ClassVar[set[Game]] = set()
+    starting_games: ClassVar[dict[Target, set[str]]] = {}
+    running_games: ClassVar[set[Self]] = set()
 
     bot: Bot
     group: Target
     players: PlayerSet
-    _player_map: dict[str, Player]
+    interface: Interface
     state: GameState
     killed_players: list[Player]
 
-    def __init__(self, bot: Bot, group: Target, players: dict[str, str]) -> None:
+    def __init__(
+        self,
+        bot: Bot,
+        group: Target,
+        players: set[str],
+        interface: Interface,
+    ) -> None:
         self.bot = bot
         self.group = group
         self.players = init_players(bot, self, players)
-        self._player_map = {p.user_id: p for p in self.players}
-        self.state = GameState(0)
+        self.interface = interface
         self.killed_players = []
+        self._player_map = {p.user_id: p for p in self.players}
+        self._scene = None
+
+    async def _fetch_group_scene(self) -> None:
+        scene = await self.interface.get_scene(SceneType.GROUP, self.group.id)
+        if scene is None:
+            scene = await self.interface.get_scene(SceneType.GUILD, self.group.id)
+
+        self._scene = scene
+
+    @property
+    def colored_name(self) -> str:
+        name = escape_tag(self.group.id)
+
+        if self._scene is None or self._scene.name is None:
+            name = f"<b><e>{name}</e></b>"
+        else:
+            name = f"<y>{escape_tag(self._scene.name)}</y>(<b><e>{name}</e></b>)"
+
+        if self._scene is not None and self._scene.avatar is not None:
+            name = link(name, self._scene.avatar)
+
+        return name
 
     async def send(self, message: str | UniMessage) -> Receipt:
         if isinstance(message, str):
             message = UniMessage.text(message)
-        text = f"<b><e>{self.group.id}</e></b> | <g>Send</g> | "
+
+        text = f"{self.colored_name} | <g>Send</g> | "
         for seg in message:
             if isinstance(seg, At):
-                text += f"<y>@{self._player_map[seg.target].name}</y>"
+                text += f"<y>@{self._player_map[seg.target].colored_name}</y>"
             else:
-                text += str(seg)
-        logger.opt(colors=True).info(escape_tag(text.replace("\n", "\\n")))
+                text += escape_tag(str(seg)).replace("\n", "\\n")
+
+        logger.opt(colors=True).info(text)
         return await message.send(self.group, self.bot)
 
     def at_all(self) -> UniMessage:
@@ -325,6 +351,7 @@ class Game:
         await asyncio.gather(send(), *[recv(p) for p in self.players])
 
     async def run(self) -> NoReturn:
+        await self._fetch_group_scene()
         # 告知玩家角色信息
         await self.notify_player_role()
         # 天数记录 主要用于第一晚狼人击杀的遗言

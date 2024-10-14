@@ -61,15 +61,10 @@ with contextlib.suppress(ImportError):
         target: MsgTarget,
     ) -> None:
         user_id = event.get_user_id()
-        group_id = target.id
         players = next(p for g, p in Game.starting_games.items() if target.verify(g))
 
         if user_id not in players:
-            res: dict[str, str] = await bot.get_group_member_info(
-                group_id=int(group_id),
-                user_id=int(user_id),
-            )
-            players[user_id] = res.get("card") or res.get("nickname") or user_id
+            players.add(user_id)
             await UniMessage.at(user_id).text("\n✅成功加入游戏").send(target, bot)
 
     def ob11_ext_enabled() -> bool:
