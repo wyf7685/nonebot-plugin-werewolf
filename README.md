@@ -220,6 +220,10 @@ werewolf__priesthood_proirity=[11, 12, 13, 14, 15]
 
 </details>
 
+### 已知问题
+
+- 截止 chronocat v0.2.19, 调用 [`guild.member.get`](https://github.com/chrononeko/chronocat/blob/8558ad9ff4319395d86abbfda22136939bf66780/packages/engine-chronocat-api/src/api/guild/member/get.ts) / [`user.get`](https://github.com/chrononeko/chronocat/blob/8558ad9ff4319395d86abbfda22136939bf66780/packages/engine-chronocat-api/src/api/user/get.ts) 均无法获取用户名，这将导致在交互过程中的玩家名显示为用户ID
+
 ## 📝 更新日志
 
 <details>
