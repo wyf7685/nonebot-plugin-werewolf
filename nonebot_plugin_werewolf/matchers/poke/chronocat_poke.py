@@ -106,10 +106,4 @@ with contextlib.suppress(ImportError):
             return False
 
         event = current_event.get()
-        if not isinstance(event, MessageCreatedEvent):
-            return False
-
-        if event.login is not None:
-            return event.login.platform == "chronocat"
-
-        return True
+        return isinstance(event, MessageCreatedEvent) and event.platform == "chronocat"
