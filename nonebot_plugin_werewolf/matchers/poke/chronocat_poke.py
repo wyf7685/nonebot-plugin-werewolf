@@ -21,15 +21,20 @@ with contextlib.suppress(ImportError):
         PublicMessageCreatedEvent,
     )
 
-    def check_poke_tome(event: MessageCreatedEvent) -> bool:
+    def extract_poke_tome(event: MessageCreatedEvent) -> str | None:
         if event.login and event.login.platform and event.login.platform != "chronocat":
-            return False
+            return None
 
         poke = event.get_message().include("chronocat:poke")
         if not poke:
-            return False
+            return None
 
-        return any(seg.data["userId"] == event.self_id for seg in poke)
+        gen = (
+            seg.data["operatorId"]
+            for seg in poke
+            if seg.data["userId"] == event.self_id
+        )
+        return next(gen, None)
 
     def extract_user_group(event: MessageCreatedEvent) -> tuple[str, str | None]:
         user_id = event.get_user_id()
@@ -42,13 +47,17 @@ with contextlib.suppress(ImportError):
     async def _rule_poke_stop(bot: Bot, event: MessageCreatedEvent) -> bool:
         if not config.enable_poke:
             return False
-        return check_poke_tome(event) and (
+        return extract_poke_tome(event) is not None and (
             user_in_game(bot.self_id, *extract_user_group(event))
         )
 
     @on_message(rule=_rule_poke_stop).handle()
     async def handle_poke_stop(event: MessageCreatedEvent) -> None:
-        InputStore.put(UniMessage.text("/stop"), *extract_user_group(event))
+        InputStore.put(
+            UniMessage.text("/stop"),
+            extract_poke_tome(event) or event.get_user_id(),
+            extract_user_group(event)[1],
+        )
 
     # 准备阶段戳一戳等效加入游戏
     async def _rule_poke_join(
@@ -63,7 +72,7 @@ with contextlib.suppress(ImportError):
 
         return (
             group_id is not None
-            and check_poke_tome(event)
+            and extract_poke_tome(event) is not None
             and not user_in_game(bot.self_id, user_id, group_id)
             and any(target.verify(group) for group in Game.starting_games)
         )
@@ -74,7 +83,7 @@ with contextlib.suppress(ImportError):
         event: MessageCreatedEvent,
         target: MsgTarget,
     ) -> None:
-        user_id = event.get_user_id()
+        user_id = extract_poke_tome(event) or event.get_user_id()
         players = next(p for g, p in Game.starting_games.items() if target.verify(g))
 
         if user_id not in players:
