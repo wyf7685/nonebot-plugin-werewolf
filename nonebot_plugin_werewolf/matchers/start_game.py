@@ -14,7 +14,7 @@ from .._timeout import timeout
 from ..config import config
 from ..game import Game
 from .depends import rule_not_in_game
-from .ob11_ext import ob11_ext_enabled
+from .poke import poke_enabled
 
 start_game = on_command(
     "werewolf",
@@ -175,7 +175,7 @@ async def handle_start(
         .text("  游戏发起者 @我 发送 “结束游戏” 可结束当前游戏\n")
         .text("  玩家均加入后，游戏发起者请 @我 发送 “开始游戏”\n")
     )
-    if ob11_ext_enabled():
+    if poke_enabled():
         msg.text("\n可使用戳一戳代替游戏交互中的 “/stop” 命令\n")
     await msg.text("\n游戏准备阶段限时5分钟，超时将自动结束").send()
 

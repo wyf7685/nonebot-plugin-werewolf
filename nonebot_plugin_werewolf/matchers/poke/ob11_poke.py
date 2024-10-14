@@ -4,13 +4,13 @@ from nonebot import on_notice
 from nonebot.internal.matcher import current_bot
 from nonebot_plugin_alconna import MsgTarget, UniMessage
 
-from ..config import config
-from ..game import Game
-from ..utils import InputStore
-from .depends import user_in_game
+from ...config import config
+from ...game import Game
+from ...utils import InputStore
+from ..depends import user_in_game
 
 
-def ob11_ext_enabled() -> bool:
+def ob11_poke_enabled() -> bool:
     return False
 
 
@@ -25,10 +25,8 @@ with contextlib.suppress(ImportError):
 
         user_id = str(event.user_id)
         group_id = str(event.group_id) if event.group_id is not None else None
-        return (
-            config.enable_poke
-            and (event.target_id == event.self_id)
-            and user_in_game(bot.self_id, user_id, group_id)
+        return (event.target_id == event.self_id) and user_in_game(
+            bot.self_id, user_id, group_id
         )
 
     @on_notice(rule=_rule_poke_stop).handle()
@@ -67,7 +65,7 @@ with contextlib.suppress(ImportError):
             players.add(user_id)
             await UniMessage.at(user_id).text("\n✅成功加入游戏").send(target, bot)
 
-    def ob11_ext_enabled() -> bool:
+    def ob11_poke_enabled() -> bool:
         if not config.enable_poke:
             return False
 
