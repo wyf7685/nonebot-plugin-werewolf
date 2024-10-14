@@ -88,17 +88,24 @@ with contextlib.suppress(ImportError):
         players = next(p for g, p in Game.starting_games.items() if target.verify(g))
 
         if user_id not in players:
-            member = await bot.guild_member_get(
-                guild_id=(event.guild and event.guild.id) or event.channel.id,
-                user_id=user_id,
-            )
-            name = member.nick or (
-                member.user and (member.user.nick or member.user.name)
-            )
-            if name is None:
-                user = await bot.user_get(user_id=user_id)
-                name = user.nick or user.name
-            players[user_id] = name or user_id
+            # XXX:
+            #   截止 chronocat v0.2.19
+            #   通过 guild.member.get / user.get 获取的用户信息均不包含用户名
+            #   跳过用户名获取, 使用用户 ID 代替
+            #
+            # member = await bot.guild_member_get(
+            #     guild_id=(event.guild and event.guild.id) or event.channel.id,
+            #     user_id=user_id,
+            # )
+            # name = member.nick or (
+            #     member.user and (member.user.nick or member.user.name)
+            # )
+            # if name is None:
+            #     user = await bot.user_get(user_id=user_id)
+            #     name = user.nick or user.name
+            # players[user_id] = name or user_id
+
+            players[user_id] = user_id
             await UniMessage.at(user_id).text("\n✅成功加入游戏").send(target, bot)
 
     def chronocat_poke_enabled() -> bool:
