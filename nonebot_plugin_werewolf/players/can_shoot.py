@@ -19,11 +19,11 @@ class CanShoot(Player):
             .text(f" 死了\n请{self.role_name}决定击杀目标...")
         )
 
-        self.game.state.shoot = (None, None)
+        self.game.state.shoot = None
         shoot = await self.shoot()
 
         if shoot is not None:
-            self.game.state.shoot = (self, shoot)
+            self.game.state.shoot = self
             await self.send(
                 UniMessage.text(f"🔫{self.role_name} ")
                 .at(self.user_id)
@@ -31,6 +31,7 @@ class CanShoot(Player):
                 .at(shoot.user_id)
             )
             await shoot.kill(KillReason.Shoot, self)
+            self.selected = shoot
         else:
             await self.send(f"ℹ️{self.role_name}选择了取消技能")
         return await super().post_kill()

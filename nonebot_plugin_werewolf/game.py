@@ -82,6 +82,7 @@ class Game:
         self.group = group
         self.players = init_players(bot, self, players)
         self.interface = interface
+        self.state = GameState(0)
         self.killed_players = []
         self._player_map = {p.user_id: p for p in self.players}
         self._scene = None
@@ -262,16 +263,16 @@ class Game:
             await self.handle_new_dead(player)
             self.killed_players.append(player)
 
-            (shooter, shoot) = self.state.shoot
-            if shooter is not None and shoot is not None:
+            shooter = self.state.shoot
+            if shooter is not None and (shoot := shooter.selected) is not None:
                 await self.send(
-                    UniMessage.text("玩家 ")
+                    UniMessage.text("🔫玩家 ")
                     .at(shoot.user_id)
                     .text(f" 被{shooter.role_name}射杀, 请发表遗言\n")
                     .text(f"限时1分钟, 发送 “{STOP_COMMAND_PROMPT}” 结束发言")
                 )
                 await self.wait_stop(shoot, timeout_secs=60)
-                self.state.shoot = (None, None)
+                self.state.shoot = shooter.selected = None
                 await self.post_kill(shoot)
 
     async def run_vote(self) -> None:
@@ -293,17 +294,17 @@ class Game:
             if p is not None:
                 msg.at(p.user_id).text(f": {len(v)} 票\n")
                 vote_reversed[len(v)] = [*vote_reversed.get(len(v), []), p]
-        if v := (len(players) - total_votes):
+        if (v := (len(players) - total_votes)) > 0:
             msg.text(f"弃票: {v} 票\n\n")
 
         # 全员弃票  # 不是哥们？
         if total_votes == 0:
-            await self.send(msg.text("🔨没有人被票出"))
+            await self.send(msg.text("🔨没有人被投票放逐"))
             return
 
         # 弃票大于最高票
         if (len(players) - total_votes) >= max(vote_reversed.keys()):
-            await self.send(msg.text("🔨弃票数大于最高票数, 没有人被票出"))
+            await self.send(msg.text("🔨弃票数大于最高票数, 没有人被投票放逐"))
             return
 
         # 平票
@@ -311,11 +312,11 @@ class Game:
             await self.send(
                 msg.text("🔨玩家 ")
                 .text(", ".join(p.name for p in vs))
-                .text(" 平票, 没有人被票出")
+                .text(" 平票, 没有人被投票放逐")
             )
             return
 
-        await self.send(msg)
+        await self.send(msg.rstrip("\n"))
 
         # 仅有一名玩家票数最高
         voted = vs.pop()
@@ -368,24 +369,25 @@ class Game:
         await self._fetch_group_scene()
         # 告知玩家角色信息
         await self.notify_player_role()
-        # 天数记录 主要用于第一晚狼人击杀的遗言
-        day_count = 0
 
         # 游戏主循环
         while True:
             # 重置游戏状态，进入下一夜
-            self.state = GameState(day_count)
+            self.state.reset()
             players = self.players.alive()
             await self.send("🌙天黑请闭眼...")
 
             # 狼人、预言家、守卫 同时交互，女巫在狼人后交互
             await asyncio.gather(
                 self.select_killed(),
+                players.select(Role.Witch).broadcast("ℹ️请等待狼人决定目标..."),
                 self.interact(Role.Prophet, 60),
                 self.interact(Role.Guard, 60),
-                players.select(Role.Witch).broadcast("ℹ️请等待狼人决定目标..."),
                 players.exclude(
-                    RoleGroup.Werewolf, Role.Prophet, Role.Witch, Role.Guard
+                    RoleGroup.Werewolf,
+                    Role.Prophet,
+                    Role.Witch,
+                    Role.Guard,
                 ).broadcast("ℹ️请等待其他玩家结束交互..."),
             )
 
@@ -409,8 +411,8 @@ class Game:
                     # 女巫毒杀玩家
                     await witch.selected.kill(KillReason.Poison, witch)
 
-            day_count += 1
-            msg = UniMessage.text(f"『第{day_count}天』☀️天亮了...\n")
+            self.state.day += 1
+            msg = UniMessage.text(f"『第{self.state.day}天』☀️天亮了...\n")
             # 没有玩家死亡，平安夜
             if not (dead := players.dead()):
                 await self.send(msg.text("昨晚是平安夜"))
@@ -422,7 +424,7 @@ class Game:
                 await self.send(msg)
 
             # 第一晚被狼人杀死的玩家发表遗言
-            if day_count == 1 and killed is not None and not killed.alive:
+            if self.state.day == 1 and killed is not None and not killed.alive:
                 await self.send(
                     UniMessage.text("⚙️当前为第一天\n请被狼人杀死的 ")
                     .at(killed.user_id)
