@@ -10,7 +10,7 @@ from nonebot.utils import escape_tag
 from nonebot_plugin_alconna import At, Target, UniMessage
 from nonebot_plugin_alconna.uniseg.message import Receipt
 from nonebot_plugin_uninfo import Interface, SceneType
-from typing_extensions import Self
+from typing_extensions import Self, assert_never
 
 from ._timeout import timeout
 from .config import config
@@ -164,6 +164,8 @@ class Game:
                     line = f"🔫 {line} 射杀"
                 case KillReason.Vote:
                     line = f"🗳️ {line} 票出"
+                case x:
+                    assert_never(x)
             result.append(line)
 
         return "\n\n".join(result)
@@ -197,19 +199,22 @@ class Game:
         timeout_secs: float,
     ) -> None:
         players = self.players.alive().select(player_type)
-        if isinstance(player_type, Player):
-            text = player_type.role_name
-        elif isinstance(player_type, Role):
-            text = role_name_conv[player_type]
-        else:  # RoleGroup
-            text = f"{role_name_conv[player_type]}阵营"
+        match player_type:
+            case Player():
+                text = player_type.role_name
+            case Role():
+                text = role_name_conv[player_type]
+            case RoleGroup():
+                text = f"{role_name_conv[player_type]}阵营"
+            case x:
+                assert_never(x)
 
         await players.broadcast(f"✏️{text}交互开始，限时 {timeout_secs/60:.2f} 分钟")
         try:
             await players.interact(timeout_secs)
         except TimeoutError:
-            logger.opt(colors=True).debug(f"⚠️{text}交互超时 (<y>{timeout_secs}</y>s)")
-            await players.broadcast(f"ℹ️{text}交互时间结束")
+            logger.opt(colors=True).debug(f"{text}交互超时 (<y>{timeout_secs}</y>s)")
+            await players.broadcast(f"⚠️{text}交互超时")
 
     async def select_killed(self) -> None:
         players = self.players.alive()
@@ -457,6 +462,8 @@ class Game:
                 winner = "狼人"
             case GameStatus.Joker:
                 winner = "小丑"
+            case x:
+                assert_never(x)
 
         msg = UniMessage.text(f"🎉游戏结束，{winner}获胜\n\n")
         for p in sorted(self.players, key=lambda p: (p.role.value, p.user_id)):
