@@ -3,7 +3,7 @@ import asyncio
 from nonebot_plugin_alconna.uniseg import UniMessage
 from typing_extensions import override
 
-from ..constant import Role, RoleGroup
+from ..constant import STOP_COMMAND, STOP_COMMAND_PROMPT, Role, RoleGroup
 from ..utils import check_index
 from .player import Player
 
@@ -40,28 +40,27 @@ class Werewolf(Player):
             msg.text("💫请选择今晚的目标:\n")
             .text(players.show())
             .text("\n\n🔪发送编号选择玩家")
-            .text("\n❌发送 “/stop” 结束回合")
+            .text(f"\n❌发送 “{STOP_COMMAND_PROMPT}” 结束回合")
             .text("\n\n⚠️意见未统一将空刀")
         )
 
         selected = None
-        finished = False
-        while selected is None or not finished:
+        while True:
             input_msg = await self.receive()
             text = input_msg.extract_plain_text()
             index = check_index(text, len(players))
             if index is not None:
                 selected = index - 1
                 msg = f"当前选择玩家: {players[selected].name}"
-                await self.send(f"🎯{msg}\n发送 “/stop” 结束回合")
+                await self.send(f"🎯{msg}\n发送 “{STOP_COMMAND_PROMPT}” 结束回合")
                 broadcast(f"📝队友 {self.name} {msg}")
-            if text == "/stop":
+            if text == STOP_COMMAND:
                 if selected is not None:
-                    finished = True
                     await self.send("✅你已结束当前回合")
                     broadcast(f"📝队友 {self.name} 结束当前回合")
-                else:
-                    await self.send("⚠️当前未选择玩家，无法结束回合")
-            broadcast(UniMessage.text(f"💬队友 {self.name}:\n") + input_msg)
+                    break
+                await self.send("⚠️当前未选择玩家，无法结束回合")
+            else:
+                broadcast(UniMessage.text(f"💬队友 {self.name}:\n") + input_msg)
 
         self.selected = players[selected]

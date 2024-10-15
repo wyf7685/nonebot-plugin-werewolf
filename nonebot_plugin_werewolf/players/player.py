@@ -11,7 +11,15 @@ from nonebot.utils import escape_tag
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 from nonebot_plugin_uninfo import SceneType
 
-from ..constant import KillReason, Role, RoleGroup, role_emoji, role_name_conv
+from ..constant import (
+    STOP_COMMAND,
+    STOP_COMMAND_PROMPT,
+    KillReason,
+    Role,
+    RoleGroup,
+    role_emoji,
+    role_name_conv,
+)
 from ..utils import InputStore, check_index, link
 
 if TYPE_CHECKING:
@@ -187,12 +195,12 @@ class Player:
     async def vote(self, players: PlayerSet) -> Player | None:
         await self.send(
             f"💫请选择需要投票的玩家:\n{players.show()}"
-            "\n\n🗳️发送编号选择玩家\n❌发送 “/stop” 弃票"
+            f"\n\n🗳️发送编号选择玩家\n❌发送 “{STOP_COMMAND_PROMPT}” 弃票"
         )
 
         while True:
             text = await self.receive_text()
-            if text == "/stop":
+            if text == STOP_COMMAND:
                 await self.send("⚠️你选择了弃票")
                 return None
             index = check_index(text, len(players))

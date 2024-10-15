@@ -5,6 +5,7 @@ from nonebot.internal.matcher import current_event
 from nonebot_plugin_alconna import MsgTarget, UniMessage
 
 from ...config import config
+from ...constant import STOP_COMMAND
 from ...game import Game
 from ...utils import InputStore
 from ..depends import user_in_game
@@ -43,7 +44,7 @@ with contextlib.suppress(ImportError):
             group_id = (event.guild and event.guild.id) or event.channel.id
         return user_id, group_id
 
-    # 游戏内戳一戳等效 "/stop"
+    # 游戏内戳一戳等效 "stop" 命令
     async def _rule_poke_stop(bot: Bot, event: MessageCreatedEvent) -> bool:
         if not config.enable_poke:
             return False
@@ -54,7 +55,7 @@ with contextlib.suppress(ImportError):
     @on_message(rule=_rule_poke_stop).handle()
     async def handle_poke_stop(event: MessageCreatedEvent) -> None:
         InputStore.put(
-            UniMessage.text("/stop"),
+            UniMessage.text(STOP_COMMAND),
             extract_poke_tome(event) or event.get_user_id(),
             extract_user_group(event)[1],
         )

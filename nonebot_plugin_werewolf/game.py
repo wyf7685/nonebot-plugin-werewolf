@@ -14,7 +14,16 @@ from typing_extensions import Self
 
 from ._timeout import timeout
 from .config import config
-from .constant import GameState, GameStatus, KillReason, Role, RoleGroup, role_name_conv
+from .constant import (
+    STOP_COMMAND,
+    STOP_COMMAND_PROMPT,
+    GameState,
+    GameStatus,
+    KillReason,
+    Role,
+    RoleGroup,
+    role_name_conv,
+)
 from .exception import GameFinished
 from .player_set import PlayerSet
 from .players import Player
@@ -175,7 +184,7 @@ class Game:
         async def wait(p: Player) -> None:
             while True:
                 msg = await InputStore.fetch(p.user_id, self.group.id)
-                if msg.extract_plain_text().strip() == "/stop":
+                if msg.extract_plain_text().strip() == STOP_COMMAND:
                     break
 
         with contextlib.suppress(TimeoutError):
@@ -254,7 +263,7 @@ class Game:
                     UniMessage.text("玩家 ")
                     .at(shoot.user_id)
                     .text(f" 被{shooter.role_name}射杀, 请发表遗言\n")
-                    .text("限时1分钟, 发送 “/stop” 结束发言")
+                    .text(f"限时1分钟, 发送 “{STOP_COMMAND_PROMPT}” 结束发言")
                 )
                 await self.wait_stop(shoot, timeout_secs=60)
                 self.state.shoot = (None, None)
@@ -314,7 +323,7 @@ class Game:
             UniMessage.text("🔨玩家 ")
             .at(voted.user_id)
             .text(" 被投票放逐, 请发表遗言\n")
-            .text("限时1分钟, 发送 “/stop” 结束发言")
+            .text(f"限时1分钟, 发送 “{STOP_COMMAND_PROMPT}” 结束发言")
         )
         await self.wait_stop(voted, timeout_secs=60)
         await self.post_kill(voted)
@@ -413,7 +422,7 @@ class Game:
                     UniMessage.text("⚙️当前为第一天\n请被狼人杀死的 ")
                     .at(killed.user_id)
                     .text(" 发表遗言\n")
-                    .text("限时1分钟, 发送 “/stop” 结束发言")
+                    .text(f"限时1分钟, 发送 “{STOP_COMMAND_PROMPT}” 结束发言")
                 )
                 await self.wait_stop(killed, timeout_secs=60)
             await self.post_kill(dead)
@@ -426,7 +435,8 @@ class Game:
 
             # 开始自由讨论
             await self.send(
-                "💬接下来开始自由讨论\n限时2分钟, 全员发送 “/stop” 结束发言"
+                "💬接下来开始自由讨论\n限时2分钟, "
+                f"全员发送 “{STOP_COMMAND_PROMPT}” 结束发言"
             )
             await self.wait_stop(*self.players.alive(), timeout_secs=120)
 

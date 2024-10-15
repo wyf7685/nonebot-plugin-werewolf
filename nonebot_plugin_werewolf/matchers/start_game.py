@@ -12,6 +12,7 @@ from nonebot_plugin_uninfo import QryItrface, Uninfo
 
 from .._timeout import timeout
 from ..config import config
+from ..constant import STOP_COMMAND_PROMPT
 from ..game import Game
 from ..utils import extract_session_member_nick
 from .depends import rule_not_in_game
@@ -177,7 +178,7 @@ async def handle_start(
         .text("  玩家均加入后，游戏发起者请 @我 发送 “开始游戏”\n")
     )
     if poke_enabled():
-        msg.text("\n可使用戳一戳代替游戏交互中的 “/stop” 命令\n")
+        msg.text(f"\n可使用戳一戳代替游戏交互中的 “{STOP_COMMAND_PROMPT}” 命令\n")
     await msg.text("\n游戏准备阶段限时5分钟，超时将自动结束").send()
 
     admin_name = extract_session_member_nick(session) or admin_id

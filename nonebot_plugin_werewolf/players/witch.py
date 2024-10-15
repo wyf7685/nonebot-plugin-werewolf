@@ -1,7 +1,7 @@
 from nonebot_plugin_alconna.uniseg import UniMessage
 from typing_extensions import override
 
-from ..constant import Role, RoleGroup
+from ..constant import STOP_COMMAND, STOP_COMMAND_PROMPT, Role, RoleGroup
 from ..utils import check_index
 from .player import Player
 
@@ -23,7 +23,9 @@ class Witch(Player):
             await self.send(msg.text("⚙️你已经用过解药了"))
             return False
 
-        await self.send(msg.text("✏️使用解药请发送 “1”\n❌不使用解药请发送 “/stop”"))
+        await self.send(
+            msg.text(f"✏️使用解药请发送 “1”\n❌不使用解药请发送 “{STOP_COMMAND_PROMPT}”")
+        )
 
         while True:
             text = await self.receive_text()
@@ -33,9 +35,9 @@ class Witch(Player):
                 self.game.state.antidote.add(killed)
                 await self.send(f"✅你对 {killed.name} 使用了解药，回合结束")
                 return True
-            if text == "/stop":
+            if text == STOP_COMMAND:
                 return False
-            await self.send("⚠️输入错误: 请输入 “1” 或 “/stop”")
+            await self.send(f"⚠️输入错误: 请输入 “1” 或 “{STOP_COMMAND_PROMPT}”")
 
     @override
     async def interact(self) -> None:
@@ -52,7 +54,7 @@ class Witch(Player):
             .text("玩家列表:\n")
             .text(players.show())
             .text("\n\n🧪发送玩家编号使用毒药")
-            .text("\n❌发送 “/stop” 结束回合(不使用药水)")
+            .text(f"\n❌发送 “{STOP_COMMAND_PROMPT}” 结束回合(不使用药水)")
         )
 
         while True:
@@ -61,10 +63,10 @@ class Witch(Player):
             if index is not None:
                 selected = index - 1
                 break
-            if text == "/stop":
+            if text == STOP_COMMAND:
                 await self.send("ℹ️你选择不使用毒药，回合结束")
                 return
-            await self.send("⚠️输入错误: 请发送玩家编号或 “/stop”")
+            await self.send(f"⚠️输入错误: 请发送玩家编号或 “{STOP_COMMAND_PROMPT}”")
 
         self.poison = 0
         self.selected = players[selected]

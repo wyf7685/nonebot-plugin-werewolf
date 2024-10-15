@@ -4,8 +4,17 @@ import dataclasses
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
+import nonebot
+
 if TYPE_CHECKING:
     from .players import Player
+
+
+COMMAND_START = next(
+    iter(sorted(nonebot.get_driver().config.command_start, key=len)), ""
+)
+STOP_COMMAND_PROMPT = f"{COMMAND_START}stop"
+STOP_COMMAND = "{{stop}}"
 
 
 class Role(Enum):

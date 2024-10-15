@@ -6,6 +6,7 @@ from nonebot_plugin_alconna import MsgTarget, UniMessage
 from nonebot_plugin_uninfo import Uninfo
 
 from ...config import config
+from ...constant import STOP_COMMAND
 from ...game import Game
 from ...utils import InputStore, extract_session_member_nick
 from ..depends import user_in_game
@@ -19,7 +20,7 @@ with contextlib.suppress(ImportError):
     from nonebot.adapters.onebot.v11 import Bot
     from nonebot.adapters.onebot.v11.event import PokeNotifyEvent
 
-    # 游戏内戳一戳等效 "/stop"
+    # 游戏内戳一戳等效 "stop" 命令
     async def _rule_poke_stop(bot: Bot, event: PokeNotifyEvent) -> bool:
         if not config.enable_poke:
             return False
@@ -33,7 +34,7 @@ with contextlib.suppress(ImportError):
     @on_notice(rule=_rule_poke_stop).handle()
     async def handle_poke_stop(event: PokeNotifyEvent) -> None:
         InputStore.put(
-            msg=UniMessage.text("/stop"),
+            msg=UniMessage.text(STOP_COMMAND),
             user_id=str(event.user_id),
             group_id=str(event.group_id) if event.group_id is not None else None,
         )
