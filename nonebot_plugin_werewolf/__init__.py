@@ -24,6 +24,7 @@ __plugin_meta__ = PluginMetadata(
     ),
     extra={
         "Author": "wyf7685",
+        "Version": __version__,
         "Bug Tracker": "https://github.com/wyf7685/nonebot-plugin-werewolf/issues",
     },
 )
