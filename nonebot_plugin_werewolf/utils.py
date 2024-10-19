@@ -22,7 +22,7 @@ def check_index(text: str, arrlen: int) -> int | None:
 
 
 def link(text: str, url: str | None) -> str:
-    return f"\u001b]8;;{url}\u0007{text}\u001b]8;;\u0007"
+    return text if url is None else f"\u001b]8;;{url}\u0007{text}\u001b]8;;\u0007"
 
 
 def extract_session_member_nick(session: Session) -> str | None:
