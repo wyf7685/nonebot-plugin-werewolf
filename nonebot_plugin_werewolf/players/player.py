@@ -20,7 +20,7 @@ from ..constant import (
     role_emoji,
     role_name_conv,
 )
-from ..utils import InputStore, check_index, link
+from ..utils import InputStore, as_player_set, check_index, link
 
 if TYPE_CHECKING:
     from ..game import Game
@@ -177,10 +177,8 @@ class Player:
         await self.send(f"⚙️你的身份: {role_emoji[self.role]}{self.role_name}")
 
     async def kill(self, reason: KillReason, *killers: "Player") -> bool:
-        from ..player_set import PlayerSet
-
         self.alive = False
-        self.kill_info = KillInfo(reason=reason, killers=PlayerSet(killers))
+        self.kill_info = KillInfo(reason=reason, killers=as_player_set(*killers))
         return True
 
     async def post_kill(self) -> None:
@@ -192,17 +190,37 @@ class Player:
             f"\n\n🗳️发送编号选择玩家\n❌发送 “{STOP_COMMAND_PROMPT}” 弃票"
         )
 
+        if selected := await self._select_player(
+            players,
+            on_stop="⚠️你选择了弃票",
+            on_index_error="⚠️输入错误: 请发送编号选择玩家",
+        ):
+            await self.send(f"🔨投票的玩家: {selected.name}")
+
+        return selected
+
+    async def _check_selected(self, player: "Player") -> "Player | None":
+        return player
+
+    async def _select_player(
+        self,
+        players: "PlayerSet",
+        *,
+        on_stop: str | None = "ℹ️你选择了取消，回合结束",
+        on_index_error: str = f"⚠️输入错误: 请发送玩家编号或 “{STOP_COMMAND_PROMPT}”",
+    ) -> "Player | None":
         selected = None
+
         while selected is None:
             text = await self.receive_text()
             if text == STOP_COMMAND:
-                await self.send("⚠️你选择了弃票")
+                if on_stop is not None:
+                    await self.send(on_stop)
                 return None
             index = check_index(text, len(players))
             if index is None:
-                await self.send("⚠️输入错误: 请发送编号选择玩家")
+                await self.send(on_index_error)
                 continue
-            selected = players[index - 1]
+            selected = await self._check_selected(players[index - 1])
 
-        await self.send(f"🔨投票的玩家: {selected.name}")
         return selected

@@ -1,13 +1,19 @@
 from nonebot_plugin_alconna.uniseg import UniMessage
 from typing_extensions import override
 
-from ..constant import STOP_COMMAND, STOP_COMMAND_PROMPT, Role, RoleGroup
-from ..utils import check_index
+from ..constant import STOP_COMMAND_PROMPT, Role, RoleGroup
 from .player import Player
 
 
 @Player.register_role(Role.Guard, RoleGroup.GoodGuy)
 class Guard(Player):
+    @override
+    async def _check_selected(self, player: Player) -> Player | None:
+        if player is not self.selected:
+            return player
+        await self.send("⚠️守卫不能连续两晚保护同一目标，请重新选择")
+        return None
+
     @override
     async def interact(self) -> None:
         players = self.game.players.alive()
@@ -18,23 +24,7 @@ class Guard(Player):
             .text(f"\n❌发送 “{STOP_COMMAND_PROMPT}” 结束回合")
         )
 
-        selected = None
-        while selected is None:
-            text = await self.receive_text()
-            if text == STOP_COMMAND:
-                await self.send("ℹ️你选择了取消，回合结束")
-                return
-
-            index = check_index(text, len(players))
-            if index is None:
-                await self.send("⚠️输入错误: 请发送编号选择玩家")
-                continue
-
-            selected = players[index - 1]
-            if selected is self.selected:
-                await self.send("⚠️守卫不能连续两晚保护同一目标，请重新选择")
-                selected = None
-
-        self.selected = selected
-        self.game.state.protected.add(self.selected)
-        await self.send(f"✅本回合保护的玩家: {self.selected.name}")
+        self.selected = await self._select_player(players)
+        if self.selected:
+            self.game.state.protected.add(self.selected)
+            await self.send(f"✅本回合保护的玩家: {self.selected.name}")

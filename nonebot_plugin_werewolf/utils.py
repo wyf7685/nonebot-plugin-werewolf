@@ -1,9 +1,14 @@
 import asyncio
+import functools
 from collections import defaultdict
-from typing import Any, ClassVar, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
 from nonebot_plugin_alconna import UniMessage
 from nonebot_plugin_uninfo import Session
+
+if TYPE_CHECKING:
+    from .player_set import PlayerSet
+    from .players import Player
 
 T = TypeVar("T")
 
@@ -59,3 +64,14 @@ class InputStore:
         key = f"{group_id}_{user_id}"
         if (future := cls.futures.get(key)) and not future.cancelled():
             future.set_result(msg)
+
+
+@functools.cache
+def cached_player_set() -> type["PlayerSet"]:
+    from .player_set import PlayerSet
+
+    return PlayerSet
+
+
+def as_player_set(*player: "Player") -> "PlayerSet":
+    return cached_player_set()(player)

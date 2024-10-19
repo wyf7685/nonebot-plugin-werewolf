@@ -1,8 +1,7 @@
 from nonebot_plugin_alconna.uniseg import UniMessage
 from typing_extensions import override
 
-from ..constant import STOP_COMMAND, STOP_COMMAND_PROMPT, KillReason
-from ..utils import check_index
+from ..constant import STOP_COMMAND_PROMPT, KillReason
 from .player import Player
 
 
@@ -45,17 +44,10 @@ class CanShoot(Player):
             + f"\n❌发送 “{STOP_COMMAND_PROMPT}” 取消技能"
         )
 
-        selected = None
-        while selected is None:
-            text = await self.receive_text()
-            if text == STOP_COMMAND:
-                await self.send("ℹ️已取消技能")
-                return None
-            index = check_index(text, len(players))
-            if index is None:
-                await self.send("⚠️输入错误: 请发送编号选择玩家")
-                continue
-            selected = players[index - 1]
+        if selected := await self._select_player(
+            players,
+            on_stop="ℹ️已取消技能，回合结束",
+        ):
+            await self.send(f"🎯选择射杀的玩家: {selected.name}")
 
-        await self.send(f"🎯选择射杀的玩家: {selected.name}")
         return selected

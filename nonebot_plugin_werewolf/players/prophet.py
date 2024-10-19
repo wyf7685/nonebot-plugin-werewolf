@@ -1,8 +1,7 @@
 from nonebot_plugin_alconna.uniseg import UniMessage
 from typing_extensions import override
 
-from ..constant import Role, RoleGroup
-from ..utils import check_index
+from ..constant import STOP_COMMAND_PROMPT, Role, RoleGroup
 from .player import Player
 
 
@@ -15,16 +14,9 @@ class Prophet(Player):
             UniMessage.text("💫请选择需要查验身份的玩家:\n")
             .text(players.show())
             .text("\n\n🔮发送编号选择玩家")
+            .text(f"\n❌发送 “{STOP_COMMAND_PROMPT}” 结束回合(不查验身份)")
         )
 
-        selected = None
-        while selected is None:
-            text = await self.receive_text()
-            index = check_index(text, len(players))
-            if index is None:
-                await self.send("⚠️输入错误: 请发送编号选择玩家")
-                continue
-            selected = players[index - 1]
-
-        result = "狼人" if selected.role_group == RoleGroup.Werewolf else "好人"
-        await self.send(f"✏️玩家 {selected.name} 的阵营是『{result}』")
+        if selected := await self._select_player(players):
+            result = "狼人" if selected.role_group == RoleGroup.Werewolf else "好人"
+            await self.send(f"✏️玩家 {selected.name} 的阵营是『{result}』")
