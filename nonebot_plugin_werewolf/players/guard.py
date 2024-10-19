@@ -18,20 +18,23 @@ class Guard(Player):
             .text(f"\n❌发送 “{STOP_COMMAND_PROMPT}” 结束回合")
         )
 
-        while True:
+        selected = None
+        while selected is None:
             text = await self.receive_text()
             if text == STOP_COMMAND:
                 await self.send("ℹ️你选择了取消，回合结束")
                 return
-            index = check_index(text, len(players))
-            if index is not None:
-                selected = index - 1
-                if players[selected] is self.selected:
-                    await self.send("⚠️守卫不能连续两晚保护同一目标，请重新选择")
-                    continue
-                break
-            await self.send("⚠️输入错误: 请发送编号选择玩家")
 
-        self.selected = players[selected]
+            index = check_index(text, len(players))
+            if index is None:
+                await self.send("⚠️输入错误: 请发送编号选择玩家")
+                continue
+
+            selected = players[index - 1]
+            if selected is self.selected:
+                await self.send("⚠️守卫不能连续两晚保护同一目标，请重新选择")
+                selected = None
+
+        self.selected = selected
         self.game.state.protected.add(self.selected)
         await self.send(f"✅本回合保护的玩家: {self.selected.name}")

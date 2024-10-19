@@ -44,23 +44,21 @@ class Werewolf(Player):
             .text("\n\n⚠️意见未统一将空刀")
         )
 
-        selected = None
+        self.selected = None
         while True:
             input_msg = await self.receive()
             text = input_msg.extract_plain_text()
             index = check_index(text, len(players))
             if index is not None:
-                selected = index - 1
-                msg = f"当前选择玩家: {players[selected].name}"
+                self.selected = players[index - 1]
+                msg = f"当前选择玩家: {self.selected.name}"
                 await self.send(f"🎯{msg}\n发送 “{STOP_COMMAND_PROMPT}” 结束回合")
                 broadcast(f"📝队友 {self.name} {msg}")
             if text == STOP_COMMAND:
-                if selected is not None:
+                if self.selected is not None:
                     await self.send("✅你已结束当前回合")
                     broadcast(f"📝队友 {self.name} 结束当前回合")
                     break
                 await self.send("⚠️当前未选择玩家，无法结束回合")
             else:
                 broadcast(UniMessage.text(f"💬队友 {self.name}:\n") + input_msg)
-
-        self.selected = players[selected]

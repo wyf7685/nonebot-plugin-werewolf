@@ -1,11 +1,11 @@
-from __future__ import annotations
-
 import asyncio
 import functools
 import weakref
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, Final, TypeVar, final
 
+from nonebot.adapters import Bot
 from nonebot.log import logger
 from nonebot.utils import escape_tag
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
@@ -23,38 +23,32 @@ from ..constant import (
 from ..utils import InputStore, check_index, link
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
-    from nonebot.adapters import Bot
-
     from ..game import Game
     from ..player_set import PlayerSet
 
 
-P = TypeVar("P", bound=type["Player"])
+_P = TypeVar("_P", bound=type["Player"])
 
 
 @dataclass
 class KillInfo:
     reason: KillReason
-    killers: PlayerSet
+    killers: "PlayerSet"
 
 
 class Player:
-    __player_class: ClassVar[dict[Role, type[Player]]] = {}
+    __player_class: ClassVar[dict[Role, type["Player"]]] = {}
     role: ClassVar[Role]
     role_group: ClassVar[RoleGroup]
 
-    __user: Final[Target]
-    __game_ref: Final[weakref.ReferenceType[Game]]
     bot: Final[Bot]
     alive: bool = True
     killed: Final[asyncio.Event]
     kill_info: KillInfo | None = None
-    selected: Player | None = None
+    selected: "Player | None" = None
 
     @final
-    def __init__(self, bot: Bot, game: Game, user_id: str) -> None:
+    def __init__(self, bot: Bot, game: "Game", user_id: str) -> None:
         self.__user = Target(
             user_id,
             private=True,
@@ -67,8 +61,8 @@ class Player:
         self._member = None
 
     @classmethod
-    def register_role(cls, role: Role, role_group: RoleGroup, /) -> Callable[[P], P]:
-        def decorator(c: P, /) -> P:
+    def register_role(cls, role: Role, role_group: RoleGroup, /) -> Callable[[_P], _P]:
+        def decorator(c: _P, /) -> _P:
             c.role = role
             c.role_group = role_group
             cls.__player_class[role] = c
@@ -78,7 +72,7 @@ class Player:
 
     @final
     @classmethod
-    def new(cls, role: Role, bot: Bot, game: Game, user_id: str) -> Player:
+    def new(cls, role: Role, bot: Bot, game: "Game", user_id: str) -> "Player":
         if role not in cls.__player_class:
             raise ValueError(f"Unexpected role: {role!r}")
 
@@ -90,7 +84,7 @@ class Player:
         )
 
     @property
-    def game(self) -> Game:
+    def game(self) -> "Game":
         if game := self.__game_ref():
             return game
         raise ValueError("Game not exist")
@@ -182,7 +176,7 @@ class Player:
         await self._fetch_member()
         await self.send(f"⚙️你的身份: {role_emoji[self.role]}{self.role_name}")
 
-    async def kill(self, reason: KillReason, *killers: Player) -> bool:
+    async def kill(self, reason: KillReason, *killers: "Player") -> bool:
         from ..player_set import PlayerSet
 
         self.alive = False
@@ -192,23 +186,23 @@ class Player:
     async def post_kill(self) -> None:
         self.killed.set()
 
-    async def vote(self, players: PlayerSet) -> Player | None:
+    async def vote(self, players: "PlayerSet") -> "Player | None":
         await self.send(
             f"💫请选择需要投票的玩家:\n{players.show()}"
             f"\n\n🗳️发送编号选择玩家\n❌发送 “{STOP_COMMAND_PROMPT}” 弃票"
         )
 
-        while True:
+        selected = None
+        while selected is None:
             text = await self.receive_text()
             if text == STOP_COMMAND:
                 await self.send("⚠️你选择了弃票")
                 return None
             index = check_index(text, len(players))
-            if index is not None:
-                selected = index - 1
-                break
-            await self.send("⚠️输入错误: 请发送编号选择玩家")
+            if index is None:
+                await self.send("⚠️输入错误: 请发送编号选择玩家")
+                continue
+            selected = players[index - 1]
 
-        vote = players[selected]
-        await self.send(f"🔨投票的玩家: {vote.name}")
-        return vote
+        await self.send(f"🔨投票的玩家: {selected.name}")
+        return selected

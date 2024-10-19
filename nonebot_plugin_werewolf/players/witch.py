@@ -8,8 +8,8 @@ from .player import Player
 
 @Player.register_role(Role.Witch, RoleGroup.GoodGuy)
 class Witch(Player):
-    antidote: int = 1
-    poison: int = 1
+    antidote: bool = True
+    poison: bool = True
 
     async def handle_killed(self) -> bool:
         msg = UniMessage()
@@ -23,20 +23,19 @@ class Witch(Player):
             await self.send(msg.text("⚙️你已经用过解药了"))
             return False
 
-        await self.send(
-            msg.text(f"✏️使用解药请发送 “1”\n❌不使用解药请发送 “{STOP_COMMAND_PROMPT}”")
-        )
+        msg.text(f"✏️使用解药请发送 “1”\n❌不使用解药请发送 “{STOP_COMMAND_PROMPT}”")
+        await self.send(msg)
 
         while True:
             text = await self.receive_text()
+            if text == STOP_COMMAND:
+                return False
             if text == "1":
-                self.antidote = 0
+                self.antidote = False
                 self.selected = killed
                 self.game.state.antidote.add(killed)
                 await self.send(f"✅你对 {killed.name} 使用了解药，回合结束")
                 return True
-            if text == STOP_COMMAND:
-                return False
             await self.send(f"⚠️输入错误: 请输入 “1” 或 “{STOP_COMMAND_PROMPT}”")
 
     @override
@@ -57,18 +56,19 @@ class Witch(Player):
             .text(f"\n❌发送 “{STOP_COMMAND_PROMPT}” 结束回合(不使用药水)")
         )
 
-        while True:
+        selected = None
+        while selected is None:
             text = await self.receive_text()
-            index = check_index(text, len(players))
-            if index is not None:
-                selected = index - 1
-                break
             if text == STOP_COMMAND:
                 await self.send("ℹ️你选择不使用毒药，回合结束")
                 return
-            await self.send(f"⚠️输入错误: 请发送玩家编号或 “{STOP_COMMAND_PROMPT}”")
+            index = check_index(text, len(players))
+            if index is None:
+                await self.send(f"⚠️输入错误: 请发送玩家编号或 “{STOP_COMMAND_PROMPT}”")
+                continue
+            selected = players[index - 1]
 
-        self.poison = 0
-        self.selected = players[selected]
+        self.poison = False
+        self.selected = selected
         self.game.state.poison.add(self)
-        await self.send(f"✅当前回合选择对玩家 {self.selected.name} 使用毒药\n回合结束")
+        await self.send(f"✅当前回合选择对玩家 {selected.name} 使用毒药\n回合结束")

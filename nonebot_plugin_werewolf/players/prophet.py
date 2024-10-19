@@ -17,14 +17,14 @@ class Prophet(Player):
             .text("\n\n🔮发送编号选择玩家")
         )
 
-        while True:
+        selected = None
+        while selected is None:
             text = await self.receive_text()
             index = check_index(text, len(players))
-            if index is not None:
-                selected = index - 1
-                break
-            await self.send("⚠️输入错误: 请发送编号选择玩家")
+            if index is None:
+                await self.send("⚠️输入错误: 请发送编号选择玩家")
+                continue
+            selected = players[index - 1]
 
-        player = players[selected]
-        result = "狼人" if player.role_group == RoleGroup.Werewolf else "好人"
-        await self.send(f"✏️玩家 {player.name} 的阵营是『{result}』")
+        result = "狼人" if selected.role_group == RoleGroup.Werewolf else "好人"
+        await self.send(f"✏️玩家 {selected.name} 的阵营是『{result}』")
