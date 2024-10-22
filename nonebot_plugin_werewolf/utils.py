@@ -63,7 +63,7 @@ class InputStore:
     @classmethod
     def put(cls, msg: UniMessage, user_id: str, group_id: str | None = None) -> None:
         key = f"{group_id}_{user_id}"
-        if (task := cls.tasks.pop(key, None)):
+        if task := cls.tasks.pop(key, None):
             task.set(msg)
 
     @classmethod
