@@ -1,10 +1,10 @@
-import asyncio
 import functools
 import weakref
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, Final, TypeVar, final
 
+import anyio
 from nonebot.adapters import Bot
 from nonebot.log import logger
 from nonebot.utils import escape_tag
@@ -43,7 +43,7 @@ class Player:
 
     bot: Final[Bot]
     alive: bool = True
-    killed: Final[asyncio.Event]
+    killed: Final[anyio.Event]
     kill_info: KillInfo | None = None
     selected: "Player | None" = None
 
@@ -57,7 +57,7 @@ class Player:
         )
         self.__game_ref = weakref.ref(game)
         self.bot = bot
-        self.killed = asyncio.Event()
+        self.killed = anyio.Event()
         self._member = None
 
     @classmethod

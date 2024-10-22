@@ -1,8 +1,9 @@
-import asyncio
 import re
 
+import anyio
 import nonebot
 import nonebot_plugin_waiter as waiter
+from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from nonebot import on_command
 from nonebot.adapters import Bot, Event
 from nonebot.rule import to_me
@@ -10,7 +11,6 @@ from nonebot.utils import escape_tag
 from nonebot_plugin_alconna import MsgTarget, Target, UniMessage, UniMsg
 from nonebot_plugin_uninfo import QryItrface, Uninfo
 
-from .._timeout import timeout
 from ..config import config
 from ..constant import STOP_COMMAND_PROMPT
 from ..game import Game
@@ -32,7 +32,7 @@ async def handle_start_warning(target: MsgTarget) -> None:
 
 
 async def _prepare_game_receive(
-    queue: asyncio.Queue[tuple[str, str, str]],
+    stream: MemoryObjectSendStream[tuple[str, str, str]],
     event: Event,
     group: Target,
 ) -> None:
@@ -60,18 +60,19 @@ async def _prepare_game_receive(
     async for user, text, name in wait(default=(None, "", "")):
         if user is None:
             continue
-        await queue.put((user, text, re.sub(r"[\u2066-\u2069]", "", name)))
+        await stream.send((user, text, re.sub(r"[\u2066-\u2069]", "", name)))
 
 
 async def _prepare_game_handle(
-    queue: asyncio.Queue[tuple[str, str, str]],
+    stream: MemoryObjectReceiveStream[tuple[str, str, str]],
     players: dict[str, str],
     admin_id: str,
+    finished: anyio.Event,
 ) -> None:
     logger = nonebot.logger.opt(colors=True)
 
     while True:
-        user, text, name = await queue.get()
+        user, text, name = await stream.receive()
         msg = UniMessage.at(user).text("\n")
         colored = f"<y>{escape_tag(name)}</y>(<c>{escape_tag(user)}</c>)"
 
@@ -105,12 +106,14 @@ async def _prepare_game_handle(
                 else:
                     await msg.text("✏️游戏即将开始...").send()
                     logger.info(f"游戏发起者 {colored} 开始游戏")
+                    finished.set()
                     return
 
             case ("开始游戏", False):
                 await msg.text("⚠️只有游戏发起者可以开始游戏").send()
 
             case ("结束游戏", True):
+                finished.set()
                 logger.info(f"游戏发起者 {colored} 结束游戏")
                 await msg.text("ℹ️已结束当前游戏").finish()
 
@@ -147,16 +150,23 @@ async def _prepare_game_handle(
 
 
 async def prepare_game(event: Event, players: dict[str, str]) -> None:
+    admin_id = event.get_user_id()
     group = UniMessage.get_target(event)
     Game.starting_games[group] = players
 
-    queue: asyncio.Queue[tuple[str, str, str]] = asyncio.Queue()
-    task_receive = asyncio.create_task(_prepare_game_receive(queue, event, group))
+    finished = anyio.Event()
+    send, recv = anyio.create_memory_object_stream()
+
+    async def handle_cancel() -> None:
+        await finished.wait()
+        tg.cancel_scope.cancel()
 
     try:
-        await _prepare_game_handle(queue, players, event.get_user_id())
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(handle_cancel)
+            tg.start_soon(_prepare_game_receive, send, event, group)
+            tg.start_soon(_prepare_game_handle, recv, players, admin_id, finished)
     finally:
-        task_receive.cancel()
         del Game.starting_games[group]
 
 
@@ -170,8 +180,7 @@ async def handle_start(
 ) -> None:
     admin_id = event.get_user_id()
     msg = (
-        UniMessage.at(admin_id)
-        .text("\n🎉成功创建游戏\n\n")
+        UniMessage.text("🎉成功创建游戏\n\n")
         .text("  玩家请 @我 发送 “加入游戏”、“退出游戏”\n")
         .text("  玩家 @我 发送 “当前玩家” 可查看玩家列表\n")
         .text("  游戏发起者 @我 发送 “结束游戏” 可结束当前游戏\n")
@@ -179,15 +188,16 @@ async def handle_start(
     )
     if poke_enabled():
         msg.text(f"\n可使用戳一戳代替游戏交互中的 “{STOP_COMMAND_PROMPT}” 命令\n")
-    await msg.text("\n游戏准备阶段限时5分钟，超时将自动结束").send()
+    await msg.text("\n游戏准备阶段限时5分钟，超时将自动结束").send(reply_to=True)
 
     admin_name = extract_session_member_nick(session) or admin_id
     players = {admin_id: admin_name}
 
     try:
-        async with timeout(5 * 60):
+        with anyio.fail_after(5 * 60):
             await prepare_game(event, players)
     except TimeoutError:
         await UniMessage.text("⚠️游戏准备超时，已自动结束").finish()
 
-    Game(bot, target, set(players), interface).start()
+    game = Game(bot, target, set(players), interface)
+    await game.start()
