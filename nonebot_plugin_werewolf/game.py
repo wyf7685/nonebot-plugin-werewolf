@@ -282,7 +282,7 @@ class Game:
         players = self.players.alive()
 
         # 被票玩家: [投票玩家]
-        vote_result: dict[Player, list[Player]] = await players.vote(60)
+        vote_result: dict[Player, list[Player]] = await players.vote()
         # 票数: [被票玩家]
         vote_reversed: dict[int, list[Player]] = {}
         # 收集到的总票数

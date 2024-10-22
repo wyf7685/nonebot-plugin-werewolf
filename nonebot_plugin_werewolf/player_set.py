@@ -60,24 +60,25 @@ class PlayerSet(set[Player]):
             for p in self.alive():
                 tg.start_soon(p.interact)
 
-    async def vote(self, timeout_secs: float = 60) -> dict[Player, list[Player]]:
+    async def vote(self) -> dict[Player, list[Player]]:
+        players = self.alive()
         result: dict[Player, list[Player]] = {}
 
-        async def vote(player: Player) -> None:
-            try:
-                with anyio.fail_after(timeout_secs):
-                    if vote := await player.vote(self.alive()):
-                        result[vote] = [*result.get(vote, []), player]
-            except TimeoutError:
-                await player.send("⚠️投票超时，将视为弃票")
+        async def _vote(player: Player) -> None:
+            vote = await player.vote(players)
+            if vote is not None:
+                result[vote] = [*result.get(vote, []), player]
 
         async with anyio.create_task_group() as tg:
-            for p in self.alive():
-                tg.start_soon(vote, p)
+            for p in players:
+                tg.start_soon(_vote, p)
 
         return result
 
     async def broadcast(self, message: str | UniMessage) -> None:
+        if not self:
+            return
+
         async with anyio.create_task_group() as tg:
             for p in self:
                 tg.start_soon(p.send, message)
