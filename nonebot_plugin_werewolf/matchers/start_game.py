@@ -31,7 +31,7 @@ async def handle_start_warning(target: MsgTarget) -> None:
         await UniMessage("⚠️请在群组中创建新游戏").finish(reply_to=True)
 
 
-async def _prepare_game_receive(
+async def _prepare_receive(
     stream: MemoryObjectSendStream[tuple[str, str, str]],
     event: Event,
     group: Target,
@@ -63,7 +63,7 @@ async def _prepare_game_receive(
         await stream.send((user, text, re.sub(r"[\u2066-\u2069]", "", name)))
 
 
-async def _prepare_game_handle(
+async def _prepare_handle(
     stream: MemoryObjectReceiveStream[tuple[str, str, str]],
     players: dict[str, str],
     admin_id: str,
@@ -107,15 +107,17 @@ async def _prepare_game_handle(
                     await msg.text("✏️游戏即将开始...").send()
                     logger.info(f"游戏发起者 {colored} 开始游戏")
                     finished.set()
+                    players["#$start_game$#"] = user
                     return
 
             case ("开始游戏", False):
                 await msg.text("⚠️只有游戏发起者可以开始游戏").send()
 
             case ("结束游戏", True):
-                finished.set()
                 logger.info(f"游戏发起者 {colored} 结束游戏")
-                await msg.text("ℹ️已结束当前游戏").finish()
+                await msg.text("ℹ️已结束当前游戏").send()
+                finished.set()
+                return
 
             case ("结束游戏", False):
                 await msg.text("⚠️只有游戏发起者可以结束游戏").send()
@@ -164,10 +166,14 @@ async def prepare_game(event: Event, players: dict[str, str]) -> None:
     try:
         async with anyio.create_task_group() as tg:
             tg.start_soon(handle_cancel)
-            tg.start_soon(_prepare_game_receive, send, event, group)
-            tg.start_soon(_prepare_game_handle, recv, players, admin_id, finished)
-    finally:
-        del Game.starting_games[group]
+            tg.start_soon(_prepare_receive, send, event, group)
+            tg.start_soon(_prepare_handle, recv, players, admin_id, finished)
+    except Exception as err:
+        await UniMessage(f"狼人杀准备阶段出现未知错误: {err!r}").send()
+
+    del Game.starting_games[group]
+    if players.pop("#$start_game$#", None) != admin_id:
+        await start_game.finish()
 
 
 @start_game.handle()
