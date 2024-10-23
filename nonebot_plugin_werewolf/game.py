@@ -1,9 +1,7 @@
-import asyncio
-import contextlib
 import secrets
-from collections.abc import Coroutine
-from typing import Any, ClassVar, NoReturn
+from typing import ClassVar, NoReturn
 
+import anyio
 from nonebot.adapters import Bot
 from nonebot.log import logger
 from nonebot.utils import escape_tag
@@ -12,7 +10,6 @@ from nonebot_plugin_alconna.uniseg.message import Receipt
 from nonebot_plugin_uninfo import Interface, SceneType
 from typing_extensions import Self, assert_never
 
-from ._timeout import timeout
 from .config import config
 from .constant import (
     STOP_COMMAND,
@@ -173,15 +170,17 @@ class Game:
 
     async def notify_player_role(self) -> None:
         preset = config.get_role_preset()[len(self.players)]
-        await asyncio.gather(
-            self.send(
-                self.at_all()
-                .text("\n\n📝正在分配职业，请注意查看私聊消息\n")
-                .text(f"当前玩家数: {len(self.players)}\n")
-                .text(f"职业分配: 狼人x{preset[0]}, 神职x{preset[1]}, 平民x{preset[2]}")
-            ),
-            *[p.notify_role() for p in self.players],
+        msg = (
+            self.at_all()
+            .text("\n\n📝正在分配职业，请注意查看私聊消息\n")
+            .text(f"当前玩家数: {len(self.players)}\n")
+            .text(f"职业分配: 狼人x{preset[0]}, 神职x{preset[1]}, 平民x{preset[2]}")
         )
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(self.send, msg)
+            for p in self.players:
+                tg.start_soon(p.notify_role)
 
     async def wait_stop(self, *players: Player, timeout_secs: float) -> None:
         async def wait(p: Player) -> None:
@@ -190,9 +189,10 @@ class Game:
                 if msg.extract_plain_text().strip() == STOP_COMMAND:
                     break
 
-        with contextlib.suppress(TimeoutError):
-            async with timeout(timeout_secs):
-                await asyncio.gather(*[wait(p) for p in players])
+        with anyio.move_on_after(timeout_secs):
+            async with anyio.create_task_group() as tg:
+                for p in players:
+                    tg.start_soon(wait, p)
 
     async def interact(
         self,
@@ -212,7 +212,8 @@ class Game:
 
         await players.broadcast(f"✏️{text}交互开始，限时 {timeout_secs/60:.2f} 分钟")
         try:
-            await players.interact(timeout_secs)
+            with anyio.fail_after(timeout_secs):
+                await players.interact()
         except TimeoutError:
             logger.opt(colors=True).debug(f"{text}交互超时 (<y>{timeout_secs}</y>s)")
             await players.broadcast(f"⚠️{text}交互超时")
@@ -234,7 +235,7 @@ class Game:
             await self.interact(Role.Witch, 60)
         # 否则等待 5-20s
         else:
-            await asyncio.sleep(5 + secrets.randbelow(15))
+            await anyio.sleep(5 + secrets.randbelow(15))
 
     async def handle_new_dead(self, players: Player | PlayerSet) -> None:
         if isinstance(players, Player):
@@ -242,15 +243,16 @@ class Game:
         if not players:
             return
 
-        await asyncio.gather(
-            players.broadcast(
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(
+                players.broadcast,
                 "ℹ️你已加入死者频道，请勿在群内继续发言\n"
-                "私聊发送消息将转发至其他已死亡玩家"
-            ),
-            self.players.dead()
-            .exclude(*players)
-            .broadcast(f"ℹ️玩家 {', '.join(p.name for p in players)} 加入了死者频道"),
-        )
+                "私聊发送消息将转发至其他已死亡玩家",
+            )
+            tg.start_soon(
+                self.players.dead().exclude(*players).broadcast,
+                f"ℹ️玩家 {', '.join(p.name for p in players)} 加入了死者频道",
+            )
 
     async def post_kill(self, players: Player | PlayerSet) -> None:
         if isinstance(players, Player):
@@ -280,7 +282,7 @@ class Game:
         players = self.players.alive()
 
         # 被票玩家: [投票玩家]
-        vote_result: dict[Player, list[Player]] = await players.vote(60)
+        vote_result: dict[Player, list[Player]] = await players.vote()
         # 票数: [被票玩家]
         vote_reversed: dict[int, list[Player]] = {}
         # 收集到的总票数
@@ -334,36 +336,43 @@ class Game:
         await self.wait_stop(voted, timeout_secs=60)
         await self.post_kill(voted)
 
-    async def run_dead_channel(self) -> NoReturn:
-        loop = asyncio.get_event_loop()
-        queue: asyncio.Queue[tuple[Player, UniMessage]] = asyncio.Queue()
+    async def run_dead_channel(self, finished: anyio.Event) -> NoReturn:
+        send, recv = anyio.create_memory_object_stream[tuple[Player, UniMessage]](10)
 
-        async def send() -> NoReturn:
+        async def handle_cancel() -> None:
+            await finished.wait()
+            tg.cancel_scope.cancel()
+
+        async def handle_send() -> NoReturn:
             while True:
-                player, msg = await queue.get()
+                player, msg = await recv.receive()
                 msg = f"玩家 {player.name}:\n" + msg
                 await self.players.killed().exclude(player).broadcast(msg)
-                queue.task_done()
 
-        async def recv(player: Player) -> NoReturn:
+        async def handle_recv(player: Player) -> NoReturn:
             await player.killed.wait()
 
             counter = 0
 
-            def decrease() -> None:
+            async def decrease() -> None:
                 nonlocal counter
+                await anyio.sleep(60)
                 counter -= 1
 
             while True:
                 msg = await player.receive()
                 counter += 1
                 if counter <= 10:
-                    await queue.put((player, msg))
-                    loop.call_later(60, decrease)
+                    await send.send((player, msg))
+                    tg.start_soon(decrease)
                 else:
                     await player.send("❌发言频率超过限制, 该消息被屏蔽")
 
-        await asyncio.gather(send(), *[recv(p) for p in self.players])
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(handle_cancel)
+            tg.start_soon(handle_send)
+            for p in self.players:
+                tg.start_soon(handle_recv, p)
 
     async def run(self) -> NoReturn:
         await self._fetch_group_scene()
@@ -378,18 +387,23 @@ class Game:
             await self.send("🌙天黑请闭眼...")
 
             # 狼人、预言家、守卫 同时交互，女巫在狼人后交互
-            await asyncio.gather(
-                self.select_killed(),
-                players.select(Role.Witch).broadcast("ℹ️请等待狼人决定目标..."),
-                self.interact(Role.Prophet, 60),
-                self.interact(Role.Guard, 60),
-                players.exclude(
-                    RoleGroup.Werewolf,
-                    Role.Prophet,
-                    Role.Witch,
-                    Role.Guard,
-                ).broadcast("ℹ️请等待其他玩家结束交互..."),
-            )
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(self.select_killed)
+                tg.start_soon(
+                    players.select(Role.Witch).broadcast,
+                    "ℹ️请等待狼人决定目标...",
+                )
+                tg.start_soon(self.interact, Role.Prophet, 60)
+                tg.start_soon(self.interact, Role.Guard, 60)
+                tg.start_soon(
+                    players.exclude(
+                        RoleGroup.Werewolf,
+                        Role.Prophet,
+                        Role.Witch,
+                        Role.Guard,
+                    ).broadcast,
+                    "ℹ️请等待其他玩家结束交互...",
+                )
 
             # 狼人击杀目标
             if (
@@ -473,26 +487,11 @@ class Game:
         await self.send(msg)
         await self.send(f"📌玩家死亡报告:\n\n{self.show_killed_players()}")
 
-    def start(self) -> None:
-        tasks = set()
-        finished = asyncio.Event()
-
-        def create_task(coro: Coroutine[None, None, Any], /) -> asyncio.Task[Any]:
-            task = asyncio.create_task(coro)
-            tasks.add(task)
-            task.add_done_callback(tasks.discard)
-            return task
-
-        game_task = create_task(self.run())
-        game_task.add_done_callback(lambda _: finished.set())
-        dead_channel = create_task(self.run_dead_channel())
-
+    async def start(self) -> None:
         async def daemon() -> None:
-            await finished.wait()
-
             try:
-                game_task.result()
-            except asyncio.CancelledError:
+                await self.run()
+            except anyio.get_cancelled_exc_class():
                 logger.warning(f"{self.group.id} 的狼人杀游戏进程被取消")
             except GameFinished as result:
                 await self.handle_game_finish(result.status)
@@ -502,13 +501,17 @@ class Game:
                 logger.exception(msg)
                 await self.send(f"❌狼人杀游戏进程出现未知错误: {err!r}")
             finally:
-                dead_channel.cancel()
-                self.running_games.discard(self)
+                finished.set()
 
-        @create_task(daemon()).add_done_callback
-        def _(task: asyncio.Task[None]) -> None:
-            if err := task.exception():
-                msg = f"{self.group.id} 的狼人杀守护进程出现错误: {err!r}"
-                logger.opt(exception=err).error(msg)
-
+        finished = anyio.Event()
         self.running_games.add(self)
+        try:
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(daemon)
+                tg.start_soon(self.run_dead_channel, finished)
+        except Exception as err:
+            msg = f"{self.group.id} 的狼人杀守护进程出现错误: {err!r}"
+            logger.opt(exception=err).error(msg)
+        finally:
+            self.running_games.discard(self)
+            InputStore.cleanup(list(self._player_map), self.group.id)

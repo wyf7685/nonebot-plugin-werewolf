@@ -3,12 +3,11 @@ import contextlib
 from nonebot import on_notice
 from nonebot.internal.matcher import current_bot
 from nonebot_plugin_alconna import MsgTarget, UniMessage
-from nonebot_plugin_uninfo import Uninfo
 
 from ...config import config
 from ...constant import STOP_COMMAND
 from ...game import Game
-from ...utils import InputStore, extract_session_member_nick
+from ...utils import InputStore
 from ..depends import user_in_game
 
 
@@ -59,14 +58,20 @@ with contextlib.suppress(ImportError):
         bot: Bot,
         event: PokeNotifyEvent,
         target: MsgTarget,
-        session: Uninfo,
     ) -> None:
         user_id = event.get_user_id()
         players = next(p for g, p in Game.starting_games.items() if target.verify(g))
 
-        if user_id not in players:
-            players[user_id] = extract_session_member_nick(session) or user_id
-            await UniMessage.at(user_id).text("\n✅成功加入游戏").send(target, bot)
+        if event.group_id is None or user_id in players:
+            return
+
+        member_info = await bot.get_group_member_info(
+            group_id=event.group_id,
+            user_id=event.user_id,
+            no_cache=True,
+        )
+        players[user_id] = member_info["card"] or member_info["nickname"] or user_id
+        await UniMessage.at(user_id).text("\n✅成功加入游戏").send(target, bot)
 
     def ob11_poke_enabled() -> bool:
         if not config.enable_poke:

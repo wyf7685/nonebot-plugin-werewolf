@@ -1,10 +1,10 @@
-import asyncio
 import functools
 import weakref
 from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, Final, TypeVar, final
 
+import anyio
 from nonebot.adapters import Bot
 from nonebot.log import logger
 from nonebot.utils import escape_tag
@@ -43,7 +43,7 @@ class Player:
 
     bot: Final[Bot]
     alive: bool = True
-    killed: Final[asyncio.Event]
+    killed: Final[anyio.Event]
     kill_info: KillInfo | None = None
     selected: "Player | None" = None
 
@@ -57,7 +57,7 @@ class Player:
         )
         self.__game_ref = weakref.ref(game)
         self.bot = bot
-        self.killed = asyncio.Event()
+        self.killed = anyio.Event()
         self._member = None
 
     @classmethod
@@ -188,15 +188,22 @@ class Player:
         await self.send(
             f"💫请选择需要投票的玩家:\n{players.show()}"
             f"\n\n🗳️发送编号选择玩家\n❌发送 “{STOP_COMMAND_PROMPT}” 弃票"
+            f"\n\n限时1分钟，超时将视为弃票"
         )
 
-        if selected := await self._select_player(
-            players,
-            on_stop="⚠️你选择了弃票",
-            on_index_error="⚠️输入错误: 请发送编号选择玩家",
-        ):
-            await self.send(f"🔨投票的玩家: {selected.name}")
+        try:
+            with anyio.fail_after(60):
+                selected = await self._select_player(
+                    players,
+                    on_stop="⚠️你选择了弃票",
+                    on_index_error="⚠️输入错误: 请发送编号选择玩家",
+                )
+        except TimeoutError:
+            selected = None
+            await self.send("⚠️投票超时，将视为弃票")
 
+        if selected is not None:
+            await self.send(f"🔨投票的玩家: {selected.name}")
         return selected
 
     async def _check_selected(self, player: "Player") -> "Player | None":

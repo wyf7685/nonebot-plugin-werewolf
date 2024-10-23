@@ -1,9 +1,8 @@
-import asyncio
 import functools
 
+import anyio
 from nonebot_plugin_alconna.uniseg import UniMessage
 
-from ._timeout import timeout
 from .constant import Role, RoleGroup
 from .players import Player
 
@@ -50,27 +49,33 @@ class PlayerSet(set[Player]):
     def sorted(self) -> list[Player]:
         return sorted(self, key=lambda p: p.user_id)
 
-    async def interact(self, timeout_secs: float = 60) -> None:
-        async with timeout(timeout_secs):
-            await asyncio.gather(*[p.interact() for p in self.alive()])
+    async def interact(self) -> None:
+        async with anyio.create_task_group() as tg:
+            for p in self.alive():
+                tg.start_soon(p.interact)
 
-    async def vote(self, timeout_secs: float = 60) -> dict[Player, list[Player]]:
-        async def vote(player: Player) -> tuple[Player, Player | None]:
-            try:
-                async with timeout(timeout_secs):
-                    return player, await player.vote(self.alive())
-            except TimeoutError:
-                await player.send("⚠️投票超时，将视为弃票")
-                return player, None
-
+    async def vote(self) -> dict[Player, list[Player]]:
+        players = self.alive()
         result: dict[Player, list[Player]] = {}
-        for player, voted in await asyncio.gather(*[vote(p) for p in self.alive()]):
-            if voted is not None:
-                result[voted] = [*result.get(voted, []), player]
+
+        async def _vote(player: Player) -> None:
+            vote = await player.vote(players)
+            if vote is not None:
+                result[vote] = [*result.get(vote, []), player]
+
+        async with anyio.create_task_group() as tg:
+            for p in players:
+                tg.start_soon(_vote, p)
+
         return result
 
     async def broadcast(self, message: str | UniMessage) -> None:
-        await asyncio.gather(*[p.send(message) for p in self])
+        if not self:
+            return
+
+        async with anyio.create_task_group() as tg:
+            for p in self:
+                tg.start_soon(p.send, message)
 
     def show(self) -> str:
         return "\n".join(f"{i}. {p.name}" for i, p in enumerate(self.sorted, 1))

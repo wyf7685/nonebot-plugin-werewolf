@@ -1,8 +1,8 @@
-import asyncio
 import functools
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
+import anyio
 from nonebot_plugin_alconna import UniMessage
 from nonebot_plugin_uninfo import Session
 
@@ -33,37 +33,46 @@ def extract_session_member_nick(session: Session) -> str | None:
     )
 
 
-class InputStore:
-    locks: ClassVar[dict[str, asyncio.Lock]] = defaultdict(asyncio.Lock)
-    futures: ClassVar[dict[str, asyncio.Future[UniMessage]]] = {}
-    clear_handle: ClassVar[dict[str, asyncio.Handle]] = {}
+class _InputTask:
+    _event: anyio.Event
+    _msg: UniMessage
 
-    @classmethod
-    def clear_lock(cls, key: str) -> None:
-        if key in cls.locks and not cls.locks[key].locked():
-            del cls.locks[key]
-        if key in cls.clear_handle:
-            del cls.clear_handle[key]
+    def __init__(self) -> None:
+        self._event = anyio.Event()
+
+    def set(self, msg: UniMessage) -> None:
+        self._msg = msg
+        self._event.set()
+
+    async def wait(self) -> UniMessage:
+        await self._event.wait()
+        return self._msg
+
+
+class InputStore:
+    locks: ClassVar[dict[str, anyio.Lock]] = defaultdict(anyio.Lock)
+    tasks: ClassVar[dict[str, _InputTask]] = {}
 
     @classmethod
     async def fetch(cls, user_id: str, group_id: str | None = None) -> UniMessage[Any]:
         key = f"{group_id}_{user_id}"
         async with cls.locks[key]:
-            cls.futures[key] = fut = asyncio.get_event_loop().create_future()
-            try:
-                return await fut
-            finally:
-                del cls.futures[key]
-                if key in cls.clear_handle:
-                    cls.clear_handle[key].cancel()
-                loop = asyncio.get_event_loop()
-                cls.clear_handle[key] = loop.call_later(120, cls.clear_lock, key)
+            cls.tasks[key] = task = _InputTask()
+            return await task.wait()
 
     @classmethod
     def put(cls, msg: UniMessage, user_id: str, group_id: str | None = None) -> None:
         key = f"{group_id}_{user_id}"
-        if (future := cls.futures.get(key)) and not future.cancelled():
-            future.set_result(msg)
+        if task := cls.tasks.pop(key, None):
+            task.set(msg)
+
+    @classmethod
+    def cleanup(cls, players: list[str], group_id: str) -> None:
+        for key in (f"{g}_{p}" for p in players for g in (group_id, None)):
+            if key in cls.locks:
+                del cls.locks[key]
+            if key in cls.tasks:
+                del cls.tasks[key]
 
 
 @functools.cache
