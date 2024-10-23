@@ -2,7 +2,6 @@ import secrets
 from typing import ClassVar, NoReturn
 
 import anyio
-import anyio.abc
 from nonebot.adapters import Bot
 from nonebot.log import logger
 from nonebot.utils import escape_tag
