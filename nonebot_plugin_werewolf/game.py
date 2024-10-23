@@ -337,7 +337,7 @@ class Game:
         await self.post_kill(voted)
 
     async def run_dead_channel(self, finished: anyio.Event) -> NoReturn:
-        send, recv = anyio.create_memory_object_stream[tuple[Player, UniMessage]](10)
+        send, recv = anyio.create_memory_object_stream[tuple[Player, UniMessage]](16)
 
         async def handle_cancel() -> None:
             await finished.wait()

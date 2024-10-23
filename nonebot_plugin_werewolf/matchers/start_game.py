@@ -150,7 +150,7 @@ async def prepare_game(event: Event, players: dict[str, str]) -> None:
     Game.starting_games[group] = players
 
     finished = anyio.Event()
-    send, recv = anyio.create_memory_object_stream[tuple[Event, str, str]]()
+    send, recv = anyio.create_memory_object_stream[tuple[Event, str, str]](16)
 
     async def _handle_cancel() -> None:
         await finished.wait()

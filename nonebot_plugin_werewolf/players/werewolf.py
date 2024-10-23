@@ -81,7 +81,7 @@ class Werewolf(Player):
             .text("\n\n⚠️意见未统一将空刀")
         )
 
-        send, recv = anyio.create_memory_object_stream[str | UniMessage]()
+        send, recv = anyio.create_memory_object_stream[str | UniMessage](8)
         finished = anyio.Event()
 
         async with anyio.create_task_group() as tg:
