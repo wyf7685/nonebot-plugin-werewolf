@@ -231,6 +231,12 @@ werewolf__priesthood_proirity=[11, 12, 13, 14, 15]
 
 <!-- CHANGELOG -->
 
+- 2024.10.23 v1.1.5
+
+  - 添加对 chronocat:poke 的支持
+  - 游戏内 stop 命令使用 COMMAND_START
+  - 使用 `anyio` 重写并发逻辑
+
 - 2024.10.06 v1.1.3
 
   - 使用 `RF-Tar-Railt/nonebot-plugin-uninfo` 获取用户数据
