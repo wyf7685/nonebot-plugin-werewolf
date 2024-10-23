@@ -20,5 +20,5 @@ force_stop = on_command(
 @force_stop.handle()
 async def _(target: MsgTarget) -> None:
     game = next(g for g in Game.running_games if target.verify(g.group))
-    game.cancel()
+    game.terminate()
     await UniMessage.text("已中止当前群组的游戏进程").finish(reply_to=True)

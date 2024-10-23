@@ -522,6 +522,7 @@ class Game:
             self.running_games.discard(self)
             InputStore.cleanup(list(self._player_map), self.group.id)
 
-    def cancel(self) -> None:
+    def terminate(self) -> None:
         if self._task_group is not None:
+            logger.warning(f"中止 {self.group.id} 的狼人杀游戏进程")
             self._task_group.cancel_scope.cancel()
