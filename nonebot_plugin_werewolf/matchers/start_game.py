@@ -6,6 +6,8 @@ import nonebot_plugin_waiter as waiter
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from nonebot import on_command
 from nonebot.adapters import Bot, Event
+from nonebot.internal.matcher import current_bot
+from nonebot.permission import SUPERUSER
 from nonebot.rule import to_me
 from nonebot.utils import escape_tag
 from nonebot_plugin_alconna import MsgTarget, Target, UniMessage, UniMsg
@@ -110,7 +112,12 @@ async def _prepare_handle(
                 return
 
             case ("结束游戏", False):
-                await send("⚠️只有游戏发起者可以结束游戏")
+                if await SUPERUSER(current_bot.get(), event):
+                    logger.info(f"超级用户 {colored} 结束游戏")
+                    await send("ℹ️已结束当前游戏")
+                    finished.set()
+                    return
+                await send("⚠️只有游戏发起者或超级用户可以结束游戏")
 
             case ("加入游戏", True):
                 await send("ℹ️游戏发起者已经加入游戏了")
