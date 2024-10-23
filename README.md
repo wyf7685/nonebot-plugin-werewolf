@@ -26,6 +26,7 @@ _✨ 简单的狼人杀插件 ✨_
 [![publish](https://github.com/wyf7685/nonebot-plugin-werewolf/actions/workflows/pypi-publish.yml/badge.svg)](https://github.com/wyf7685/nonebot-plugin-werewolf/actions/workflows/pypi-publish.yml)
 
 <!-- https://github.com/lgc2333/nonebot-registry-badge -->
+
 [![NoneBot Registry](https://img.shields.io/endpoint?url=https%3A%2F%2Fnbbdg.lgc2333.top%2Fplugin%2Fnonebot-plugin-werewolf)](https://registry.nonebot.dev/plugin/nonebot-plugin-werewolf:nonebot_plugin_werewolf)
 [![Supported Adapters](https://img.shields.io/endpoint?url=https%3A%2F%2Fnbbdg.lgc2333.top%2Fplugin-adapters%2Fnonebot-plugin-werewolf)](https://registry.nonebot.dev/plugin/nonebot-plugin-werewolf:nonebot_plugin_werewolf)
 
@@ -38,7 +39,7 @@ _✨ 简单的狼人杀插件 ✨_
 ## 💿 安装
 
 > [!note]
-> 
+>
 > 请确保 NoneBot2 使用的 Python 解释器版本 >=3.10
 
 <details open>
@@ -121,14 +122,15 @@ _✨ 简单的狼人杀插件 ✨_
 
 ### 指令表
 
-|        指令         |    权限    | 需要@ | 范围 |                说明                 |
-| :-----------------: | :--------: | :---: | :--: | :---------------------------------: |
-| `werewolf`/`狼人杀` |    群员    |  是   | 群聊 |       发起游戏 (进入准备阶段)       |
-|     `开始游戏`      | 游戏发起者 |  是   | 群聊 |   _[准备阶段]_ 游戏发起者开始游戏   |
-|     `结束游戏`      | 游戏发起者 |  是   | 群聊 |   _[准备阶段]_ 游戏发起者结束游戏   |
-|     `当前玩家`      |    群员    |  是   | 群聊 | _[准备阶段]_ 列出参与游戏的玩家列表 |
-|     `加入游戏`      |    群员    |  是   | 群聊 |      _[准备阶段]_ 玩家加入游戏      |
-|     `退出游戏`      |    群员    |  是   | 群聊 |      _[准备阶段]_ 玩家退出游戏      |
+|        指令         |    权限    | 需要@ | 范围 |                   说明                    |
+| :-----------------: | :--------: | :---: | :--: | :---------------------------------------: |
+| `werewolf`/`狼人杀` |    群员    |  是   | 群聊 |          发起游戏 (进入准备阶段)          |
+|     `开始游戏`      | 游戏发起者 |  是   | 群聊 |      _[准备阶段]_ 游戏发起者开始游戏      |
+|     `结束游戏`      | 游戏发起者 |  是   | 群聊 | _[准备阶段]_ 游戏发起者/超级用户 结束游戏 |
+|     `当前玩家`      |    群员    |  是   | 群聊 |    _[准备阶段]_ 列出参与游戏的玩家列表    |
+|     `加入游戏`      |    群员    |  是   | 群聊 |         _[准备阶段]_ 玩家加入游戏         |
+|     `退出游戏`      |    群员    |  是   | 群聊 |         _[准备阶段]_ 玩家退出游戏         |
+|     `中止游戏`      | superuser  |  是   | 群聊 |      _[游戏内]_ 超级用户强制中止游戏      |
 
 _其他交互参考游戏内提示_
 
@@ -222,7 +224,7 @@ werewolf__priesthood_proirity=[11, 12, 13, 14, 15]
 
 ### 已知问题
 
-- 截止 chronocat v0.2.19, 调用 [`guild.member.get`](https://github.com/chrononeko/chronocat/blob/8558ad9ff4319395d86abbfda22136939bf66780/packages/engine-chronocat-api/src/api/guild/member/get.ts) / [`user.get`](https://github.com/chrononeko/chronocat/blob/8558ad9ff4319395d86abbfda22136939bf66780/packages/engine-chronocat-api/src/api/user/get.ts) 均无法获取用户名，这将导致在交互过程中的玩家名显示为用户ID
+- 截止 chronocat v0.2.19, 调用 [`guild.member.get`](https://github.com/chrononeko/chronocat/blob/8558ad9ff4319395d86abbfda22136939bf66780/packages/engine-chronocat-api/src/api/guild/member/get.ts) / [`user.get`](https://github.com/chrononeko/chronocat/blob/8558ad9ff4319395d86abbfda22136939bf66780/packages/engine-chronocat-api/src/api/user/get.ts) 均无法获取用户名，这将导致在交互过程中的玩家名显示为用户 ID
 
 ## 📝 更新日志
 
