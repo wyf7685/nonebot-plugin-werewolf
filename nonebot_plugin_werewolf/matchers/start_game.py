@@ -73,7 +73,7 @@ async def _prepare_handle(
 
         # 更新用户名
         # 当用户通过 chronoca:poke 加入游戏时, 插件无法获取用户名, 原字典值为用户ID
-        if players.get(user_id) != name:
+        if user_id in players and players.get(user_id) != name:
             logger.debug(f"更新玩家显示名称: {colored}")
             players[user_id] = name
 
