@@ -177,6 +177,13 @@ async def handle_start(
     session: Uninfo,
     interface: QryItrface,
 ) -> None:
+    if any(target.verify(g.group) for g in Game.running_games):
+        await (
+            UniMessage.text("⚠️当前群组内有正在进行的游戏\n")
+            .text("无法开始新游戏")
+            .finish(reply_to=True)
+        )
+
     admin_id = event.get_user_id()
     msg = (
         UniMessage.text("🎉成功创建游戏\n\n")
