@@ -1,7 +1,6 @@
 import functools
 import weakref
 from collections.abc import Callable
-from dataclasses import dataclass
 from typing import TYPE_CHECKING, ClassVar, Final, TypeVar, final
 
 import anyio
@@ -14,12 +13,10 @@ from nonebot_plugin_uninfo import SceneType
 from ..constant import (
     STOP_COMMAND,
     STOP_COMMAND_PROMPT,
-    KillReason,
-    Role,
-    RoleGroup,
     role_emoji,
     role_name_conv,
 )
+from ..models import KillInfo, KillReason, Role, RoleGroup
 from ..utils import InputStore, as_player_set, check_index, link
 
 if TYPE_CHECKING:
@@ -28,12 +25,6 @@ if TYPE_CHECKING:
 
 
 _P = TypeVar("_P", bound=type["Player"])
-
-
-@dataclass
-class KillInfo:
-    reason: KillReason
-    killers: "PlayerSet"
 
 
 class Player:

@@ -11,17 +11,9 @@ from nonebot_plugin_uninfo import Interface, SceneType
 from typing_extensions import Self, assert_never
 
 from .config import config
-from .constant import (
-    STOP_COMMAND,
-    STOP_COMMAND_PROMPT,
-    GameState,
-    GameStatus,
-    KillReason,
-    Role,
-    RoleGroup,
-    role_name_conv,
-)
+from .constant import STOP_COMMAND, STOP_COMMAND_PROMPT, role_name_conv
 from .exception import GameFinished
+from .models import GameState, GameStatus, KillReason, Role, RoleGroup
 from .player_set import PlayerSet
 from .players import Player
 from .utils import InputStore, link

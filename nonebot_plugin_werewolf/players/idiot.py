@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 from nonebot_plugin_alconna.uniseg import UniMessage
 from typing_extensions import override
 
-from ..constant import KillReason, Role, RoleGroup
+from ..models import KillReason, Role, RoleGroup
 from .player import Player
 
 if TYPE_CHECKING:

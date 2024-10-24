@@ -1,4 +1,4 @@
-from ..constant import Role, RoleGroup
+from ..models import Role, RoleGroup
 from .can_shoot import CanShoot
 from .player import Player
 

@@ -1,7 +1,7 @@
 from typing_extensions import override
 
-from ..constant import GameStatus, KillReason, Role, RoleGroup
 from ..exception import GameFinished
+from ..models import GameStatus, KillReason, Role, RoleGroup
 from .player import Player
 
 

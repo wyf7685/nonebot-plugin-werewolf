@@ -1,7 +1,8 @@
 from nonebot_plugin_alconna.uniseg import UniMessage
 from typing_extensions import override
 
-from ..constant import STOP_COMMAND_PROMPT, Role, RoleGroup
+from ..constant import STOP_COMMAND_PROMPT
+from ..models import Role, RoleGroup
 from ..utils import as_player_set
 from .player import Player
 

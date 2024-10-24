@@ -6,13 +6,13 @@ from pydantic import BaseModel, Field
 from typing_extensions import Self
 
 from .constant import (
-    Role,
     RolePresetConfig,
     RolePresetDict,
     default_priesthood_proirity,
     default_role_preset,
     default_werewolf_priority,
 )
+from .models import Role
 
 if PYDANTIC_V2:
     from pydantic import model_validator as model_validator

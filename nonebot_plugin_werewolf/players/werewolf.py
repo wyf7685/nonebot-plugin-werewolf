@@ -5,7 +5,8 @@ from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStre
 from nonebot_plugin_alconna.uniseg import UniMessage
 from typing_extensions import override
 
-from ..constant import STOP_COMMAND, STOP_COMMAND_PROMPT, Role, RoleGroup
+from ..constant import STOP_COMMAND, STOP_COMMAND_PROMPT
+from ..models import Role, RoleGroup
 from ..utils import check_index
 from .player import Player
 

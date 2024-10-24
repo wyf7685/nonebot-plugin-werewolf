@@ -3,7 +3,7 @@ import functools
 import anyio
 from nonebot_plugin_alconna.uniseg import UniMessage
 
-from .constant import Role, RoleGroup
+from .models import Role, RoleGroup
 from .players import Player
 
 

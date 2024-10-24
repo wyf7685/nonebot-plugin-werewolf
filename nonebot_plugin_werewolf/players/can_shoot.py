@@ -1,7 +1,8 @@
 from nonebot_plugin_alconna.uniseg import UniMessage
 from typing_extensions import override
 
-from ..constant import STOP_COMMAND_PROMPT, KillReason
+from ..constant import STOP_COMMAND_PROMPT
+from ..models import KillReason
 from .player import Player
 
 
