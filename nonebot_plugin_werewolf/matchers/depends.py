@@ -1,7 +1,7 @@
 import itertools
 
 from nonebot.adapters import Bot, Event
-from nonebot_plugin_alconna import MsgTarget
+from nonebot_plugin_alconna import MsgTarget, UniMessage
 
 from ..game import Game
 
@@ -22,16 +22,22 @@ def user_in_game(self_id: str, user_id: str, group_id: str | None) -> bool:
     return False
 
 
-async def rule_in_game(bot: Bot, event: Event, target: MsgTarget) -> bool:
+async def rule_in_game(bot: Bot, event: Event) -> bool:
     if not Game.running_games:
         return False
+
+    try:
+        target = UniMessage.get_target(event, bot)
+    except NotImplementedError:
+        return False
+
     if target.private:
         return user_in_game(bot.self_id, target.id, None)
     return user_in_game(bot.self_id, event.get_user_id(), target.id)
 
 
-async def rule_not_in_game(bot: Bot, event: Event, target: MsgTarget) -> bool:
-    return not await rule_in_game(bot, event, target)
+async def rule_not_in_game(bot: Bot, event: Event) -> bool:
+    return not await rule_in_game(bot, event)
 
 
 async def is_group(target: MsgTarget) -> bool:
