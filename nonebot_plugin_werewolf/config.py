@@ -42,12 +42,12 @@ class PluginConfig(BaseModel):
     @model_validator(mode="after")
     def _validate(self) -> Self:
         if isinstance(self.role_preset, list):
-            for preset in self.role_preset:
-                if preset[0] != sum(preset[1:]):
+            for (total, *presets) in self.role_preset:
+                if total != sum(presets):
                     raise ValueError(
                         "配置项 `role_preset` 错误: "
-                        f"预设总人数为 {preset[0]}, 实际总人数为 {sum(preset[1:])} "
-                        f"({', '.join(map(str, preset[1:]))})"
+                        f"预设总人数为 {total}, 实际总人数为 {sum(presets)} "
+                        f"({', '.join(map(str, presets))})"
                     )
             self.role_preset = default_role_preset | {
                 i[0]: i[1:] for i in self.role_preset
