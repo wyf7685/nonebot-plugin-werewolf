@@ -10,12 +10,7 @@ from nonebot.utils import escape_tag
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 from nonebot_plugin_uninfo import SceneType
 
-from ..constant import (
-    STOP_COMMAND,
-    STOP_COMMAND_PROMPT,
-    role_emoji,
-    role_name_conv,
-)
+from ..constant import STOP_COMMAND, STOP_COMMAND_PROMPT, role_emoji, role_name_conv
 from ..models import KillInfo, KillReason, Role, RoleGroup
 from ..utils import InputStore, as_player_set, check_index, link
 
