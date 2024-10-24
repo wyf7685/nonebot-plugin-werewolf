@@ -2,11 +2,8 @@ name: Pyright Lint
 
 on:
   push:
-    paths:
-      - "nonebot_plugin_werewolf/**"
-      - ".github/workflows/pyright.yml"
-      - "pyproject.toml"
-      - "uv.lock"
+    branches:
+      - master
   pull_request:
     paths:
       - "nonebot_plugin_werewolf/**"
