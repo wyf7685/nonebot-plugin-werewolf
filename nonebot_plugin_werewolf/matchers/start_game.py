@@ -1,3 +1,4 @@
+import json
 import re
 
 import anyio
@@ -8,8 +9,18 @@ from nonebot.adapters import Bot, Event
 from nonebot.internal.matcher import current_bot
 from nonebot.permission import SUPERUSER
 from nonebot.rule import to_me
+from nonebot.typing import T_State
 from nonebot.utils import escape_tag
-from nonebot_plugin_alconna import MsgTarget, Target, UniMessage, UniMsg, on_alconna
+from nonebot_plugin_alconna import (
+    Alconna,
+    MsgTarget,
+    Option,
+    Target,
+    UniMessage,
+    UniMsg,
+    on_alconna,
+)
+from nonebot_plugin_localstore import get_plugin_data_file
 from nonebot_plugin_uninfo import QryItrface, Uninfo
 
 from ..config import config
@@ -20,17 +31,39 @@ from .depends import rule_not_in_game
 from .poke import poke_enabled
 
 start_game = on_alconna(
-    "werewolf",
+    Alconna(
+        "werewolf",
+        Option("restart|--restart|重开", dest="restart", default=False),
+    ),
     rule=to_me() & rule_not_in_game,
     aliases={"狼人杀"},
     use_cmd_start=True,
 )
+player_data_file = get_plugin_data_file("players.json")
+if not player_data_file.exists():
+    player_data_file.write_text("[]")
 
 
-@start_game.handle()
-async def handle_start_warning(target: MsgTarget) -> None:
-    if target.private:
-        await UniMessage("⚠️请在群组中创建新游戏").finish(reply_to=True)
+def dump_players(target: Target, players: dict[str, str]) -> None:
+    data: list[dict] = json.loads(player_data_file.read_text(encoding="utf-8"))
+
+    for item in data:
+        if Target.load(item["target"]).verify(target):
+            item["players"] = players
+            break
+    else:
+        data.append({"target": target.dump(), "players": players})
+
+    player_data_file.write_text(json.dumps(data, ensure_ascii=False), encoding="utf-8")
+
+
+def load_players(target: Target) -> dict[str, str] | None:
+    data: list[dict] = json.loads(player_data_file.read_text(encoding="utf-8"))
+
+    for item in data:
+        if Target.load(item["target"]).verify(target):
+            return item["players"]
+    return None
 
 
 async def _prepare_receive(
@@ -177,13 +210,9 @@ async def prepare_game(event: Event, players: dict[str, str]) -> None:
 
 
 @start_game.handle()
-async def handle_start(
-    bot: Bot,
-    event: Event,
-    target: MsgTarget,
-    session: Uninfo,
-    interface: QryItrface,
-) -> None:
+async def handle_notice(target: MsgTarget, state: T_State) -> None:
+    if target.private:
+        await UniMessage("⚠️请在群组中创建新游戏").finish(reply_to=True)
     if any(target.verify(g.group) for g in Game.running_games):
         await (
             UniMessage.text("⚠️当前群组内有正在进行的游戏\n")
@@ -191,7 +220,6 @@ async def handle_start(
             .finish(reply_to=True)
         )
 
-    admin_id = event.get_user_id()
     msg = (
         UniMessage.text("🎉成功创建游戏\n\n")
         .text("  玩家请 @我 发送 “加入游戏”、“退出游戏”\n")
@@ -200,11 +228,40 @@ async def handle_start(
         .text("  玩家均加入后，游戏发起者请 @我 发送 “开始游戏”\n")
     )
     if poke_enabled():
-        msg.text(f"\n可使用戳一戳代替游戏交互中的 “{STOP_COMMAND_PROMPT}” 命令\n")
-    await msg.text("\n游戏准备阶段限时5分钟，超时将自动结束").send(reply_to=True)
+        msg.text(f"\n💫可使用戳一戳代替游戏交互中的 “{STOP_COMMAND_PROMPT}” 命令\n")
+    await msg.text("\nℹ️游戏准备阶段限时5分钟，超时将自动结束").send(reply_to=True)
 
+    state["players"] = {}
+
+
+@start_game.assign("restart")
+async def handle_restart(target: MsgTarget, state: T_State) -> None:
+    players = load_players(target)
+    if players is None:
+        await UniMessage.text("ℹ️未找到历史游戏记录，将创建新游戏").send()
+        return
+
+    msg = UniMessage.text("🎉成功加载上次游戏:\n")
+    for user in players:
+        msg.text("\n- ").at(user)
+    await msg.send()
+
+    state["players"] = players
+
+
+@start_game.handle()
+async def handle_start(
+    bot: Bot,
+    event: Event,
+    target: MsgTarget,
+    session: Uninfo,
+    interface: QryItrface,
+    state: T_State,
+) -> None:
+    players: dict[str, str] = state["players"]
+    admin_id = event.get_user_id()
     admin_name = extract_session_member_nick(session) or admin_id
-    players = {admin_id: admin_name}
+    players[admin_id] = admin_name
 
     try:
         with anyio.fail_after(5 * 60):
@@ -212,5 +269,6 @@ async def handle_start(
     except TimeoutError:
         await UniMessage.text("⚠️游戏准备超时，已自动结束").finish()
 
+    dump_players(target, players)
     game = Game(bot, target, set(players), interface)
     await game.start()

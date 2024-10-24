@@ -1,6 +1,6 @@
 from nonebot import on_message
 from nonebot.adapters import Event
-from nonebot_plugin_alconna import MsgTarget, UniMessage, UniMsg, on_alconna
+from nonebot_plugin_alconna import Alconna, MsgTarget, UniMessage, UniMsg, on_alconna
 
 from ..constant import STOP_COMMAND
 from ..utils import InputStore
@@ -18,7 +18,7 @@ async def handle_input(event: Event, target: MsgTarget, msg: UniMsg) -> None:
 
 
 stopcmd = on_alconna(
-    "stop",
+    Alconna("stop"),
     rule=rule_in_game,
     block=True,
     use_cmd_start=True,

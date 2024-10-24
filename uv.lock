@@ -97,16 +97,16 @@ wheels = [
 
 [[package]]
 name = "fastapi"
-version = "0.115.2"
+version = "0.115.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "pydantic" },
     { name = "starlette" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/22/fa/19e3c7c9b31ac291987c82e959f36f88840bea183fa3dc3bb654669f19c1/fastapi-0.115.2.tar.gz", hash = "sha256:3995739e0b09fa12f984bce8fa9ae197b35d433750d3d312422d846e283697ee", size = 299968 }
+sdist = { url = "https://files.pythonhosted.org/packages/a9/ce/b64ce344d7b13c0768dc5b131a69d52f57202eb85839408a7637ca0dd7e2/fastapi-0.115.3.tar.gz", hash = "sha256:c091c6a35599c036d676fa24bd4a6e19fa30058d93d950216cdc672881f6f7db", size = 300453 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c9/14/bbe7776356ef01f830f8085ca3ac2aea59c73727b6ffaa757abeb7d2900b/fastapi-0.115.2-py3-none-any.whl", hash = "sha256:61704c71286579cc5a598763905928f24ee98bfcc07aabe84cfefb98812bbc86", size = 94650 },
+    { url = "https://files.pythonhosted.org/packages/57/95/4c5b79e7ca1f7b372d16a32cad7c9cc6c3c899200bed8f45739f4415cfae/fastapi-0.115.3-py3-none-any.whl", hash = "sha256:8035e8f9a2b0aa89cea03b6c77721178ed5358e1aea4cd8570d9466895c0638c", size = 94647 },
 ]
 
 [[package]]
@@ -356,7 +356,7 @@ wheels = [
 
 [[package]]
 name = "nonebot-adapter-onebot"
-version = "2.4.5"
+version = "2.4.6"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "msgpack" },
@@ -364,9 +364,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "typing-extensions" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/9a/4b/f0495c7558442ae51d8447b6ed290d7530edbf8a026a2877dd939e96eb76/nonebot_adapter_onebot-2.4.5.tar.gz", hash = "sha256:5897903792226683323c960472e2cced7609d45e8e8c3730646e9db5d9c3241e", size = 39659 }
+sdist = { url = "https://files.pythonhosted.org/packages/11/97/504e898471c2ba18a5c0f8db99ed81e755f6b3cbf647ce804485d8b8f77e/nonebot_adapter_onebot-2.4.6.tar.gz", hash = "sha256:e33c93649ad11b320d8e9ff213635f29b23b4d0413c9158bd031c513c2f8f701", size = 40107 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/1a/ca/8242a2d4ab5de22d1ce175bc230cdb60d571fce812a09282a08b8f679587/nonebot_adapter_onebot-2.4.5-py3-none-any.whl", hash = "sha256:882780f2a8eb52137177643c78a6b36c73c38cc53b20e11a5f83aa66cd8bce3f", size = 49413 },
+    { url = "https://files.pythonhosted.org/packages/60/a8/219fb6327b3395b9b05d2e46383795825d079d1c024660304037d3dc0448/nonebot_adapter_onebot-2.4.6-py3-none-any.whl", hash = "sha256:b1ec7023fd83d731f63b513217327a57d12893a261944934b9195f79173791ad", size = 49626 },
 ]
 
 [[package]]
@@ -400,6 +400,20 @@ wheels = [
 ]
 
 [[package]]
+name = "nonebot-plugin-localstore"
+version = "0.7.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "nonebot2" },
+    { name = "pydantic" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/38/18/4656dc5ac000d04ba0f00cf0a54ab0f4f381f0453d6cad6e04736f43991e/nonebot_plugin_localstore-0.7.1.tar.gz", hash = "sha256:9c2a7b39b50240896d9306adb79d8047308d0e77b88e3272b19be4908bdaabc9", size = 7037 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fb/aa/a00d2ddfd96008d2fb6d50031f9cb97a2c55621e6fb36dae6b6cb8a50384/nonebot_plugin_localstore-0.7.1-py3-none-any.whl", hash = "sha256:7908af162d1d0e8c736ae8863723325d057289f6b080ae44ff9ff39294f9ed16", size = 8597 },
+]
+
+[[package]]
 name = "nonebot-plugin-uninfo"
 version = "0.5.0"
 source = { registry = "https://pypi.org/simple" }
@@ -426,11 +440,12 @@ wheels = [
 
 [[package]]
 name = "nonebot-plugin-werewolf"
-version = "1.1.3"
+version = "1.1.5"
 source = { virtual = "." }
 dependencies = [
     { name = "anyio" },
     { name = "nonebot-plugin-alconna" },
+    { name = "nonebot-plugin-localstore" },
     { name = "nonebot-plugin-uninfo" },
     { name = "nonebot-plugin-waiter" },
     { name = "nonebot2" },
@@ -450,6 +465,7 @@ dev = [
 requires-dist = [
     { name = "anyio", specifier = ">=4.6.0" },
     { name = "nonebot-plugin-alconna", specifier = ">=0.52.1" },
+    { name = "nonebot-plugin-localstore", specifier = ">=0.7.1" },
     { name = "nonebot-plugin-uninfo", specifier = ">=0.4.0" },
     { name = "nonebot-plugin-waiter", specifier = ">=0.7.1" },
     { name = "nonebot2", specifier = ">=2.3.3" },
@@ -716,14 +732,14 @@ wheels = [
 
 [[package]]
 name = "starlette"
-version = "0.40.0"
+version = "0.41.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "anyio" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/4b/cb/244daf0d7be4508099ad5bca3cdfe8b8b5538acd719c5f397f614e569fff/starlette-0.40.0.tar.gz", hash = "sha256:1a3139688fb298ce5e2d661d37046a66ad996ce94be4d4983be019a23a04ea35", size = 2573611 }
+sdist = { url = "https://files.pythonhosted.org/packages/78/53/c3a36690a923706e7ac841f649c64f5108889ab1ec44218dac45771f252a/starlette-0.41.0.tar.gz", hash = "sha256:39cbd8768b107d68bfe1ff1672b38a2c38b49777de46d2a592841d58e3bf7c2a", size = 2573755 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0a/0f/64baf7a06492e8c12f5c4b49db286787a7255195df496fc21f5fd9eecffa/starlette-0.40.0-py3-none-any.whl", hash = "sha256:c494a22fae73805376ea6bf88439783ecfba9aac88a43911b48c653437e784c4", size = 73303 },
+    { url = "https://files.pythonhosted.org/packages/35/c6/a4443bfabf5629129512ca0e07866c4c3c094079ba4e9b2551006927253c/starlette-0.41.0-py3-none-any.whl", hash = "sha256:a0193a3c413ebc9c78bff1c3546a45bb8c8bcb4a84cae8747d650a65bd37210a", size = 73216 },
 ]
 
 [[package]]
