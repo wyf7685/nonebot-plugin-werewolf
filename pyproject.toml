@@ -6,6 +6,7 @@ authors = [{ name = "wyf7685", email = "wyf7685@163.com" }]
 dependencies = [
     "nonebot2>=2.3.3",
     "nonebot-plugin-alconna>=0.52.1",
+    "nonebot-plugin-localstore>=0.7.1",
     "nonebot-plugin-uninfo>=0.4.0",
     "nonebot-plugin-waiter>=0.7.1",
     "anyio>=4.6.0",
