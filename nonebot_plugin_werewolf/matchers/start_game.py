@@ -4,13 +4,12 @@ import anyio
 import nonebot
 import nonebot_plugin_waiter as waiter
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
-from nonebot import on_command
 from nonebot.adapters import Bot, Event
 from nonebot.internal.matcher import current_bot
 from nonebot.permission import SUPERUSER
 from nonebot.rule import to_me
 from nonebot.utils import escape_tag
-from nonebot_plugin_alconna import MsgTarget, Target, UniMessage, UniMsg
+from nonebot_plugin_alconna import MsgTarget, Target, UniMessage, UniMsg, on_alconna
 from nonebot_plugin_uninfo import QryItrface, Uninfo
 
 from ..config import config
@@ -20,10 +19,11 @@ from ..utils import extract_session_member_nick
 from .depends import rule_not_in_game
 from .poke import poke_enabled
 
-start_game = on_command(
+start_game = on_alconna(
     "werewolf",
     rule=to_me() & rule_not_in_game,
     aliases={"狼人杀"},
+    use_cmd_start=True,
 )
 
 

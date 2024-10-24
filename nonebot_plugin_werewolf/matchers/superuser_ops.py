@@ -1,7 +1,6 @@
-from nonebot import on_command
 from nonebot.permission import SUPERUSER
 from nonebot.rule import to_me
-from nonebot_plugin_alconna import MsgTarget, UniMessage
+from nonebot_plugin_alconna import MsgTarget, UniMessage, on_alconna
 
 from ..game import Game
 
@@ -10,10 +9,11 @@ def rule_game_running(target: MsgTarget) -> bool:
     return any(target.verify(g.group) for g in Game.running_games)
 
 
-force_stop = on_command(
+force_stop = on_alconna(
     "中止游戏",
     rule=to_me() & rule_game_running,
     permission=SUPERUSER,
+    use_cmd_start=True,
 )
 
 
