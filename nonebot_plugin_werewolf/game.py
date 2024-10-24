@@ -83,6 +83,7 @@ class Game:
         self.killed_players = []
         self._player_map = {p.user_id: p for p in self.players}
         self._scene = None
+        self._task_group = None
 
     async def _fetch_group_scene(self) -> None:
         scene = await self.interface.get_scene(SceneType.GROUP, self.group.id)
@@ -507,11 +508,20 @@ class Game:
         self.running_games.add(self)
         try:
             async with anyio.create_task_group() as tg:
+                self._task_group = tg
                 tg.start_soon(daemon)
                 tg.start_soon(self.run_dead_channel, finished)
+        except anyio.get_cancelled_exc_class():
+            logger.warning(f"{self.group.id} 的狼人杀游戏进程被取消")
         except Exception as err:
             msg = f"{self.group.id} 的狼人杀守护进程出现错误: {err!r}"
             logger.opt(exception=err).error(msg)
         finally:
+            self._task_group = None
             self.running_games.discard(self)
             InputStore.cleanup(list(self._player_map), self.group.id)
+
+    def terminate(self) -> None:
+        if self._task_group is not None:
+            logger.warning(f"中止 {self.group.id} 的狼人杀游戏进程")
+            self._task_group.cancel_scope.cancel()
