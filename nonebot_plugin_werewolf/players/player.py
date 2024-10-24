@@ -204,9 +204,13 @@ class Player:
         self,
         players: "PlayerSet",
         *,
-        on_stop: str | None = "ℹ️你选择了取消，回合结束",
-        on_index_error: str = f"⚠️输入错误: 请发送玩家编号或 “{STOP_COMMAND_PROMPT}”",
+        on_stop: str | None = None,
+        on_index_error: str | None = None,
     ) -> "Player | None":
+        on_stop = on_stop or "ℹ️你选择了取消，回合结束"
+        on_index_error = (
+            on_index_error or f"⚠️输入错误: 请发送玩家编号或 “{STOP_COMMAND_PROMPT}”"
+        )
         selected = None
 
         while selected is None:
