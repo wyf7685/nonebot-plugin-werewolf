@@ -163,8 +163,9 @@ class Player:
         await self.send(f"⚙️你的身份: {role_emoji[self.role]}{self.role_name}")
 
     async def kill(self, reason: KillReason, *killers: "Player") -> bool:
-        self.alive = False
-        self.kill_info = KillInfo(reason=reason, killers=as_player_set(*killers))
+        if self.alive:
+            self.alive = False
+            self.kill_info = KillInfo(reason=reason, killers=as_player_set(*killers))
         return True
 
     async def post_kill(self) -> None:

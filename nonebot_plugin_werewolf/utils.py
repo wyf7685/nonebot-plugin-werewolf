@@ -1,4 +1,5 @@
 import functools
+import itertools
 from collections import defaultdict
 from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
 
@@ -53,22 +54,30 @@ class InputStore:
     locks: ClassVar[dict[str, anyio.Lock]] = defaultdict(anyio.Lock)
     tasks: ClassVar[dict[str, _InputTask]] = {}
 
+    @staticmethod
+    def _key(user_id: str, group_id: str | None) -> str:
+        return f"{group_id}_{user_id}"
+
     @classmethod
     async def fetch(cls, user_id: str, group_id: str | None = None) -> UniMessage[Any]:
-        key = f"{group_id}_{user_id}"
+        key = cls._key(user_id, group_id)
         async with cls.locks[key]:
             cls.tasks[key] = task = _InputTask()
-            return await task.wait()
+            try:
+                return await task.wait()
+            finally:
+                cls.tasks.pop(key, None)
 
     @classmethod
     def put(cls, msg: UniMessage, user_id: str, group_id: str | None = None) -> None:
-        key = f"{group_id}_{user_id}"
+        key = cls._key(user_id, group_id)
         if task := cls.tasks.pop(key, None):
             task.set(msg)
 
     @classmethod
     def cleanup(cls, players: list[str], group_id: str) -> None:
-        for key in (f"{g}_{p}" for p in players for g in (group_id, None)):
+        for p, g in itertools.product(players, (group_id, None)):
+            key = cls._key(p, g)
             if key in cls.locks:
                 del cls.locks[key]
             if key in cls.tasks:

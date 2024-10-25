@@ -112,7 +112,7 @@ class Game:
         logger.opt(colors=True).info(text)
         return await message.send(self.group, self.bot)
 
-    def at_all(self) -> UniMessage:
+    def at_all(self) -> UniMessage[At]:
         msg = UniMessage()
         for p in sorted(self.players, key=lambda p: (p.role_name, p.user_id)):
             msg.at(p.user_id)
