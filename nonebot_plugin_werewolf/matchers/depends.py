@@ -33,7 +33,13 @@ async def rule_in_game(bot: Bot, event: Event) -> bool:
 
     if target.private:
         return user_in_game(bot.self_id, target.id, None)
-    return user_in_game(bot.self_id, event.get_user_id(), target.id)
+
+    try:
+        user_id = event.get_user_id()
+    except Exception:
+        return False
+
+    return user_in_game(bot.self_id, user_id, target.id)
 
 
 async def rule_not_in_game(bot: Bot, event: Event) -> bool:
