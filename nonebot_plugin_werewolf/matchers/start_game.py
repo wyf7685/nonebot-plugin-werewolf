@@ -33,7 +33,7 @@ from .poke import poke_enabled
 start_game = on_alconna(
     Alconna(
         "werewolf",
-        Option("restart|--restart|重开", dest="restart", default=False),
+        Option("restart|--restart|重开", dest="restart"),
     ),
     rule=to_me() & rule_not_in_game,
     aliases={"狼人杀"},
