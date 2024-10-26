@@ -382,6 +382,20 @@ wheels = [
 ]
 
 [[package]]
+name = "nonebot-adapter-telegram"
+version = "0.1.0b18"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "nonebot2" },
+    { name = "pydantic" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/fb/7c/0c6424b20fe08288ddb3bf77411e81a615419f7c4183ea07b6e20dfed91d/nonebot-adapter-telegram-0.1.0b18.tar.gz", hash = "sha256:233225f4d2fed8d720e10b631a761598dc23e6f51c2d2c4b1181b5f786f9d9db", size = 28894 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/15/f2/3af5a929ccc8c81f13d248a083ad6ff653e65522f3bc29a92abc82e523c4/nonebot_adapter_telegram-0.1.0b18-py3-none-any.whl", hash = "sha256:1d0291c677ab8c90a83636955d51d376904fa59e8f6afbb709492443d6e70ba1", size = 29369 },
+]
+
+[[package]]
 name = "nonebot-plugin-alconna"
 version = "0.53.1"
 source = { registry = "https://pypi.org/simple" }
@@ -457,6 +471,7 @@ dev = [
     { name = "httpx" },
     { name = "nonebot-adapter-onebot" },
     { name = "nonebot-adapter-satori" },
+    { name = "nonebot-adapter-telegram" },
     { name = "nonebot2", extra = ["fastapi"] },
     { name = "websockets" },
 ]
@@ -477,6 +492,7 @@ dev = [
     { name = "httpx", specifier = ">=0.27.2" },
     { name = "nonebot-adapter-onebot", specifier = ">=2.4.4" },
     { name = "nonebot-adapter-satori", specifier = ">=0.12.5" },
+    { name = "nonebot-adapter-telegram", specifier = ">=0.1.0b18" },
     { name = "nonebot2", extras = ["fastapi"], specifier = ">=2.3.3" },
     { name = "websockets", specifier = ">=13.0.1" },
 ]

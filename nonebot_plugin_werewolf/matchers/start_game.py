@@ -8,11 +8,13 @@ from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStre
 from nonebot.adapters import Bot, Event
 from nonebot.internal.matcher import current_bot
 from nonebot.permission import SUPERUSER
-from nonebot.rule import to_me
+from nonebot.rule import Rule, to_me
 from nonebot.typing import T_State
 from nonebot.utils import escape_tag
 from nonebot_plugin_alconna import (
     Alconna,
+    Button,
+    FallbackStrategy,
     MsgTarget,
     Option,
     Target,
@@ -77,7 +79,7 @@ async def _prepare_receive(
     @waiter.waiter(
         waits=[event.get_type()],
         keep_session=False,
-        rule=to_me() & same_group & rule_not_in_game,
+        rule=Rule(same_group, rule_not_in_game),
     )
     def wait(event: Event, msg: UniMsg, session: Uninfo) -> tuple[Event, str, str]:
         text = msg.extract_plain_text().strip()
@@ -222,14 +224,24 @@ async def handle_notice(target: MsgTarget, state: T_State) -> None:
 
     msg = (
         UniMessage.text("🎉成功创建游戏\n\n")
-        .text("  玩家请 @我 发送 “加入游戏”、“退出游戏”\n")
-        .text("  玩家 @我 发送 “当前玩家” 可查看玩家列表\n")
-        .text("  游戏发起者 @我 发送 “结束游戏” 可结束当前游戏\n")
-        .text("  玩家均加入后，游戏发起者请 @我 发送 “开始游戏”\n")
+        .text("  玩家请发送 “加入游戏”、“退出游戏”\n")
+        .text("  玩家发送 “当前玩家” 可查看玩家列表\n")
+        .text("  游戏发起者发送 “结束游戏” 可结束当前游戏\n")
+        .text("  玩家均加入后，游戏发起者请发送 “开始游戏”\n")
     )
     if poke_enabled():
         msg.text(f"\n💫可使用戳一戳代替游戏交互中的 “{STOP_COMMAND_PROMPT}” 命令\n")
-    await msg.text("\nℹ️游戏准备阶段限时5分钟，超时将自动结束").send(reply_to=True)
+    msg.text("\nℹ️游戏准备阶段限时5分钟，超时将自动结束")
+
+    if config.enable_button:
+        msg.keyboard(
+            *[
+                Button("input", i, text=i)
+                for i in ["加入游戏", "退出游戏", "当前玩家", "开始游戏", "结束游戏"]
+            ]
+        )
+
+    await msg.send(reply_to=True, fallback=FallbackStrategy.ignore)
 
     state["players"] = {}
 
