@@ -1,3 +1,4 @@
+import contextlib
 import secrets
 from typing import ClassVar, NoReturn
 
@@ -105,7 +106,10 @@ class Game:
         text = f"{self.colored_name} | <g>Send</g> | "
         for seg in message:
             if isinstance(seg, At):
-                text += f"<y>@{self._player_map[seg.target].colored_name}</y>"
+                name = seg.target
+                if name in self._player_map:
+                    name = self._player_map[name].colored_name
+                text += f"<y>@{name}</y>"
             else:
                 text += escape_tag(str(seg)).replace("\n", "\\n")
 
@@ -230,23 +234,6 @@ class Game:
         else:
             await anyio.sleep(5 + secrets.randbelow(15))
 
-    async def handle_new_dead(self, players: Player | PlayerSet) -> None:
-        if isinstance(players, Player):
-            players = PlayerSet([players])
-        if not players:
-            return
-
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(
-                players.broadcast,
-                "ℹ️你已加入死者频道，请勿在群内继续发言\n"
-                "私聊发送消息将转发至其他已死亡玩家",
-            )
-            tg.start_soon(
-                self.players.dead().exclude(*players).broadcast,
-                f"ℹ️玩家 {', '.join(p.name for p in players)} 加入了死者频道",
-            )
-
     async def post_kill(self, players: Player | PlayerSet) -> None:
         if isinstance(players, Player):
             players = PlayerSet([players])
@@ -255,7 +242,6 @@ class Game:
 
         for player in players.dead():
             await player.post_kill()
-            await self.handle_new_dead(player)
             self.killed_players.append(player)
 
             shooter = self.state.shoot
@@ -331,6 +317,11 @@ class Game:
 
     async def run_dead_channel(self, finished: anyio.Event) -> NoReturn:
         send, recv = anyio.create_memory_object_stream[tuple[Player, UniMessage]](16)
+        counter = {p.user_id: 0 for p in self.players}
+
+        async def decrease(user_id: str) -> None:
+            await anyio.sleep(60)
+            counter[user_id] -= 1
 
         async def handle_cancel() -> None:
             await finished.wait()
@@ -340,24 +331,33 @@ class Game:
             while True:
                 player, msg = await recv.receive()
                 msg = f"玩家 {player.name}:\n" + msg
-                await self.players.killed().exclude(player).broadcast(msg)
+                target = self.players.killed().exclude(player)
+                try:
+                    await target.broadcast(msg)
+                except Exception as err:
+                    with contextlib.suppress(Exception):
+                        await player.send(f"消息转发失败: {err!r}")
 
         async def handle_recv(player: Player) -> NoReturn:
             await player.killed.wait()
+            user_id = player.user_id
 
-            counter = 0
-
-            async def decrease() -> None:
-                nonlocal counter
-                await anyio.sleep(60)
-                counter -= 1
+            await player.send(
+                "ℹ️你已加入死者频道，请勿在群组内继续发言\n"
+                "私聊发送消息将转发至其他已死亡玩家",
+            )
+            await (
+                self.players.killed()
+                .exclude(player)
+                .broadcast(f"ℹ️玩家 {player.name} 加入了死者频道")
+            )
 
             while True:
                 msg = await player.receive()
-                counter += 1
-                if counter <= 10:
+                counter[user_id] += 1
+                if counter[user_id] <= 10:
                     await send.send((player, msg))
-                    tg.start_soon(decrease)
+                    tg.start_soon(decrease, user_id)
                 else:
                     await player.send("❌发言频率超过限制, 该消息被屏蔽")
 
@@ -368,7 +368,6 @@ class Game:
                 tg.start_soon(handle_recv, p)
 
     async def run(self) -> NoReturn:
-        await self._fetch_group_scene()
         # 告知玩家角色信息
         await self.notify_player_role()
 
@@ -481,6 +480,8 @@ class Game:
         await self.send(f"📌玩家死亡报告:\n\n{self.show_killed_players()}")
 
     async def start(self) -> None:
+        await self._fetch_group_scene()
+
         async def daemon() -> None:
             try:
                 await self.run()
