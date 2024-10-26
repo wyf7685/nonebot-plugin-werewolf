@@ -43,7 +43,7 @@ class PluginConfig(BaseModel):
     @model_validator(mode="after")
     def _validate(self) -> Self:
         if isinstance(self.role_preset, list):
-            for (total, *presets) in self.role_preset:
+            for total, *presets in self.role_preset:
                 if total != sum(presets):
                     raise ValueError(
                         "配置项 `role_preset` 错误: "
