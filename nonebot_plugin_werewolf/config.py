@@ -34,7 +34,7 @@ else:
 
 class PluginConfig(BaseModel):
     enable_poke: bool = True
-    enable_button: bool = True
+    enable_button: bool = False
     role_preset: RolePresetConfig = default_role_preset.copy()
     werewolf_priority: list[Role] = default_werewolf_priority.copy()
     priesthood_proirity: list[Role] = default_priesthood_proirity.copy()
