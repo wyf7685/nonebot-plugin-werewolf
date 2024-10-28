@@ -126,7 +126,7 @@ class Player:
         return name
 
     @final
-    async def _log(self, text: str) -> None:
+    def _log(self, text: str) -> None:
         text = text.replace("\n", "\\n")
         logger.opt(colors=True).info(
             f"{self.game.colored_name} | "
@@ -139,7 +139,7 @@ class Player:
         if isinstance(message, str):
             message = UniMessage.text(message)
 
-        await self._log(f"<g>Send</g> | {escape_tag(str(message))}")
+        self._log(f"<g>Send</g> | {escape_tag(str(message))}")
         return await message.send(target=self.__user, bot=self.bot)
 
     @final
@@ -148,7 +148,7 @@ class Player:
             await self.send(prompt)
 
         result = await InputStore.fetch(self.user_id)
-        await self._log(f"<y>Recv</y> | {escape_tag(str(result))}")
+        self._log(f"<y>Recv</y> | {escape_tag(str(result))}")
         return result
 
     @final
