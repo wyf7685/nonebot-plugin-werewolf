@@ -59,8 +59,13 @@ class Werewolf(Player):
         stream: MemoryObjectReceiveStream[str | UniMessage],
         finished: anyio.Event,
     ) -> None:
-        while not finished.is_set() or stream.statistics().tasks_waiting_receive:
-            await partners.broadcast(await stream.receive())
+        while True:
+            if finished.is_set():
+                return
+            if not stream.statistics().tasks_waiting_receive:
+                continue
+            message = await stream.receive()
+            await partners.broadcast(message)
 
     @override
     async def interact(self) -> None:
