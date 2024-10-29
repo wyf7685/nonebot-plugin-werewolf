@@ -68,18 +68,30 @@ def load_players(target: Target) -> dict[str, str] | None:
     return None
 
 
+def solve_button(msg: UniMessage) -> UniMessage:
+    if config.enable_button:
+        msg.keyboard(
+            *[
+                Button("input", i, text=i)
+                for i in ["加入游戏", "退出游戏", "当前玩家", "开始游戏", "结束游戏"]
+            ]
+        )
+    return msg
+
+
 async def _prepare_receive(
     stream: MemoryObjectSendStream[tuple[Event, str, str]],
     event: Event,
     group: Target,
 ) -> None:
+    @Rule
     async def same_group(target: MsgTarget) -> bool:
         return group.verify(target)
 
     @waiter.waiter(
         waits=[event.get_type()],
         keep_session=False,
-        rule=Rule(same_group, rule_not_in_game),
+        rule=same_group & rule_not_in_game,
     )
     def wait(event: Event, msg: UniMsg, session: Uninfo) -> tuple[Event, str, str]:
         text = msg.extract_plain_text().strip()
@@ -100,8 +112,16 @@ async def _prepare_handle(
 ) -> None:
     logger = nonebot.logger.opt(colors=True)
 
-    async def send(msg: str, /) -> None:
-        await UniMessage.text(msg).send(target=event, reply_to=True)
+    async def send(msg: str, /, *, button: bool = True) -> None:
+        message = UniMessage.text(msg)
+        if button:
+            message = solve_button(message)
+
+        await message.send(
+            target=event,
+            reply_to=True,
+            fallback=FallbackStrategy.ignore,
+        )
 
     while True:
         event, text, name = await stream.receive()
@@ -142,14 +162,14 @@ async def _prepare_handle(
 
             case ("结束游戏", True):
                 logger.info(f"游戏发起者 {colored} 结束游戏")
-                await send("ℹ️已结束当前游戏")
+                await send("ℹ️已结束当前游戏", button=False)
                 finished.set()
                 return
 
             case ("结束游戏", False):
                 if await SUPERUSER(current_bot.get(), event):
                     logger.info(f"超级用户 {colored} 结束游戏")
-                    await send("ℹ️已结束当前游戏")
+                    await send("ℹ️已结束当前游戏", button=False)
                     finished.set()
                     return
                 await send("⚠️只有游戏发起者或超级用户可以结束游戏")
@@ -232,16 +252,7 @@ async def handle_notice(target: MsgTarget, state: T_State) -> None:
     if poke_enabled():
         msg.text(f"\n💫可使用戳一戳代替游戏交互中的 “{STOP_COMMAND_PROMPT}” 命令\n")
     msg.text("\nℹ️游戏准备阶段限时5分钟，超时将自动结束")
-
-    if config.enable_button:
-        msg.keyboard(
-            *[
-                Button("input", i, text=i)
-                for i in ["加入游戏", "退出游戏", "当前玩家", "开始游戏", "结束游戏"]
-            ]
-        )
-
-    await msg.send(reply_to=True, fallback=FallbackStrategy.ignore)
+    await solve_button(msg).send(reply_to=True, fallback=FallbackStrategy.ignore)
 
     state["players"] = {}
 
