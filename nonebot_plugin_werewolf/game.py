@@ -87,17 +87,10 @@ class Game:
 
     @property
     def colored_name(self) -> str:
-        name = escape_tag(self.group.id)
-
-        if self._scene is None or self._scene.name is None:
-            name = f"<b><e>{name}</e></b>"
-        else:
-            name = f"<y>{escape_tag(self._scene.name)}</y>(<b><e>{name}</e></b>)"
-
-        if self._scene is not None and self._scene.avatar is not None:
-            name = link(name, self._scene.avatar)
-
-        return name
+        name = f"<b><e>{escape_tag(self.group.id)}</e></b>"
+        if self._scene and self._scene.name is not None:
+            name = f"<y>{escape_tag(self._scene.name)}</y>({name})"
+        return link(name, self._scene and self._scene.avatar)
 
     async def send(self, message: str | UniMessage) -> Receipt:
         if isinstance(message, str):
