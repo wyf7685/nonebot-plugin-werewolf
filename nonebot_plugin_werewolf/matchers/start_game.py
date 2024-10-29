@@ -81,7 +81,7 @@ def solve_button(msg: UniMessage) -> UniMessage:
 
 async def _prepare_receive(
     stream: MemoryObjectSendStream[tuple[Event, str, str]],
-    event: Event,
+    event_type: str,
     group: Target,
 ) -> None:
     @Rule
@@ -89,19 +89,19 @@ async def _prepare_receive(
         return group.verify(target)
 
     @waiter.waiter(
-        waits=[event.get_type()],
+        waits=[event_type],
         keep_session=False,
         rule=same_group & rule_not_in_game,
     )
     def wait(event: Event, msg: UniMsg, session: Uninfo) -> tuple[Event, str, str]:
         text = msg.extract_plain_text().strip()
         name = extract_session_member_nick(session) or event.get_user_id()
-        return (event, text, name)
+        return (event, text, re.sub(r"[\u2066-\u2069]", "", name))
 
-    async for evt, text, name in wait(default=(None, "", "")):
-        if evt is None:
+    async for event, text, name in wait(default=(None, "", "")):
+        if event is None:
             continue
-        await stream.send((evt, text, re.sub(r"[\u2066-\u2069]", "", name)))
+        await stream.send((event, text, name))
 
 
 async def _prepare_handle(
@@ -221,7 +221,7 @@ async def prepare_game(event: Event, players: dict[str, str]) -> None:
     try:
         async with anyio.create_task_group() as tg:
             tg.start_soon(_handle_cancel)
-            tg.start_soon(_prepare_receive, send, event, group)
+            tg.start_soon(_prepare_receive, send, event.get_type(), group)
             tg.start_soon(_prepare_handle, recv, players, admin_id, finished)
     except Exception as err:
         await UniMessage(f"狼人杀准备阶段出现未知错误: {err!r}").send()
