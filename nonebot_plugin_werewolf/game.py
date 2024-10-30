@@ -348,7 +348,7 @@ class Game:
             while True:
                 msg = await player.receive()
                 counter[user_id] += 1
-                if counter[user_id] <= 10:
+                if counter[user_id] <= 8:
                     await send.send((player, msg))
                     tg.start_soon(decrease, user_id)
                 else:
