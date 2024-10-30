@@ -14,9 +14,9 @@ class CanShoot(Player):
             return await super().post_kill()
 
         await self.game.send(
-            UniMessage.text(f"🕵️{self.role_name} ")
+            UniMessage.text("🕵️玩家 ")
             .at(self.user_id)
-            .text(f" 死了\n请{self.role_name}决定击杀目标...")
+            .text(" 死了\n请在私聊决定射杀目标...")
         )
 
         self.game.state.shoot = None
