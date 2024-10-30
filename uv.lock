@@ -494,7 +494,7 @@ dev = [
     { name = "nonebot-adapter-satori", specifier = ">=0.12.5" },
     { name = "nonebot-adapter-telegram", specifier = ">=0.1.0b19" },
     { name = "nonebot2", extras = ["fastapi"], specifier = ">=2.3.3" },
-    { name = "websockets", specifier = ">=13.0.1" },
+    { name = "websockets", specifier = ">=13.1" },
 ]
 
 [[package]]
