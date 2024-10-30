@@ -1,6 +1,6 @@
 import nonebot
 
-from .models import Role, RoleGroup
+from .models import GameStatus, KillReason, Role, RoleGroup
 
 COMMAND_START = next(
     iter(sorted(nonebot.get_driver().config.command_start, key=len)), ""
@@ -34,6 +34,19 @@ role_emoji: dict[Role, str] = {
     Role.Idiot: "👨🏻‍🦲",
     Role.Joker: "🤡",
     Role.Civilian: "👨🏻‍🌾",
+}
+
+game_status_conv: dict[GameStatus, str] = {
+    GameStatus.GoodGuy: "好人",
+    GameStatus.Werewolf: "狼人",
+    GameStatus.Joker: "小丑",
+}
+
+report_text: dict[KillReason, tuple[str, str]] = {
+    KillReason.Werewolf: ("🔪", "刀了"),
+    KillReason.Poison: ("🧪", "毒死"),
+    KillReason.Shoot: ("🔫", "射杀"),
+    KillReason.Vote: ("🗳️", "票出"),
 }
 
 RolePresetDict = dict[int, tuple[int, int, int]]

@@ -8,6 +8,8 @@ import anyio.streams.memory
 from nonebot_plugin_alconna import UniMessage
 from nonebot_plugin_uninfo import Session
 
+from .constant import STOP_COMMAND
+
 if TYPE_CHECKING:
     from .player_set import PlayerSet
     from .players import Player
@@ -68,6 +70,13 @@ class InputStore:
                 return await task.wait()
             finally:
                 cls.tasks.pop(key, None)
+
+    @classmethod
+    async def fetch_until_stop(cls, user_id: str, group_id: str | None = None) -> None:
+        while True:
+            msg = await cls.fetch(user_id, group_id)
+            if msg.extract_plain_text().strip() == STOP_COMMAND:
+                return
 
     @classmethod
     def put(cls, msg: UniMessage, user_id: str, group_id: str | None = None) -> None:

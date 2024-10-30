@@ -3,7 +3,6 @@ from enum import Enum, auto
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .player_set import PlayerSet
     from .players import Player
 
 
@@ -71,4 +70,4 @@ class GameState:
 @dataclasses.dataclass
 class KillInfo:
     reason: KillReason
-    killers: "PlayerSet"
+    killers: list[str]

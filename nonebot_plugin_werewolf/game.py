@@ -3,6 +3,7 @@ import secrets
 from typing import ClassVar, NoReturn
 
 import anyio
+import anyio.abc
 from nonebot.adapters import Bot
 from nonebot.log import logger
 from nonebot.utils import escape_tag
@@ -12,9 +13,9 @@ from nonebot_plugin_uninfo import Interface, SceneType
 from typing_extensions import Self, assert_never
 
 from .config import config
-from .constant import STOP_COMMAND, STOP_COMMAND_PROMPT, role_name_conv
+from .constant import STOP_COMMAND_PROMPT, game_status_conv, report_text, role_name_conv
 from .exception import GameFinished
-from .models import GameState, GameStatus, KillReason, Role, RoleGroup
+from .models import GameState, GameStatus, KillInfo, KillReason, Role, RoleGroup
 from .player_set import PlayerSet
 from .players import Player
 from .utils import InputStore, ObjectStream, link
@@ -50,6 +51,74 @@ def init_players(bot: Bot, game: "Game", players: set[str]) -> PlayerSet:
     return player_set
 
 
+class DeadChannel:
+    players: PlayerSet
+    finished: anyio.Event
+    counter: dict[str, int]
+    stream: ObjectStream[tuple[Player, UniMessage]]
+    task_group: anyio.abc.TaskGroup
+
+    def __init__(self, players: PlayerSet, finished: anyio.Event) -> None:
+        self.players = players
+        self.finished = finished
+        self.counter = {p.user_id: 0 for p in self.players}
+        self.stream = ObjectStream[tuple[Player, UniMessage]](16)
+
+    async def _decrease(self, user_id: str) -> None:
+        await anyio.sleep(60)
+        self.counter[user_id] -= 1
+
+    async def _handle_finished(self) -> None:
+        await self.finished.wait()
+        self.task_group.cancel_scope.cancel()
+
+    async def _handle_send(self) -> None:
+        while True:
+            player, msg = await self.stream.recv()
+            msg = f"玩家 {player.name}:\n" + msg
+            target = self.players.killed().exclude(player)
+            try:
+                await target.broadcast(msg)
+            except Exception as err:
+                with contextlib.suppress(Exception):
+                    await player.send(f"消息转发失败: {err!r}")
+
+    async def _handle_recv(self, player: Player) -> NoReturn:
+        await player.killed.wait()
+        user_id = player.user_id
+
+        await player.send(
+            "ℹ️你已加入死者频道，请勿在群组内继续发言\n"
+            "私聊发送消息将转发至其他已死亡玩家",
+        )
+        await (
+            self.players.killed()
+            .exclude(player)
+            .broadcast(f"ℹ️玩家 {player.name} 加入了死者频道")
+        )
+
+        while True:
+            msg = await player.receive()
+
+            # 发言频率限制
+            self.counter[user_id] += 1
+            if self.counter[user_id] > 8:
+                await player.send("❌发言频率超过限制, 该消息被屏蔽")
+                continue
+
+            # 推送消息
+            await self.stream.send((player, msg))
+            self.task_group.start_soon(self._decrease, user_id)
+
+    async def run(self) -> NoReturn:
+        async with anyio.create_task_group() as tg:
+            self.task_group = tg
+            tg.start_soon(self._handle_finished)
+            tg.start_soon(self._handle_send)
+            for p in self.players:
+                tg.start_soon(self._handle_recv, p)
+
+
 class Game:
     starting_games: ClassVar[dict[Target, dict[str, str]]] = {}
     running_games: ClassVar[set[Self]] = set()
@@ -59,7 +128,7 @@ class Game:
     players: PlayerSet
     interface: Interface
     state: GameState
-    killed_players: list[Player]
+    killed_players: list[tuple[str, KillInfo]]
 
     def __init__(
         self,
@@ -109,13 +178,7 @@ class Game:
         logger.opt(colors=True).info(text)
         return await message.send(self.group, self.bot)
 
-    def at_all(self) -> UniMessage[At]:
-        msg = UniMessage()
-        for p in sorted(self.players, key=lambda p: (p.role_name, p.user_id)):
-            msg.at(p.user_id)
-        return msg
-
-    def check_game_status(self) -> None:
+    def raise_for_status(self) -> None:
         players = self.players.alive()
         w = players.select(RoleGroup.Werewolf)
         p = players.exclude(RoleGroup.Werewolf)
@@ -133,38 +196,16 @@ class Game:
         if not w.size:
             raise GameFinished(GameStatus.GoodGuy)
 
-    def show_killed_players(self) -> str:
-        result: list[str] = []
-
-        for player in self.killed_players:
-            if player.kill_info is None:
-                continue
-
-            line = f"{player.name} 被 " + ", ".join(
-                p.name for p in player.kill_info.killers
-            )
-            match player.kill_info.reason:
-                case KillReason.Werewolf:
-                    line = f"🔪 {line} 刀了"
-                case KillReason.Poison:
-                    line = f"🧪 {line} 毒死"
-                case KillReason.Shoot:
-                    line = f"🔫 {line} 射杀"
-                case KillReason.Vote:
-                    line = f"🗳️ {line} 票出"
-                case x:
-                    assert_never(x)
-            result.append(line)
-
-        return "\n\n".join(result)
-
     async def notify_player_role(self) -> None:
-        preset = config.get_role_preset()[len(self.players)]
+        msg = UniMessage()
+        for p in sorted(self.players, key=lambda p: p.user_id):
+            msg.at(p.user_id)
+
+        w, p, c = config.get_role_preset()[len(self.players)]
         msg = (
-            self.at_all()
-            .text("\n\n📝正在分配职业，请注意查看私聊消息\n")
+            msg.text("\n\n📝正在分配职业，请注意查看私聊消息\n")
             .text(f"当前玩家数: {len(self.players)}\n")
-            .text(f"职业分配: 狼人x{preset[0]}, 神职x{preset[1]}, 平民x{preset[2]}")
+            .text(f"职业分配: 狼人x{w}, 神职x{p}, 平民x{c}")
         )
 
         async with anyio.create_task_group() as tg:
@@ -173,16 +214,10 @@ class Game:
                 tg.start_soon(p.notify_role)
 
     async def wait_stop(self, *players: Player, timeout_secs: float) -> None:
-        async def wait(p: Player) -> None:
-            while True:
-                msg = await InputStore.fetch(p.user_id, self.group.id)
-                if msg.extract_plain_text().strip() == STOP_COMMAND:
-                    break
-
         with anyio.move_on_after(timeout_secs):
             async with anyio.create_task_group() as tg:
                 for p in players:
-                    tg.start_soon(wait, p)
+                    tg.start_soon(InputStore.fetch_until_stop, p.user_id, self.group.id)
 
     async def interact(
         self,
@@ -208,6 +243,29 @@ class Game:
             logger.opt(colors=True).debug(f"{text}交互超时 (<y>{timeout_secs}</y>s)")
             await players.broadcast(f"⚠️{text}交互超时")
 
+    async def post_kill(self, players: Player | PlayerSet) -> None:
+        if isinstance(players, Player):
+            players = PlayerSet([players])
+        if not players:
+            return
+
+        for player in players.dead():
+            await player.post_kill()
+            if player.kill_info is not None:
+                self.killed_players.append((player.name, player.kill_info))
+
+            shooter = self.state.shoot
+            if shooter is not None and (shoot := shooter.selected) is not None:
+                await self.send(
+                    UniMessage.text("🔫玩家 ")
+                    .at(shoot.user_id)
+                    .text(f" 被{shooter.role_name}射杀, 请发表遗言\n")
+                    .text(f"限时1分钟, 发送 “{STOP_COMMAND_PROMPT}” 结束发言")
+                )
+                await self.wait_stop(shoot, timeout_secs=60)
+                self.state.shoot = shooter.selected = None
+                await self.post_kill(shoot)
+
     async def select_killed(self) -> None:
         players = self.players.alive()
         self.state.killed = None
@@ -227,27 +285,47 @@ class Game:
         else:
             await anyio.sleep(5 + secrets.randbelow(15))
 
-    async def post_kill(self, players: Player | PlayerSet) -> None:
-        if isinstance(players, Player):
-            players = PlayerSet([players])
-        if not players:
-            return
+    async def run_night(self, players: PlayerSet) -> Player | None:
+        # 狼人、预言家、守卫 同时交互，女巫在狼人后交互
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(self.select_killed)
+            tg.start_soon(
+                players.select(Role.Witch).broadcast,
+                "ℹ️请等待狼人决定目标...",
+            )
+            tg.start_soon(self.interact, Role.Prophet, 60)
+            tg.start_soon(self.interact, Role.Guard, 60)
+            tg.start_soon(
+                players.exclude(
+                    RoleGroup.Werewolf,
+                    Role.Prophet,
+                    Role.Witch,
+                    Role.Guard,
+                ).broadcast,
+                "ℹ️请等待其他玩家结束交互...",
+            )
 
-        for player in players.dead():
-            await player.post_kill()
-            self.killed_players.append(player)
-
-            shooter = self.state.shoot
-            if shooter is not None and (shoot := shooter.selected) is not None:
-                await self.send(
-                    UniMessage.text("🔫玩家 ")
-                    .at(shoot.user_id)
-                    .text(f" 被{shooter.role_name}射杀, 请发表遗言\n")
-                    .text(f"限时1分钟, 发送 “{STOP_COMMAND_PROMPT}” 结束发言")
+            # 狼人击杀目标
+            if (
+                (killed := self.state.killed) is not None  # 狼人未空刀
+                and killed not in self.state.protected  # 守卫保护
+                and killed not in self.state.antidote  # 女巫使用解药
+            ):
+                # 狼人正常击杀玩家
+                await killed.kill(
+                    KillReason.Werewolf,
+                    *players.select(RoleGroup.Werewolf),
                 )
-                await self.wait_stop(shoot, timeout_secs=60)
-                self.state.shoot = shooter.selected = None
-                await self.post_kill(shoot)
+
+            # 女巫操作目标
+            for witch in self.state.poison:
+                if witch.selected is None:
+                    continue
+                if witch.selected not in self.state.protected:  # 守卫未保护
+                    # 女巫毒杀玩家
+                    await witch.selected.kill(KillReason.Poison, witch)
+
+            return killed
 
     async def run_vote(self) -> None:
         # 筛选当前存活玩家
@@ -308,59 +386,7 @@ class Game:
         await self.wait_stop(voted, timeout_secs=60)
         await self.post_kill(voted)
 
-    async def run_dead_channel(self, finished: anyio.Event) -> NoReturn:
-        stream = ObjectStream[tuple[Player, UniMessage]](16)
-        counter = {p.user_id: 0 for p in self.players}
-
-        async def decrease(user_id: str) -> None:
-            await anyio.sleep(60)
-            counter[user_id] -= 1
-
-        async def handle_finished() -> None:
-            await finished.wait()
-            tg.cancel_scope.cancel()
-
-        async def handle_send() -> None:
-            while True:
-                player, msg = await stream.recv()
-                msg = f"玩家 {player.name}:\n" + msg
-                target = self.players.killed().exclude(player)
-                try:
-                    await target.broadcast(msg)
-                except Exception as err:
-                    with contextlib.suppress(Exception):
-                        await player.send(f"消息转发失败: {err!r}")
-
-        async def handle_recv(player: Player) -> NoReturn:
-            await player.killed.wait()
-            user_id = player.user_id
-
-            await player.send(
-                "ℹ️你已加入死者频道，请勿在群组内继续发言\n"
-                "私聊发送消息将转发至其他已死亡玩家",
-            )
-            await (
-                self.players.killed()
-                .exclude(player)
-                .broadcast(f"ℹ️玩家 {player.name} 加入了死者频道")
-            )
-
-            while True:
-                msg = await player.receive()
-                counter[user_id] += 1
-                if counter[user_id] <= 8:
-                    await stream.send((player, msg))
-                    tg.start_soon(decrease, user_id)
-                else:
-                    await player.send("❌发言频率超过限制, 该消息被屏蔽")
-
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(handle_finished)
-            tg.start_soon(handle_send)
-            for p in self.players:
-                tg.start_soon(handle_recv, p)
-
-    async def run(self) -> NoReturn:
+    async def mainloop(self) -> NoReturn:
         # 告知玩家角色信息
         await self.notify_player_role()
 
@@ -368,48 +394,11 @@ class Game:
         while True:
             # 重置游戏状态，进入下一夜
             self.state.reset()
-            players = self.players.alive()
             await self.send("🌙天黑请闭眼...")
+            players = self.players.alive()
+            killed = await self.run_night(players)
 
-            # 狼人、预言家、守卫 同时交互，女巫在狼人后交互
-            async with anyio.create_task_group() as tg:
-                tg.start_soon(self.select_killed)
-                tg.start_soon(
-                    players.select(Role.Witch).broadcast,
-                    "ℹ️请等待狼人决定目标...",
-                )
-                tg.start_soon(self.interact, Role.Prophet, 60)
-                tg.start_soon(self.interact, Role.Guard, 60)
-                tg.start_soon(
-                    players.exclude(
-                        RoleGroup.Werewolf,
-                        Role.Prophet,
-                        Role.Witch,
-                        Role.Guard,
-                    ).broadcast,
-                    "ℹ️请等待其他玩家结束交互...",
-                )
-
-            # 狼人击杀目标
-            if (
-                (killed := self.state.killed) is not None  # 狼人未空刀
-                and killed not in self.state.protected  # 守卫保护
-                and killed not in self.state.antidote  # 女巫使用解药
-            ):
-                # 狼人正常击杀玩家
-                await killed.kill(
-                    KillReason.Werewolf,
-                    *players.select(RoleGroup.Werewolf),
-                )
-
-            # 女巫操作目标
-            for witch in self.state.poison:
-                if witch.selected is None:
-                    continue
-                if witch.selected not in self.state.protected:  # 守卫未保护
-                    # 女巫毒杀玩家
-                    await witch.selected.kill(KillReason.Poison, witch)
-
+            # 公告
             self.state.day += 1
             msg = UniMessage.text(f"『第{self.state.day}天』☀️天亮了...\n")
             # 没有玩家死亡，平安夜
@@ -434,7 +423,7 @@ class Game:
             await self.post_kill(dead)
 
             # 判断游戏状态
-            self.check_game_status()
+            self.raise_for_status()
 
             # 公示存活玩家
             await self.send(f"📝当前存活玩家: \n\n{self.players.alive().show()}")
@@ -453,50 +442,46 @@ class Game:
             await self.run_vote()
 
             # 判断游戏状态
-            self.check_game_status()
+            self.raise_for_status()
 
     async def handle_game_finish(self, status: GameStatus) -> None:
-        match status:
-            case GameStatus.GoodGuy:
-                winner = "好人"
-            case GameStatus.Werewolf:
-                winner = "狼人"
-            case GameStatus.Joker:
-                winner = "小丑"
-            case x:
-                assert_never(x)
-
-        msg = UniMessage.text(f"🎉游戏结束，{winner}获胜\n\n")
+        msg = UniMessage.text(f"🎉游戏结束，{game_status_conv[status]}获胜\n\n")
         for p in sorted(self.players, key=lambda p: (p.role.value, p.user_id)):
             msg.at(p.user_id).text(f": {p.role_name}\n")
         await self.send(msg)
-        await self.send(f"📌玩家死亡报告:\n\n{self.show_killed_players()}")
+
+        report: list[str] = ["📌玩家死亡报告:"]
+        for name, info in self.killed_players:
+            emoji, action = report_text[info.reason]
+            report.append(f"{emoji} {name} 被 {', '.join(info.killers)} {action}")
+        await self.send("\n\n".join(report))
+
+    async def daemon(self, finished: anyio.Event) -> None:
+        try:
+            await self.mainloop()
+        except anyio.get_cancelled_exc_class():
+            logger.warning(f"{self.group.id} 的狼人杀游戏进程被取消")
+        except GameFinished as result:
+            await self.handle_game_finish(result.status)
+            logger.info(f"{self.group.id} 的狼人杀游戏进程正常退出")
+        except Exception as err:
+            msg = f"{self.group.id} 的狼人杀游戏进程出现未知错误: {err!r}"
+            logger.exception(msg)
+            await self.send(f"❌狼人杀游戏进程出现未知错误: {err!r}")
+        finally:
+            finished.set()
 
     async def start(self) -> None:
         await self._fetch_group_scene()
-
-        async def daemon() -> None:
-            try:
-                await self.run()
-            except anyio.get_cancelled_exc_class():
-                logger.warning(f"{self.group.id} 的狼人杀游戏进程被取消")
-            except GameFinished as result:
-                await self.handle_game_finish(result.status)
-                logger.info(f"{self.group.id} 的狼人杀游戏进程正常退出")
-            except Exception as err:
-                msg = f"{self.group.id} 的狼人杀游戏进程出现未知错误: {err!r}"
-                logger.exception(msg)
-                await self.send(f"❌狼人杀游戏进程出现未知错误: {err!r}")
-            finally:
-                finished.set()
-
         finished = anyio.Event()
+        dead_channel = DeadChannel(self.players, finished)
         self.running_games.add(self)
+
         try:
             async with anyio.create_task_group() as tg:
                 self._task_group = tg
-                tg.start_soon(daemon)
-                tg.start_soon(self.run_dead_channel, finished)
+                tg.start_soon(self.daemon, finished)
+                tg.start_soon(dead_channel.run)
         except anyio.get_cancelled_exc_class():
             logger.warning(f"{self.group.id} 的狼人杀游戏进程被取消")
         except Exception as err:
