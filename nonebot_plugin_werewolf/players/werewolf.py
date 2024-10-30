@@ -1,6 +1,7 @@
 from typing import TYPE_CHECKING
 
 import anyio
+import anyio.lowlevel
 from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from nonebot_plugin_alconna.uniseg import UniMessage
 from typing_extensions import override
@@ -63,6 +64,7 @@ class Werewolf(Player):
             if finished.is_set():
                 return
             if not stream.statistics().tasks_waiting_receive:
+                await anyio.lowlevel.checkpoint()
                 continue
             message = await stream.receive()
             await partners.broadcast(message)
