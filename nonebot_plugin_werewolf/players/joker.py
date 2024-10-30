@@ -1,3 +1,5 @@
+from typing import TYPE_CHECKING
+
 from typing_extensions import override
 
 from ..exception import GameFinished
@@ -16,6 +18,8 @@ class Joker(Player):
     async def kill(self, reason: KillReason, *killers: Player) -> bool:
         await super().kill(reason, *killers)
         if reason == KillReason.Vote:
-            self.game.killed_players.append(self)
+            if TYPE_CHECKING:
+                assert self.kill_info is not None
+            self.game.killed_players.append((self.name, self.kill_info))
             raise GameFinished(GameStatus.Joker)
         return True
