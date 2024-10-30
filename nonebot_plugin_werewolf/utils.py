@@ -1,9 +1,10 @@
 import functools
 import itertools
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, ClassVar, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, cast
 
 import anyio
+import anyio.streams.memory
 from nonebot_plugin_alconna import UniMessage
 from nonebot_plugin_uninfo import Session
 
@@ -93,3 +94,48 @@ def cached_player_set() -> type["PlayerSet"]:
 
 def as_player_set(*player: "Player") -> "PlayerSet":
     return cached_player_set()(player)
+
+
+class ObjectStream(Generic[T]):
+    __unset = object()
+    _send: anyio.streams.memory.MemoryObjectSendStream[T]
+    _recv: anyio.streams.memory.MemoryObjectReceiveStream[T]
+    _closed: anyio.Event
+
+    def __init__(self, max_buffer_size: float = 0) -> None:
+        self._send, self._recv = anyio.create_memory_object_stream(max_buffer_size)
+        self._closed = anyio.Event()
+
+    async def send(self, obj: T) -> None:
+        await self._send.send(obj)
+
+    async def recv(self) -> T:
+        result = self.__unset
+
+        async def _recv() -> None:
+            nonlocal result
+            result = await self._recv.receive()
+            tg.cancel_scope.cancel()
+
+        async def _cancel() -> None:
+            await self._closed.wait()
+            tg.cancel_scope.cancel()
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(_recv)
+            tg.start_soon(_cancel)
+
+        if result is self.__unset:
+            raise anyio.EndOfStream
+
+        return cast(T, result)
+
+    def close(self) -> None:
+        self._closed.set()
+
+    @property
+    def closed(self) -> bool:
+        return self._closed.is_set()
+
+    async def wait_closed(self) -> None:
+        await self._closed.wait()

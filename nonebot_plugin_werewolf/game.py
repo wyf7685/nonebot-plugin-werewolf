@@ -17,7 +17,7 @@ from .exception import GameFinished
 from .models import GameState, GameStatus, KillReason, Role, RoleGroup
 from .player_set import PlayerSet
 from .players import Player
-from .utils import InputStore, link
+from .utils import InputStore, ObjectStream, link
 
 
 def init_players(bot: Bot, game: "Game", players: set[str]) -> PlayerSet:
@@ -309,20 +309,20 @@ class Game:
         await self.post_kill(voted)
 
     async def run_dead_channel(self, finished: anyio.Event) -> NoReturn:
-        send, recv = anyio.create_memory_object_stream[tuple[Player, UniMessage]](16)
+        stream = ObjectStream[tuple[Player, UniMessage]](16)
         counter = {p.user_id: 0 for p in self.players}
 
         async def decrease(user_id: str) -> None:
             await anyio.sleep(60)
             counter[user_id] -= 1
 
-        async def handle_cancel() -> None:
+        async def handle_finished() -> None:
             await finished.wait()
             tg.cancel_scope.cancel()
 
-        async def handle_send() -> NoReturn:
+        async def handle_send() -> None:
             while True:
-                player, msg = await recv.receive()
+                player, msg = await stream.recv()
                 msg = f"玩家 {player.name}:\n" + msg
                 target = self.players.killed().exclude(player)
                 try:
@@ -349,13 +349,13 @@ class Game:
                 msg = await player.receive()
                 counter[user_id] += 1
                 if counter[user_id] <= 8:
-                    await send.send((player, msg))
+                    await stream.send((player, msg))
                     tg.start_soon(decrease, user_id)
                 else:
                     await player.send("❌发言频率超过限制, 该消息被屏蔽")
 
         async with anyio.create_task_group() as tg:
-            tg.start_soon(handle_cancel)
+            tg.start_soon(handle_finished)
             tg.start_soon(handle_send)
             for p in self.players:
                 tg.start_soon(handle_recv, p)

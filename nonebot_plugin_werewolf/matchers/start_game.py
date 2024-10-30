@@ -4,7 +4,6 @@ import re
 import anyio
 import nonebot
 import nonebot_plugin_waiter as waiter
-from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from nonebot.adapters import Bot, Event
 from nonebot.internal.matcher import current_bot
 from nonebot.permission import SUPERUSER
@@ -28,7 +27,7 @@ from nonebot_plugin_uninfo import QryItrface, Uninfo
 from ..config import config
 from ..constant import STOP_COMMAND_PROMPT
 from ..game import Game
-from ..utils import extract_session_member_nick
+from ..utils import ObjectStream, extract_session_member_nick
 from .depends import rule_not_in_game
 from .poke import poke_enabled
 
@@ -80,7 +79,7 @@ def solve_button(msg: UniMessage) -> UniMessage:
 
 
 async def _prepare_receive(
-    stream: MemoryObjectSendStream[tuple[Event, str, str]],
+    stream: ObjectStream[tuple[Event, str, str]],
     event_type: str,
     group: Target,
 ) -> None:
@@ -105,10 +104,9 @@ async def _prepare_receive(
 
 
 async def _prepare_handle(
-    stream: MemoryObjectReceiveStream[tuple[Event, str, str]],
+    stream: ObjectStream[tuple[Event, str, str]],
     players: dict[str, str],
     admin_id: str,
-    finished: anyio.Event,
 ) -> None:
     logger = nonebot.logger.opt(colors=True)
 
@@ -123,8 +121,8 @@ async def _prepare_handle(
             fallback=FallbackStrategy.ignore,
         )
 
-    while True:
-        event, text, name = await stream.receive()
+    while not stream.closed:
+        event, text, name = await stream.recv()
         user_id = event.get_user_id()
         colored = f"<y>{escape_tag(name)}</y>(<c>{escape_tag(user_id)}</c>)"
 
@@ -153,7 +151,7 @@ async def _prepare_handle(
                 else:
                     await send("✏️游戏即将开始...")
                     logger.info(f"游戏发起者 {colored} 开始游戏")
-                    finished.set()
+                    stream.close()
                     players["#$start_game$#"] = user_id
                     return
 
@@ -163,14 +161,14 @@ async def _prepare_handle(
             case ("结束游戏", True):
                 logger.info(f"游戏发起者 {colored} 结束游戏")
                 await send("ℹ️已结束当前游戏", button=False)
-                finished.set()
+                stream.close()
                 return
 
             case ("结束游戏", False):
                 if await SUPERUSER(current_bot.get(), event):
                     logger.info(f"超级用户 {colored} 结束游戏")
                     await send("ℹ️已结束当前游戏", button=False)
-                    finished.set()
+                    stream.close()
                     return
                 await send("⚠️只有游戏发起者或超级用户可以结束游戏")
 
@@ -211,18 +209,17 @@ async def prepare_game(event: Event, players: dict[str, str]) -> None:
     group = UniMessage.get_target(event)
     Game.starting_games[group] = players
 
-    finished = anyio.Event()
-    send, recv = anyio.create_memory_object_stream[tuple[Event, str, str]](16)
+    stream = ObjectStream[tuple[Event, str, str]](16)
 
     async def _handle_cancel() -> None:
-        await finished.wait()
+        await stream.wait_closed()
         tg.cancel_scope.cancel()
 
     try:
         async with anyio.create_task_group() as tg:
             tg.start_soon(_handle_cancel)
-            tg.start_soon(_prepare_receive, send, event.get_type(), group)
-            tg.start_soon(_prepare_handle, recv, players, admin_id, finished)
+            tg.start_soon(_prepare_receive, stream, event.get_type(), group)
+            tg.start_soon(_prepare_handle, stream, players, admin_id)
     except Exception as err:
         await UniMessage(f"狼人杀准备阶段出现未知错误: {err!r}").send()
 

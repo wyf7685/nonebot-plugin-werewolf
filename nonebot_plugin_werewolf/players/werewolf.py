@@ -1,14 +1,12 @@
 from typing import TYPE_CHECKING
 
 import anyio
-import anyio.lowlevel
-from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from nonebot_plugin_alconna.uniseg import UniMessage
 from typing_extensions import override
 
 from ..constant import STOP_COMMAND, STOP_COMMAND_PROMPT
 from ..models import Role, RoleGroup
-from ..utils import check_index
+from ..utils import ObjectStream, check_index
 from .player import Player
 
 if TYPE_CHECKING:
@@ -30,8 +28,7 @@ class Werewolf(Player):
     async def _handle_interact(
         self,
         players: "PlayerSet",
-        stream: MemoryObjectSendStream[str | UniMessage],
-        finished: anyio.Event,
+        stream: ObjectStream[str | UniMessage],
     ) -> None:
         self.selected = None
 
@@ -48,7 +45,7 @@ class Werewolf(Player):
                 if self.selected is not None:
                     await self.send("✅你已结束当前回合")
                     await stream.send(f"📝队友 {self.name} 结束当前回合")
-                    finished.set()
+                    stream.close()
                     return
                 await self.send("⚠️当前未选择玩家，无法结束回合")
             else:
@@ -57,16 +54,14 @@ class Werewolf(Player):
     async def _handle_broadcast(
         self,
         partners: "PlayerSet",
-        stream: MemoryObjectReceiveStream[str | UniMessage],
-        finished: anyio.Event,
+        stream: ObjectStream[str | UniMessage],
     ) -> None:
-        while True:
-            if finished.is_set():
+        while not stream.closed:
+            try:
+                message = await stream.recv()
+            except anyio.EndOfStream:
                 return
-            if not stream.statistics().tasks_waiting_receive:
-                await anyio.lowlevel.checkpoint()
-                continue
-            message = await stream.receive()
+
             await partners.broadcast(message)
 
     @override
@@ -89,9 +84,8 @@ class Werewolf(Player):
             .text("\n\n⚠️意见未统一将空刀")
         )
 
-        send, recv = anyio.create_memory_object_stream[str | UniMessage](8)
-        finished = anyio.Event()
+        stream = ObjectStream[str | UniMessage](8)
 
         async with anyio.create_task_group() as tg:
-            tg.start_soon(self._handle_interact, players, send, finished)
-            tg.start_soon(self._handle_broadcast, partners, recv, finished)
+            tg.start_soon(self._handle_interact, players, stream)
+            tg.start_soon(self._handle_broadcast, partners, stream)
