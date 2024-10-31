@@ -109,7 +109,10 @@ async def assign_role(
 
     data.role_preset[total.result] = preset
     data.save()
-    await finish("设置成功")
+    await finish(
+        f"设置成功\n{total.result} 人: "
+        f"狼人x{werewolf.result}, 神职x{priesthood.result}, 平民x{civilian.result}"
+    )
 
 
 @edit_preset.assign("del")
@@ -250,7 +253,7 @@ async def handle_default() -> None:
     data = PresetData.load()
 
     for total, (w, p, c) in data.role_preset.items():
-        lines.append(f"{total}人: 狼人x{w}, 神职x{p}, 平民x{c}")
+        lines.append(f"{total} 人: 狼人x{w}, 神职x{p}, 平民x{c}")
     lines.append("")
 
     lines.append("狼人优先级: " + display_roles(data.werewolf_priority))
