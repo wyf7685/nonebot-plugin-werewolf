@@ -15,6 +15,8 @@ if TYPE_CHECKING:
 
 @Player.register_role(Role.Werewolf, RoleGroup.Werewolf)
 class Werewolf(Player):
+    stream: ObjectStream[str | UniMessage]
+
     @override
     async def notify_role(self) -> None:
         await super().notify_role()
@@ -25,11 +27,7 @@ class Werewolf(Player):
                 + "\n".join(f"  {p.role_name}: {p.name}" for p in partners)
             )
 
-    async def _handle_interact(
-        self,
-        players: "PlayerSet",
-        stream: ObjectStream[str | UniMessage],
-    ) -> None:
+    async def _handle_interact(self, players: "PlayerSet") -> None:
         self.selected = None
 
         while True:
@@ -40,25 +38,21 @@ class Werewolf(Player):
                 self.selected = players[index - 1]
                 msg = f"当前选择玩家: {self.selected.name}"
                 await self.send(f"🎯{msg}\n发送 “{STOP_COMMAND_PROMPT}” 结束回合")
-                await stream.send(f"📝队友 {self.name} {msg}")
+                await self.stream.send(f"📝队友 {self.name} {msg}")
             if text == STOP_COMMAND:
                 if self.selected is not None:
                     await self.send("✅你已结束当前回合")
-                    await stream.send(f"📝队友 {self.name} 结束当前回合")
-                    stream.close()
+                    await self.stream.send(f"📝队友 {self.name} 结束当前回合")
+                    self.stream.close()
                     return
                 await self.send("⚠️当前未选择玩家，无法结束回合")
             else:
-                await stream.send(UniMessage.text(f"💬队友 {self.name}:\n") + input_msg)
+                await self.stream.send(UniMessage(f"💬队友 {self.name}:\n") + input_msg)
 
-    async def _handle_broadcast(
-        self,
-        partners: "PlayerSet",
-        stream: ObjectStream[str | UniMessage],
-    ) -> None:
-        while not stream.closed:
+    async def _handle_broadcast(self, partners: "PlayerSet") -> None:
+        while not self.stream.closed:
             try:
-                message = await stream.recv()
+                message = await self.stream.recv()
             except anyio.EndOfStream:
                 return
 
@@ -84,8 +78,11 @@ class Werewolf(Player):
             .text("\n\n⚠️意见未统一将空刀")
         )
 
-        stream = ObjectStream[str | UniMessage](8)
+        self.stream = ObjectStream[str | UniMessage](8)
 
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(self._handle_interact, players, stream)
-            tg.start_soon(self._handle_broadcast, partners, stream)
+        try:
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(self._handle_interact, players)
+                tg.start_soon(self._handle_broadcast, partners)
+        finally:
+            del self.stream
