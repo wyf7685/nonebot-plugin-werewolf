@@ -10,7 +10,7 @@ from . import matchers as matchers
 from . import players as players
 from .config import Config
 
-__version__ = "1.1.6"
+__version__ = "1.1.7"
 __plugin_meta__ = PluginMetadata(
     name="狼人杀",
     description="适用于 Nonebot2 的狼人杀插件",
