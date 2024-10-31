@@ -1,11 +1,12 @@
 import contextlib
+import functools
 import secrets
 from typing import ClassVar, NoReturn
 
 import anyio
 import anyio.abc
+import nonebot
 from nonebot.adapters import Bot
-from nonebot.log import logger
 from nonebot.utils import escape_tag
 from nonebot_plugin_alconna import At, Target, UniMessage
 from nonebot_plugin_alconna.uniseg.message import Receipt
@@ -20,9 +21,13 @@ from .player_set import PlayerSet
 from .players import Player
 from .utils import InputStore, ObjectStream, link
 
+logger = nonebot.logger.opt(colors=True)
+
 
 def init_players(bot: Bot, game: "Game", players: set[str]) -> PlayerSet:
-    logger.opt(colors=True).debug(f"初始化 <c>{game.group.id}</c> 的玩家职业")
+    # group.colored_name not available yet
+    logger.debug(f"初始化 <c>{game.group_id}</c> 的玩家职业")
+
     preset_data = PresetData.load()
     if (preset := preset_data.role_preset.get(len(players))) is None:
         raise ValueError(
@@ -47,7 +52,7 @@ def init_players(bot: Bot, game: "Game", players: set[str]) -> PlayerSet:
     player_set = PlayerSet(
         Player.new(_select_role(), bot, game, user_id) for user_id in players
     )
-    logger.debug(f"职业分配完成: {player_set}")
+    logger.debug(f"职业分配完成: <e>{escape_tag(str(player_set))}</e>")
 
     return player_set
 
@@ -73,7 +78,7 @@ class DeadChannel:
         await self.finished.wait()
         self.task_group.cancel_scope.cancel()
 
-    async def _handle_send(self) -> None:
+    async def _handle_send(self) -> NoReturn:
         while True:
             player, msg = await self.stream.recv()
             msg = f"玩家 {player.name}:\n" + msg
@@ -149,15 +154,19 @@ class Game:
         self._task_group = None
 
     async def _fetch_group_scene(self) -> None:
-        scene = await self.interface.get_scene(SceneType.GROUP, self.group.id)
+        scene = await self.interface.get_scene(SceneType.GROUP, self.group_id)
         if scene is None:
-            scene = await self.interface.get_scene(SceneType.GUILD, self.group.id)
+            scene = await self.interface.get_scene(SceneType.GUILD, self.group_id)
 
         self._scene = scene
 
+    @functools.cached_property
+    def group_id(self) -> str:
+        return self.group.id
+
     @property
     def colored_name(self) -> str:
-        name = f"<b><e>{escape_tag(self.group.id)}</e></b>"
+        name = f"<b><e>{escape_tag(self.group_id)}</e></b>"
         if self._scene and self._scene.name is not None:
             name = f"<y>{escape_tag(self._scene.name)}</y>({name})"
         return link(name, self._scene and self._scene.avatar)
@@ -176,7 +185,7 @@ class Game:
             else:
                 text += escape_tag(str(seg)).replace("\n", "\\n")
 
-        logger.opt(colors=True).info(text)
+        logger.info(text)
         return await message.send(self.group, self.bot)
 
     def raise_for_status(self) -> None:
@@ -218,7 +227,7 @@ class Game:
         with anyio.move_on_after(timeout_secs):
             async with anyio.create_task_group() as tg:
                 for p in players:
-                    tg.start_soon(InputStore.fetch_until_stop, p.user_id, self.group.id)
+                    tg.start_soon(InputStore.fetch_until_stop, p.user_id, self.group_id)
 
     async def interact(
         self,
@@ -241,7 +250,7 @@ class Game:
             with anyio.fail_after(timeout_secs):
                 await players.interact()
         except TimeoutError:
-            logger.opt(colors=True).debug(f"{text}交互超时 (<y>{timeout_secs}</y>s)")
+            logger.debug(f"{text}交互超时 (<y>{timeout_secs}</y>s)")
             await players.broadcast(f"⚠️{text}交互超时")
 
     async def post_kill(self, players: Player | PlayerSet) -> None:
@@ -339,7 +348,7 @@ class Game:
         # 收集到的总票数
         total_votes = sum(map(len, vote_result.values()))
 
-        logger.debug(f"投票结果: {vote_result}")
+        logger.debug(f"投票结果: {escape_tag(str(vote_result))}")
 
         # 投票结果公示
         msg = UniMessage.text("📊投票结果:\n")
@@ -461,12 +470,12 @@ class Game:
         try:
             await self.mainloop()
         except anyio.get_cancelled_exc_class():
-            logger.warning(f"{self.group.id} 的狼人杀游戏进程被取消")
+            logger.warning(f"{self.colored_name} 的狼人杀游戏进程被取消")
         except GameFinished as result:
             await self.handle_game_finish(result.status)
-            logger.info(f"{self.group.id} 的狼人杀游戏进程正常退出")
+            logger.info(f"{self.colored_name} 的狼人杀游戏进程正常退出")
         except Exception as err:
-            msg = f"{self.group.id} 的狼人杀游戏进程出现未知错误: {err!r}"
+            msg = f"{self.colored_name} 的狼人杀游戏进程出现未知错误: {err!r}"
             logger.exception(msg)
             await self.send(f"❌狼人杀游戏进程出现未知错误: {err!r}")
         finally:
@@ -484,16 +493,16 @@ class Game:
                 tg.start_soon(self.daemon, finished)
                 tg.start_soon(dead_channel.run)
         except anyio.get_cancelled_exc_class():
-            logger.warning(f"{self.group.id} 的狼人杀游戏进程被取消")
+            logger.warning(f"{self.colored_name} 的狼人杀游戏进程被取消")
         except Exception as err:
-            msg = f"{self.group.id} 的狼人杀守护进程出现错误: {err!r}"
+            msg = f"{self.colored_name} 的狼人杀守护进程出现错误: {err!r}"
             logger.opt(exception=err).error(msg)
         finally:
             self._task_group = None
             self.running_games.discard(self)
-            InputStore.cleanup(list(self._player_map), self.group.id)
+            InputStore.cleanup(list(self._player_map), self.group_id)
 
     def terminate(self) -> None:
         if self._task_group is not None:
-            logger.warning(f"中止 {self.group.id} 的狼人杀游戏进程")
+            logger.warning(f"中止 {self.colored_name} 的狼人杀游戏进程")
             self._task_group.cancel_scope.cancel()

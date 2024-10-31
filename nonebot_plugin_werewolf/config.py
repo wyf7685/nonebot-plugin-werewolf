@@ -1,6 +1,6 @@
 import json
 
-from nonebot import get_plugin_config, logger
+import nonebot
 from nonebot.compat import model_dump, type_validate_json
 from nonebot_plugin_localstore import get_plugin_data_file
 from pydantic import BaseModel, Field
@@ -41,5 +41,5 @@ preset_data_file = get_plugin_data_file("preset.json")
 if not preset_data_file.exists():
     PresetData().save()
 
-config = get_plugin_config(Config).werewolf
-logger.debug(f"加载插件配置: {config}")
+config = nonebot.get_plugin_config(Config).werewolf
+nonebot.logger.debug(f"加载插件配置: {config}")

@@ -4,8 +4,8 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, ClassVar, Final, TypeVar, final
 
 import anyio
+import nonebot
 from nonebot.adapters import Bot
-from nonebot.log import logger
 from nonebot.utils import escape_tag
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 from nonebot_plugin_uninfo import SceneType
@@ -20,6 +20,8 @@ if TYPE_CHECKING:
 
 
 _P = TypeVar("_P", bound=type["Player"])
+
+logger = nonebot.logger.opt(colors=True)
 
 
 class Player:
@@ -128,7 +130,7 @@ class Player:
     @final
     def _log(self, text: str) -> None:
         text = text.replace("\n", "\\n")
-        logger.opt(colors=True).info(
+        logger.info(
             f"{self.game.colored_name} | "
             f"[<b><m>{self.role_name}</m></b>] "
             f"{self.colored_name} | {text}",
