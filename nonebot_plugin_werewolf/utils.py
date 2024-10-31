@@ -1,7 +1,7 @@
 import functools
 import itertools
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar, cast
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
 
 import anyio
 import anyio.streams.memory
@@ -106,7 +106,7 @@ def as_player_set(*player: "Player") -> "PlayerSet":
 
 
 class ObjectStream(Generic[T]):
-    __unset = object()
+    __unset: Any = object()
     _send: anyio.streams.memory.MemoryObjectSendStream[T]
     _recv: anyio.streams.memory.MemoryObjectReceiveStream[T]
     _closed: anyio.Event
@@ -137,7 +137,7 @@ class ObjectStream(Generic[T]):
         if result is self.__unset:
             raise anyio.EndOfStream
 
-        return cast(T, result)
+        return result
 
     def close(self) -> None:
         self._closed.set()
