@@ -454,7 +454,7 @@ wheels = [
 
 [[package]]
 name = "nonebot-plugin-werewolf"
-version = "1.1.5"
+version = "1.1.6"
 source = { virtual = "." }
 dependencies = [
     { name = "anyio" },
@@ -493,15 +493,17 @@ dev = [
     { name = "nonebot-adapter-onebot", specifier = ">=2.4.4" },
     { name = "nonebot-adapter-satori", specifier = ">=0.12.5" },
     { name = "nonebot-adapter-telegram", specifier = ">=0.1.0b19" },
-    { name = "nonebot2", extras = ["fastapi"], specifier = ">=2.3.3" },
+    { name = "nonebot2", extras = ["fastapi"], specifier = ">=2.4.0" },
     { name = "websockets", specifier = ">=13.1" },
 ]
 
 [[package]]
 name = "nonebot2"
-version = "2.3.3"
+version = "2.4.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "anyio" },
+    { name = "exceptiongroup" },
     { name = "loguru" },
     { name = "pydantic" },
     { name = "pygtrie" },
@@ -510,9 +512,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "yarl" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/55/d3/e5b08680ea40a4dad555b450a083b13b7a97cec044c17faa4700addd0a6f/nonebot2-2.3.3.tar.gz", hash = "sha256:4fa7707de5d708c27cc49493bc78a07fee2ba01f5516835a2ea5fbebb49b9dfa", size = 93239 }
+sdist = { url = "https://files.pythonhosted.org/packages/52/26/81d7d224e48581c5964379df68d98516ea162a6370691b3d97541efda901/nonebot2-2.4.0.tar.gz", hash = "sha256:4b10e33d389847500c9bde9ef3c5533b604a90ca1529750245f1aaf82b28f1e1", size = 95827 }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e3/07/f410138ea6993b8a9beb5f78dd2394e9f532817eed90a653fb5a9ca9ce1d/nonebot2-2.3.3-py3-none-any.whl", hash = "sha256:5bc8d073091347f29c4a1a2f927c24a8941e5d286c77139376259318b9bbfc68", size = 110983 },
+    { url = "https://files.pythonhosted.org/packages/fd/94/f2e427fa4024e1d8e4d0017611f0dec5d31f88011cf358c3741edd7482a5/nonebot2-2.4.0-py3-none-any.whl", hash = "sha256:7c712e05561afa4795c9135a5b27a43d076220f4538ffec518e68c344e3e51d4", size = 114074 },
 ]
 
 [package.optional-dependencies]
