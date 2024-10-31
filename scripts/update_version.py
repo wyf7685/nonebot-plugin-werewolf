@@ -1,12 +1,13 @@
 # ruff: noqa: T201, S605, S607, DTZ011
 
 import os
+import sys
 from datetime import date
 from pathlib import Path
 
-try:  # pragma: py-gte-311
-    import tomllib  # pyright: ignore[reportMissingImports]
-except ModuleNotFoundError:  # pragma: py-lt-311
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
     import tomli as tomllib  # pyright: ignore[reportMissingImports]
 
 os.system("uv run scripts/lint.cmd")
