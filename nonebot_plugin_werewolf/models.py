@@ -6,7 +6,7 @@ if TYPE_CHECKING:
     from .players import Player
 
 
-class Role(Enum):
+class Role(int, Enum):
     # 狼人
     Werewolf = 1
     WolfKing = 2

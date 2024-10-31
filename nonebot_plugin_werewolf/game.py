@@ -12,7 +12,7 @@ from nonebot_plugin_alconna.uniseg.message import Receipt
 from nonebot_plugin_uninfo import Interface, SceneType
 from typing_extensions import Self, assert_never
 
-from .config import config
+from .config import PresetData
 from .constant import STOP_COMMAND_PROMPT, game_status_conv, report_text, role_name_conv
 from .exception import GameFinished
 from .models import GameState, GameStatus, KillInfo, KillReason, Role, RoleGroup
@@ -23,20 +23,21 @@ from .utils import InputStore, ObjectStream, link
 
 def init_players(bot: Bot, game: "Game", players: set[str]) -> PlayerSet:
     logger.opt(colors=True).debug(f"初始化 <c>{game.group.id}</c> 的玩家职业")
-    role_preset = config.get_role_preset()
-    if (preset := role_preset.get(len(players))) is None:
+    preset_data = PresetData.load()
+    if (preset := preset_data.role_preset.get(len(players))) is None:
         raise ValueError(
             f"玩家人数不符: "
-            f"应为 {', '.join(map(str, role_preset))} 人, 传入{len(players)}人"
+            f"应为 {', '.join(map(str, preset_data.role_preset))} 人, "
+            f"传入{len(players)}人"
         )
 
     w, p, c = preset
     roles: list[Role] = []
-    roles.extend(config.werewolf_priority[:w])
-    roles.extend(config.priesthood_proirity[:p])
+    roles.extend(preset_data.werewolf_priority[:w])
+    roles.extend(preset_data.priesthood_proirity[:p])
     roles.extend([Role.Civilian] * c)
 
-    if c >= 2 and secrets.randbelow(100) <= config.joker_probability * 100:
+    if c >= 2 and secrets.randbelow(100) <= preset_data.joker_probability * 100:
         roles.remove(Role.Civilian)
         roles.append(Role.Joker)
 
@@ -201,7 +202,7 @@ class Game:
         for p in sorted(self.players, key=lambda p: p.user_id):
             msg.at(p.user_id)
 
-        w, p, c = config.get_role_preset()[len(self.players)]
+        w, p, c = PresetData.load().role_preset[len(self.players)]
         msg = (
             msg.text("\n\n📝正在分配职业，请注意查看私聊消息\n")
             .text(f"当前玩家数: {len(self.players)}\n")
