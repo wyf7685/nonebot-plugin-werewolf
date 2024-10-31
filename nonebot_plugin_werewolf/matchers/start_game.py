@@ -24,7 +24,7 @@ from nonebot_plugin_alconna import (
 from nonebot_plugin_localstore import get_plugin_data_file
 from nonebot_plugin_uninfo import QryItrface, Uninfo
 
-from ..config import config
+from ..config import PresetData, config
 from ..constant import STOP_COMMAND_PROMPT
 from ..game import Game
 from ..utils import ObjectStream, extract_session_member_nick
@@ -135,7 +135,7 @@ async def _prepare_handle(
         match (text, user_id == admin_id):
             case ("开始游戏", True):
                 player_num = len(players)
-                role_preset = config.get_role_preset()
+                role_preset = PresetData.load().role_preset
                 if player_num < min(role_preset):
                     await send(
                         f"⚠️游戏至少需要 {min(role_preset)} 人, "

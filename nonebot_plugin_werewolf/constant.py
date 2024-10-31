@@ -49,10 +49,7 @@ report_text: dict[KillReason, tuple[str, str]] = {
     KillReason.Vote: ("🗳️", "票出"),
 }
 
-RolePresetDict = dict[int, tuple[int, int, int]]
-RolePresetConfig = RolePresetDict | list[tuple[int, int, int, int]]
-
-default_role_preset: RolePresetDict = {
+default_role_preset: dict[int, tuple[int, int, int]] = {
     # 总人数: (狼, 神, 民)
     6: (1, 2, 3),
     7: (2, 2, 3),
@@ -62,7 +59,6 @@ default_role_preset: RolePresetDict = {
     11: (3, 5, 3),
     12: (4, 5, 3),
 }
-
 default_werewolf_priority: list[Role] = [
     Role.Werewolf,
     Role.Werewolf,
