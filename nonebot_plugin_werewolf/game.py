@@ -1,17 +1,16 @@
 import contextlib
 import functools
 import secrets
-from typing import ClassVar, NoReturn
+from typing import NoReturn
 
 import anyio
-import anyio.abc
 import nonebot
 from nonebot.adapters import Bot
 from nonebot.utils import escape_tag
 from nonebot_plugin_alconna import At, Target, UniMessage
 from nonebot_plugin_alconna.uniseg.message import Receipt
 from nonebot_plugin_uninfo import Interface, SceneType
-from typing_extensions import Self, assert_never
+from typing_extensions import assert_never
 
 from .config import PresetData
 from .constant import STOP_COMMAND_PROMPT, game_status_conv, report_text, role_name_conv
@@ -22,6 +21,16 @@ from .players import Player
 from .utils import InputStore, ObjectStream, link
 
 logger = nonebot.logger.opt(colors=True)
+starting_games: dict[Target, dict[str, str]] = {}
+running_games: set["Game"] = set()
+
+
+def get_starting_games() -> dict[Target, dict[str, str]]:
+    return starting_games
+
+
+def get_running_games() -> set["Game"]:
+    return running_games
 
 
 def init_players(bot: Bot, game: "Game", players: set[str]) -> PlayerSet:
@@ -62,7 +71,6 @@ class DeadChannel:
     finished: anyio.Event
     counter: dict[str, int]
     stream: ObjectStream[tuple[Player, UniMessage]]
-    task_group: anyio.abc.TaskGroup
 
     def __init__(self, players: PlayerSet, finished: anyio.Event) -> None:
         self.players = players
@@ -76,7 +84,7 @@ class DeadChannel:
 
     async def _handle_finished(self) -> None:
         await self.finished.wait()
-        self.task_group.cancel_scope.cancel()
+        self._task_group.cancel_scope.cancel()
 
     async def _handle_send(self) -> NoReturn:
         while True:
@@ -114,11 +122,11 @@ class DeadChannel:
 
             # 推送消息
             await self.stream.send((player, msg))
-            self.task_group.start_soon(self._decrease, user_id)
+            self._task_group.start_soon(self._decrease, user_id)
 
     async def run(self) -> NoReturn:
         async with anyio.create_task_group() as tg:
-            self.task_group = tg
+            self._task_group = tg
             tg.start_soon(self._handle_finished)
             tg.start_soon(self._handle_send)
             for p in self.players:
@@ -126,9 +134,6 @@ class DeadChannel:
 
 
 class Game:
-    starting_games: ClassVar[dict[Target, dict[str, str]]] = {}
-    running_games: ClassVar[set[Self]] = set()
-
     bot: Bot
     group: Target
     players: PlayerSet
@@ -151,6 +156,7 @@ class Game:
         self.killed_players = []
         self._player_map = {p.user_id: p for p in self.players}
         self._scene = None
+        self._finished = None
         self._task_group = None
 
     async def _fetch_group_scene(self) -> None:
@@ -352,12 +358,17 @@ class Game:
 
         # 投票结果公示
         msg = UniMessage.text("📊投票结果:\n")
-        for p, v in sorted(vote_result.items(), key=lambda x: len(x[1]), reverse=True):
-            if p is not None:
-                msg.at(p.user_id).text(f": {len(v)} 票\n")
-                vote_reversed[len(v)] = [*vote_reversed.get(len(v), []), p]
-        if (v := (len(players) - total_votes)) > 0:
-            msg.text(f"弃票: {v} 票\n\n")
+        for player, votes in sorted(
+            vote_result.items(),
+            key=lambda x: len(x[1]),
+            reverse=True,
+        ):
+            if player is not None:
+                msg.at(player.user_id).text(f": {len(votes)} 票\n")
+                vote_reversed.setdefault(len(votes), []).append(player)
+        if (discarded_votes := (len(players) - total_votes)) > 0:
+            msg.text(f"弃票: {discarded_votes} 票\n")
+        msg.text("\n")
 
         # 全员弃票  # 不是哥们？
         if total_votes == 0:
@@ -406,6 +417,8 @@ class Game:
             self.state.reset()
             await self.send("🌙天黑请闭眼...")
             players = self.players.alive()
+
+            # 夜间交互，返回狼人目标
             killed = await self.run_night(players)
 
             # 公告
@@ -440,8 +453,8 @@ class Game:
 
             # 开始自由讨论
             await self.send(
-                "💬接下来开始自由讨论\n限时2分钟, "
-                f"全员发送 “{STOP_COMMAND_PROMPT}” 结束发言"
+                "💬接下来开始自由讨论\n"
+                f"限时2分钟, 全员发送 “{STOP_COMMAND_PROMPT}” 结束发言"
             )
             await self.wait_stop(*self.players.alive(), timeout_secs=120)
 
@@ -466,7 +479,7 @@ class Game:
             report.append(f"{emoji} {name} 被 {', '.join(info.killers)} {action}")
         await self.send("\n\n".join(report))
 
-    async def daemon(self, finished: anyio.Event) -> None:
+    async def run_daemon(self) -> None:
         try:
             await self.mainloop()
         except anyio.get_cancelled_exc_class():
@@ -479,18 +492,19 @@ class Game:
             logger.exception(msg)
             await self.send(f"❌狼人杀游戏进程出现未知错误: {err!r}")
         finally:
-            finished.set()
+            if self._finished is not None:
+                self._finished.set()
 
     async def start(self) -> None:
         await self._fetch_group_scene()
-        finished = anyio.Event()
-        dead_channel = DeadChannel(self.players, finished)
-        self.running_games.add(self)
+        self._finished = anyio.Event()
+        dead_channel = DeadChannel(self.players, self._finished)
+        get_running_games().add(self)
 
         try:
             async with anyio.create_task_group() as tg:
                 self._task_group = tg
-                tg.start_soon(self.daemon, finished)
+                tg.start_soon(self.run_daemon)
                 tg.start_soon(dead_channel.run)
         except anyio.get_cancelled_exc_class():
             logger.warning(f"{self.colored_name} 的狼人杀游戏进程被取消")
@@ -498,8 +512,9 @@ class Game:
             msg = f"{self.colored_name} 的狼人杀守护进程出现错误: {err!r}"
             logger.opt(exception=err).error(msg)
         finally:
+            self._finished = None
             self._task_group = None
-            self.running_games.discard(self)
+            get_running_games().discard(self)
             InputStore.cleanup(list(self._player_map), self.group_id)
 
     def terminate(self) -> None:

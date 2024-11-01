@@ -26,7 +26,7 @@ from nonebot_plugin_uninfo import QryItrface, Uninfo
 
 from ..config import PresetData, config
 from ..constant import STOP_COMMAND_PROMPT
-from ..game import Game
+from ..game import Game, get_running_games, get_starting_games
 from ..utils import ObjectStream, extract_session_member_nick
 from .depends import rule_not_in_game
 from .poke import poke_enabled
@@ -207,7 +207,7 @@ async def _prepare_handle(
 async def prepare_game(event: Event, players: dict[str, str]) -> None:
     admin_id = event.get_user_id()
     group = UniMessage.get_target(event)
-    Game.starting_games[group] = players
+    get_starting_games()[group] = players
 
     stream = ObjectStream[tuple[Event, str, str]](16)
 
@@ -223,7 +223,7 @@ async def prepare_game(event: Event, players: dict[str, str]) -> None:
     except Exception as err:
         await UniMessage(f"狼人杀准备阶段出现未知错误: {err!r}").send()
 
-    del Game.starting_games[group]
+    del get_starting_games()[group]
     if players.pop("#$start_game$#", None) != admin_id:
         await start_game.finish()
 
@@ -232,7 +232,7 @@ async def prepare_game(event: Event, players: dict[str, str]) -> None:
 async def handle_notice(target: MsgTarget, state: T_State) -> None:
     if target.private:
         await UniMessage("⚠️请在群组中创建新游戏").finish(reply_to=True)
-    if any(target.verify(g.group) for g in Game.running_games):
+    if any(target.verify(g.group) for g in get_running_games()):
         await (
             UniMessage.text("⚠️当前群组内有正在进行的游戏\n")
             .text("无法开始新游戏")

@@ -2,11 +2,11 @@ from nonebot.permission import SUPERUSER
 from nonebot.rule import to_me
 from nonebot_plugin_alconna import Alconna, MsgTarget, UniMessage, on_alconna
 
-from ..game import Game
+from ..game import get_running_games
 
 
 def rule_game_running(target: MsgTarget) -> bool:
-    return any(target.verify(g.group) for g in Game.running_games)
+    return any(target.verify(g.group) for g in get_running_games())
 
 
 force_stop = on_alconna(
@@ -19,6 +19,6 @@ force_stop = on_alconna(
 
 @force_stop.handle()
 async def _(target: MsgTarget) -> None:
-    game = next(g for g in Game.running_games if target.verify(g.group))
+    game = next(g for g in get_running_games() if target.verify(g.group))
     game.terminate()
     await UniMessage.text("已中止当前群组的游戏进程").finish(reply_to=True)
