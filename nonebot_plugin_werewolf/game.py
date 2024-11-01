@@ -200,7 +200,7 @@ class Game:
         if not p.select(Role.Civilian, RoleGroup.Others).size:
             raise GameFinished(GameStatus.Werewolf)
         # 屠边-神职全灭
-        if not p.exclude(Role.Civilian).size:
+        if not p.exclude(Role.Civilian, RoleGroup.Others).size:
             raise GameFinished(GameStatus.Werewolf)
         # 狼人全灭
         if not w.size:
