@@ -75,18 +75,18 @@ class DeadChannel:
     def __init__(self, players: PlayerSet, finished: anyio.Event) -> None:
         self.players = players
         self.finished = finished
-        self.counter = {p.user_id: 0 for p in self.players}
+        self.counter = {p.user_id: 0 for p in players}
         self.stream = ObjectStream[tuple[Player, UniMessage]](16)
 
     async def _decrease(self, user_id: str) -> None:
         await anyio.sleep(60)
         self.counter[user_id] -= 1
 
-    async def _handle_finished(self) -> None:
+    async def _wait_finished(self) -> None:
         await self.finished.wait()
         self._task_group.cancel_scope.cancel()
 
-    async def _handle_send(self) -> NoReturn:
+    async def _broadcast(self) -> NoReturn:
         while True:
             player, msg = await self.stream.recv()
             msg = f"玩家 {player.name}:\n" + msg
@@ -97,7 +97,7 @@ class DeadChannel:
                 with contextlib.suppress(Exception):
                     await player.send(f"消息转发失败: {err!r}")
 
-    async def _handle_recv(self, player: Player) -> NoReturn:
+    async def _receive(self, player: Player) -> NoReturn:
         await player.killed.wait()
         user_id = player.user_id
 
@@ -127,10 +127,10 @@ class DeadChannel:
     async def run(self) -> NoReturn:
         async with anyio.create_task_group() as tg:
             self._task_group = tg
-            tg.start_soon(self._handle_finished)
-            tg.start_soon(self._handle_send)
+            tg.start_soon(self._wait_finished)
+            tg.start_soon(self._broadcast)
             for p in self.players:
-                tg.start_soon(self._handle_recv, p)
+                tg.start_soon(self._receive, p)
 
 
 class Game:
