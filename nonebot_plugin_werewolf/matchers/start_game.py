@@ -68,12 +68,14 @@ def load_players(target: Target) -> dict[str, str] | None:
 
 
 def solve_button(msg: UniMessage) -> UniMessage:
+    def btn(text: str) -> Button:
+        return Button("input", label=text, text=text)
+
     if config.enable_button:
-        msg.keyboard(
-            *[
-                Button("input", i, text=i)
-                for i in ["加入游戏", "退出游戏", "当前玩家", "开始游戏", "结束游戏"]
-            ]
+        msg = (
+            msg.keyboard(btn("加入游戏"), btn("退出游戏"))
+            .keyboard(btn("当前玩家"))
+            .keyboard(btn("开始游戏"), btn("结束游戏"))
         )
     return msg
 
