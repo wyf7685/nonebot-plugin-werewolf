@@ -50,6 +50,9 @@ class PlayerSet(set[Player]):
         return sorted(self, key=lambda p: p.user_id)
 
     async def interact(self) -> None:
+        if not self:
+            return
+
         async with anyio.create_task_group() as tg:
             for p in self.alive():
                 tg.start_soon(p.interact)
