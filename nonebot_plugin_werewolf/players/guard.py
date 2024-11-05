@@ -1,4 +1,3 @@
-from nonebot_plugin_alconna.uniseg import UniMessage
 from typing_extensions import override
 
 from ..constant import STOP_COMMAND_PROMPT
@@ -16,13 +15,13 @@ class Guard(Player):
         return None
 
     @override
-    async def interact(self) -> None:
+    async def _interact(self) -> None:
         players = self.game.players.alive()
         await self.send(
-            UniMessage.text("💫请选择需要保护的玩家:\n")
-            .text(players.show())
-            .text("\n\n🛡️发送编号选择玩家")
-            .text(f"\n❌发送 “{STOP_COMMAND_PROMPT}” 结束回合")
+            "💫请选择需要保护的玩家:\n"
+            f"{players.show()}\n\n"
+            "🛡️发送编号选择玩家\n"
+            f"❌发送 “{STOP_COMMAND_PROMPT}” 结束回合"
         )
 
         self.selected = await self._select_player(players)

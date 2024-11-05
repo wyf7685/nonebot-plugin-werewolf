@@ -1,3 +1,4 @@
+import nonebot
 from nonebot_plugin_alconna.uniseg import UniMessage
 from typing_extensions import override
 
@@ -5,6 +6,8 @@ from ..constant import STOP_COMMAND_PROMPT
 from ..models import Role, RoleGroup
 from ..utils import as_player_set
 from .player import Player
+
+logger = nonebot.logger.opt(colors=True)
 
 
 @Player.register_role(Role.Witch, RoleGroup.GoodGuy)
@@ -40,7 +43,12 @@ class Witch(Player):
         return True
 
     @override
-    async def interact(self) -> None:
+    async def _before_interact(self) -> None:
+        await self.send("ℹ️请等待狼人决定目标...")
+        await self.game.state.werewolf_finished.wait()
+
+    @override
+    async def _interact(self) -> None:
         if await self.handle_killed():
             return
 
@@ -50,11 +58,11 @@ class Witch(Player):
 
         players = self.game.players.alive()
         await self.send(
-            UniMessage.text("💫你有一瓶毒药\n")
-            .text("玩家列表:\n")
-            .text(players.show())
-            .text("\n\n🧪发送玩家编号使用毒药")
-            .text(f"\n❌发送 “{STOP_COMMAND_PROMPT}” 结束回合(不使用药水)")
+            "💫你有一瓶毒药\n"
+            "玩家列表:\n"
+            f"{players.show()}\n\n"
+            "🧪发送玩家编号使用毒药\n"
+            f"❌发送 “{STOP_COMMAND_PROMPT}” 结束回合(不使用药水)"
         )
 
         if selected := await self._select_player(

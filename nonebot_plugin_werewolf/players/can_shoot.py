@@ -40,9 +40,9 @@ class CanShoot(Player):
         players = self.game.players.alive().exclude(self)
         await self.send(
             "💫请选择需要射杀的玩家:\n"
-            + players.show()
-            + "\n\n🔫发送编号选择玩家"
-            + f"\n❌发送 “{STOP_COMMAND_PROMPT}” 取消技能"
+            f"{players.show()}\n\n"
+            "🔫发送编号选择玩家\n"
+            f"❌发送 “{STOP_COMMAND_PROMPT}” 取消技能"
         )
 
         if selected := await self._select_player(

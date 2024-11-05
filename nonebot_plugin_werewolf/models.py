@@ -2,6 +2,8 @@ import dataclasses
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
+import anyio
+
 if TYPE_CHECKING:
     from .players import Player
 
@@ -48,6 +50,8 @@ class GameStatus(Enum):
 class GameState:
     day: int
     """当前天数记录, 不会被 `reset()` 重置"""
+    werewolf_finished: anyio.Event = dataclasses.field(default_factory=anyio.Event)
+    """狼人交互是否结束"""
     killed: "Player | None" = None
     """当晚狼人击杀目标, `None` 则为空刀"""
     shoot: "Player | None" = None
@@ -60,6 +64,7 @@ class GameState:
     """当晚守卫保护的目标"""
 
     def reset(self) -> None:
+        self.werewolf_finished = anyio.Event()
         self.killed = None
         self.shoot = None
         self.antidote = set()

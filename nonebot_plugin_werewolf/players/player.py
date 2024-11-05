@@ -34,6 +34,7 @@ class Player:
     killed: Final[anyio.Event]
     kill_info: KillInfo | None = None
     selected: "Player | None" = None
+    interact_timeout: float = 60
 
     @final
     def __init__(self, bot: Bot, game: "Game", user_id: str) -> None:
@@ -145,10 +146,7 @@ class Player:
         return await message.send(target=self.__user, bot=self.bot)
 
     @final
-    async def receive(self, prompt: str | UniMessage | None = None) -> UniMessage:
-        if prompt:
-            await self.send(prompt)
-
+    async def receive(self) -> UniMessage:
         result = await InputStore.fetch(self.user_id)
         self._log(f"<y>Recv</y> | {escape_tag(str(result))}")
         return result
@@ -157,8 +155,34 @@ class Player:
     async def receive_text(self) -> str:
         return (await self.receive()).extract_plain_text()
 
-    async def interact(self) -> None:
+    async def _before_interact(self) -> None:
         return
+
+    async def _interact(self) -> None:
+        return
+
+    async def _after_interact(self) -> None:
+        return
+
+    async def interact(self) -> None:
+        if not getattr(self._interact, "__override__", False):
+            await self.send("ℹ️请等待其他玩家结束交互...")
+            return
+
+        await self._before_interact()
+
+        text = self.role_name
+        timeout = self.interact_timeout
+        await self.send(f"✏️{text}交互开始，限时 {timeout/60:.2f} 分钟")
+
+        try:
+            with anyio.fail_after(timeout):
+                await self._interact()
+        except TimeoutError:
+            logger.debug(f"{text}交互超时 (<y>{timeout}</y>s)")
+            await self.send(f"⚠️{text}交互超时")
+
+        await self._after_interact()
 
     async def notify_role(self) -> None:
         await self._fetch_member()
@@ -175,9 +199,11 @@ class Player:
 
     async def vote(self, players: "PlayerSet") -> "Player | None":
         await self.send(
-            f"💫请选择需要投票的玩家:\n{players.show()}"
-            f"\n\n🗳️发送编号选择玩家\n❌发送 “{STOP_COMMAND_PROMPT}” 弃票"
-            f"\n\n限时1分钟，超时将视为弃票"
+            f"💫请选择需要投票的玩家:\n"
+            f"{players.show()}\n\n"
+            "🗳️发送编号选择玩家\n"
+            f"❌发送 “{STOP_COMMAND_PROMPT}” 弃票\n\n"
+            "限时1分钟，超时将视为弃票"
         )
 
         try:

@@ -10,10 +10,9 @@ from nonebot.utils import escape_tag
 from nonebot_plugin_alconna import At, Target, UniMessage
 from nonebot_plugin_alconna.uniseg.message import Receipt
 from nonebot_plugin_uninfo import Interface, SceneType
-from typing_extensions import assert_never
 
 from .config import PresetData
-from .constant import STOP_COMMAND_PROMPT, game_status_conv, report_text, role_name_conv
+from .constant import STOP_COMMAND_PROMPT, game_status_conv, report_text
 from .exception import GameFinished
 from .models import GameState, GameStatus, KillInfo, KillReason, Role, RoleGroup
 from .player_set import PlayerSet
@@ -235,30 +234,6 @@ class Game:
                 for p in players:
                     tg.start_soon(InputStore.fetch_until_stop, p.user_id, self.group_id)
 
-    async def interact(
-        self,
-        player_type: Player | Role | RoleGroup,
-        timeout_secs: float,
-    ) -> None:
-        players = self.players.alive().select(player_type)
-        match player_type:
-            case Player():
-                text = player_type.role_name
-            case Role():
-                text = role_name_conv[player_type]
-            case RoleGroup():
-                text = f"{role_name_conv[player_type]}阵营"
-            case x:
-                assert_never(x)
-
-        await players.broadcast(f"✏️{text}交互开始，限时 {timeout_secs/60:.2f} 分钟")
-        try:
-            with anyio.fail_after(timeout_secs):
-                await players.interact()
-        except TimeoutError:
-            logger.debug(f"{text}交互超时 (<y>{timeout_secs}</y>s)")
-            await players.broadcast(f"⚠️{text}交互超时")
-
     async def post_kill(self, players: Player | PlayerSet) -> None:
         if isinstance(players, Player):
             players = PlayerSet([players])
@@ -282,44 +257,10 @@ class Game:
                 self.state.shoot = shooter.selected = None
                 await self.post_kill(shoot)
 
-    async def select_killed(self) -> None:
-        players = self.players.alive()
-        self.state.killed = None
-
-        w = players.select(RoleGroup.Werewolf)
-        await self.interact(RoleGroup.Werewolf, 120)
-        if (s := w.player_selected()).size == 1:
-            self.state.killed = s.pop()
-            await w.broadcast(f"🔪今晚选择的目标为: {self.state.killed.name}")
-        else:
-            await w.broadcast("⚠️狼人阵营意见未统一，此晚空刀")
-
-        # 如果女巫存活，正常交互，限时1分钟
-        if players.include(Role.Witch):
-            await self.interact(Role.Witch, 60)
-        # 否则等待 5-20s
-        else:
-            await anyio.sleep(5 + secrets.randbelow(15))
-
     async def run_night(self, players: PlayerSet) -> Player | None:
-        # 狼人、预言家、守卫 同时交互，女巫在狼人后交互
         async with anyio.create_task_group() as tg:
-            tg.start_soon(self.select_killed)
-            tg.start_soon(
-                players.select(Role.Witch).broadcast,
-                "ℹ️请等待狼人决定目标...",
-            )
-            tg.start_soon(self.interact, Role.Prophet, 60)
-            tg.start_soon(self.interact, Role.Guard, 60)
-            tg.start_soon(
-                players.exclude(
-                    RoleGroup.Werewolf,
-                    Role.Prophet,
-                    Role.Witch,
-                    Role.Guard,
-                ).broadcast,
-                "ℹ️请等待其他玩家结束交互...",
-            )
+            for p in players:
+                tg.start_soon(p.interact)
 
         # 狼人击杀目标
         if (
@@ -332,6 +273,8 @@ class Game:
                 KillReason.Werewolf,
                 *players.select(RoleGroup.Werewolf),
             )
+        else:
+            killed = None
 
         # 女巫操作目标
         for witch in self.state.poison:

@@ -1,6 +1,8 @@
+import secrets
 from typing import TYPE_CHECKING
 
 import anyio
+import nonebot
 from nonebot_plugin_alconna.uniseg import UniMessage
 from typing_extensions import override
 
@@ -12,9 +14,12 @@ from .player import Player
 if TYPE_CHECKING:
     from ..player_set import PlayerSet
 
+logger = nonebot.logger.opt(colors=True)
+
 
 @Player.register_role(Role.Werewolf, RoleGroup.Werewolf)
 class Werewolf(Player):
+    interact_timeout = 120
     stream: ObjectStream[str | UniMessage]
 
     @override
@@ -59,7 +64,7 @@ class Werewolf(Player):
             await partners.broadcast(message)
 
     @override
-    async def interact(self) -> None:
+    async def _interact(self) -> None:
         players = self.game.players.alive()
         partners = players.select(RoleGroup.Werewolf).exclude(self)
 
@@ -86,3 +91,18 @@ class Werewolf(Player):
                 tg.start_soon(self._handle_broadcast, partners)
         finally:
             del self.stream
+
+    @override
+    async def _after_interact(self) -> None:
+        state = self.game.state
+        if not state.werewolf_finished.is_set():
+            state.werewolf_finished.set()
+            w = self.game.players.alive().select(RoleGroup.Werewolf)
+            if (s := w.player_selected()).size == 1:
+                state.killed = s.pop()
+                await w.broadcast(f"🔪今晚选择的目标为: {state.killed.name}")
+            else:
+                await w.broadcast("⚠️狼人阵营意见未统一，此晚空刀")
+
+        if not self.game.players.alive().select(Role.Witch):
+            await anyio.sleep(5 + secrets.randbelow(15))
