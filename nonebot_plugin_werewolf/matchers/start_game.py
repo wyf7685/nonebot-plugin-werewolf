@@ -14,9 +14,7 @@ from nonebot_plugin_alconna import Alconna, Option, on_alconna
 from nonebot_plugin_alconna.uniseg import (
     Button,
     FallbackStrategy,
-    Keyboard,
     MsgTarget,
-    Receipt,
     Target,
     UniMessage,
     UniMsg,
@@ -24,10 +22,16 @@ from nonebot_plugin_alconna.uniseg import (
 from nonebot_plugin_localstore import get_plugin_data_file
 from nonebot_plugin_uninfo import QryItrface, Uninfo
 
-from ..config import PresetData, config
+from ..config import PresetData
 from ..constant import STOP_COMMAND_PROMPT
 from ..game import Game, get_running_games, get_starting_games
-from ..utils import ObjectStream, extract_session_member_nick
+from ..utils import (
+    ObjectStream,
+    extract_session_member_nick,
+)
+from ..utils import (
+    SendHandler as BaseSendHandler,
+)
 from .depends import rule_not_in_game
 from .poke import poke_enabled
 
@@ -71,13 +75,11 @@ def solve_button(msg: UniMessage) -> UniMessage:
     def btn(text: str) -> Button:
         return Button("input", label=text, text=text)
 
-    if config.enable_button:
-        msg = (
-            msg.keyboard(btn("当前玩家"))
-            .keyboard(btn("加入游戏"), btn("退出游戏"))
-            .keyboard(btn("开始游戏"), btn("结束游戏"))
-        )
-    return msg
+    return (
+        msg.keyboard(btn("当前玩家"))
+        .keyboard(btn("加入游戏"), btn("退出游戏"))
+        .keyboard(btn("开始游戏"), btn("结束游戏"))
+    )
 
 
 async def _prepare_receive(
@@ -105,41 +107,9 @@ async def _prepare_receive(
         await stream.send((event, text, name))
 
 
-class _SendHandler:
-    event: Event
-    last_msg: UniMessage | None = None
-    last_receipt: Receipt | None = None
-
-    def update(self, event: Event) -> None:
-        self.event = event
-
-    async def _edit(self) -> None:
-        if (
-            self.last_msg is not None
-            and self.last_receipt is not None
-            and self.last_receipt.editable
-        ):
-            await self.last_receipt.edit(self.last_msg.exclude(Keyboard))
-
-    async def _send(self, message: UniMessage) -> None:
-        receipt = await message.send(
-            target=self.event,
-            reply_to=True,
-            fallback=FallbackStrategy.ignore,
-        )
-        self.last_msg = message
-        self.last_receipt = receipt
-
-    async def send(self, msg: str | UniMessage, *, button: bool = True) -> None:
-        message = UniMessage.text(msg) if isinstance(msg, str) else msg
-
-        if button:
-            message = solve_button(message)
-            async with anyio.create_task_group() as tg:
-                tg.start_soon(self._edit)
-                tg.start_soon(self._send, message)
-        else:
-            await self._send(message)
+class SendHandler(BaseSendHandler):
+    def solve_msg(self, msg: UniMessage, *_: object) -> UniMessage:
+        return solve_button(msg)
 
     async def send_finished(self) -> None:
         msg = (
@@ -158,7 +128,8 @@ async def _prepare_handle(
     admin_id: str,
 ) -> None:
     logger = nonebot.logger.opt(colors=True)
-    handler = _SendHandler()
+    handler = SendHandler()
+    handler.reply_to = True
 
     while not stream.closed:
         event, text, name = await stream.recv()

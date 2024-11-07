@@ -21,10 +21,12 @@ class Guard(Player):
             "💫请选择需要保护的玩家:\n"
             f"{players.show()}\n\n"
             "🛡️发送编号选择玩家\n"
-            f"❌发送 “{STOP_COMMAND_PROMPT}” 结束回合"
+            f"❌发送 “{STOP_COMMAND_PROMPT}” 结束回合",
+            stop_btn_label="结束回合",
+            select_players=players,
         )
 
-        self.selected = await self._select_player(players)
+        self.selected = await self._select_player(players, stop_btn_label="结束回合")
         if self.selected:
             self.game.state.protected.add(self.selected)
             await self.send(f"✅本回合保护的玩家: {self.selected.name}")

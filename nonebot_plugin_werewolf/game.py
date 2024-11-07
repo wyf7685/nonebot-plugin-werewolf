@@ -17,7 +17,7 @@ from .exception import GameFinished
 from .models import GameState, GameStatus, KillInfo, KillReason, Role, RoleGroup
 from .player_set import PlayerSet
 from .players import Player
-from .utils import InputStore, ObjectStream, link
+from .utils import InputStore, ObjectStream, SendHandler, add_stop_button, link
 
 logger = nonebot.logger.opt(colors=True)
 starting_games: dict[Target, dict[str, str]] = {}
@@ -63,6 +63,17 @@ def init_players(bot: Bot, game: "Game", players: set[str]) -> PlayerSet:
     logger.debug(f"职业分配完成: <e>{escape_tag(str(player_set))}</e>")
 
     return player_set
+
+
+class _SendHandler(SendHandler[str | None]):
+    def solve_msg(
+        self,
+        msg: UniMessage,
+        stop_btn_label: str | None = None,
+    ) -> UniMessage:
+        if stop_btn_label is not None:
+            msg = add_stop_button(msg, stop_btn_label)
+        return msg
 
 
 class DeadChannel:
@@ -157,6 +168,8 @@ class Game:
         self._scene = None
         self._finished = None
         self._task_group = None
+        self._send_handler = _SendHandler()
+        self._send_handler.update(group)
 
     async def _fetch_group_scene(self) -> None:
         scene = await self.interface.get_scene(SceneType.GROUP, self.group_id)
@@ -176,7 +189,11 @@ class Game:
             name = f"<y>{escape_tag(self._scene.name)}</y>({name})"
         return link(name, self._scene and self._scene.avatar)
 
-    async def send(self, message: str | UniMessage) -> Receipt:
+    async def send(
+        self,
+        message: str | UniMessage,
+        stop_btn_label: str | None = None,
+    ) -> Receipt:
         if isinstance(message, str):
             message = UniMessage.text(message)
 
@@ -191,7 +208,7 @@ class Game:
                 text += escape_tag(str(seg)).replace("\n", "\\n")
 
         logger.info(text)
-        return await message.send(self.group, self.bot)
+        return await self._send_handler.send(message, stop_btn_label)
 
     def raise_for_status(self) -> None:
         players = self.players.alive()
@@ -345,7 +362,8 @@ class Game:
             UniMessage.text("🔨玩家 ")
             .at(voted.user_id)
             .text(" 被投票放逐, 请发表遗言\n")
-            .text(f"限时1分钟, 发送 “{STOP_COMMAND_PROMPT}” 结束发言")
+            .text(f"限时1分钟, 发送 “{STOP_COMMAND_PROMPT}” 结束发言"),
+            stop_btn_label="结束发言",
         )
         await self.wait_stop(voted, timeout_secs=60)
         await self.post_kill(voted)
@@ -383,7 +401,8 @@ class Game:
                     UniMessage.text("⚙️当前为第一天\n请被狼人杀死的 ")
                     .at(killed.user_id)
                     .text(" 发表遗言\n")
-                    .text(f"限时1分钟, 发送 “{STOP_COMMAND_PROMPT}” 结束发言")
+                    .text(f"限时1分钟, 发送 “{STOP_COMMAND_PROMPT}” 结束发言"),
+                    stop_btn_label="结束发言",
                 )
                 await self.wait_stop(killed, timeout_secs=60)
             await self.post_kill(dead)
@@ -397,7 +416,8 @@ class Game:
             # 开始自由讨论
             await self.send(
                 "💬接下来开始自由讨论\n"
-                f"限时2分钟, 全员发送 “{STOP_COMMAND_PROMPT}” 结束发言"
+                f"限时2分钟, 全员发送 “{STOP_COMMAND_PROMPT}” 结束发言",
+                stop_btn_label="结束发言",
             )
             await self.wait_stop(*self.players.alive(), timeout_secs=120)
 
