@@ -149,13 +149,9 @@ class Player:
         return name
 
     @final
-    def _log(self, text: str) -> None:
+    def log(self, text: str) -> None:
         text = text.replace("\n", "\\n")
-        logger.info(
-            f"{self.game.colored_name} | "
-            f"[<b><m>{self.role_name}</m></b>] "
-            f"{self.colored_name} | {text}",
-        )
+        self.game.log(f"[<b><m>{self.role_name}</m></b>] {self.colored_name} | {text}")
 
     @final
     async def send(
@@ -168,7 +164,7 @@ class Player:
         if isinstance(message, str):
             message = UniMessage.text(message)
 
-        self._log(f"<g>Send</g> | {escape_tag(str(message))}")
+        self.log(f"<g>Send</g> | {escape_tag(str(message))}")
 
         if select_players:
             message = add_players_button(message, select_players)
@@ -179,7 +175,7 @@ class Player:
     @final
     async def receive(self) -> UniMessage:
         result = await InputStore.fetch(self.user_id)
-        self._log(f"<y>Recv</y> | {escape_tag(str(result))}")
+        self.log(f"<y>Recv</y> | {escape_tag(str(result))}")
         return result
 
     @final

@@ -189,6 +189,9 @@ class Game:
             name = f"<y>{escape_tag(self._scene.name)}</y>({name})"
         return link(name, self._scene and self._scene.avatar)
 
+    def log(self, text: str) -> None:
+        logger.info(f"{self.colored_name} | {text}")
+
     async def send(
         self,
         message: str | UniMessage,
@@ -197,17 +200,17 @@ class Game:
         if isinstance(message, str):
             message = UniMessage.text(message)
 
-        text = f"{self.colored_name} | <g>Send</g> | "
+        text = ["<g>Send</g> | "]
         for seg in message:
             if isinstance(seg, At):
                 name = seg.target
                 if name in self._player_map:
                     name = self._player_map[name].colored_name
-                text += f"<y>@{name}</y>"
+                text.append(f"<y>@{name}</y>")
             else:
-                text += escape_tag(str(seg)).replace("\n", "\\n")
+                text.append(escape_tag(str(seg)).replace("\n", "\\n"))
 
-        logger.info(text)
+        self.log("".join(text))
         return await self._send_handler.send(message, stop_btn_label)
 
     def raise_for_status(self) -> None:
