@@ -25,9 +25,7 @@ from nonebot_plugin_uninfo import QryItrface, Uninfo
 from ..config import PresetData
 from ..constant import STOP_COMMAND_PROMPT
 from ..game import Game, get_running_games, get_starting_games
-from ..utils import ObjectStream
-from ..utils import SendHandler as BaseSendHandler
-from ..utils import extract_session_member_nick
+from ..utils import ObjectStream, SendHandler, extract_session_member_nick
 from .depends import rule_not_in_game
 from .poke import poke_enabled
 
@@ -103,7 +101,7 @@ async def _prepare_receive(
         await stream.send((event, text, name))
 
 
-class SendHandler(BaseSendHandler):
+class _SendHandler(SendHandler):
     def solve_msg(self, msg: UniMessage, *_: object) -> UniMessage:
         return solve_button(msg)
 
@@ -124,7 +122,7 @@ async def _prepare_handle(
     admin_id: str,
 ) -> None:
     logger = nonebot.logger.opt(colors=True)
-    handler = SendHandler()
+    handler = _SendHandler()
     handler.reply_to = True
 
     while not stream.closed:
