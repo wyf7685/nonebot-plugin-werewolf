@@ -12,7 +12,14 @@ from nonebot_plugin_uninfo import SceneType
 
 from ..constant import STOP_COMMAND, STOP_COMMAND_PROMPT, role_emoji, role_name_conv
 from ..models import KillInfo, KillReason, Role, RoleGroup
-from ..utils import InputStore, check_index, link
+from ..utils import (
+    InputStore,
+    SendHandler,
+    add_players_button,
+    add_stop_button,
+    check_index,
+    link,
+)
 
 if TYPE_CHECKING:
     from ..game import Game
@@ -22,6 +29,17 @@ if TYPE_CHECKING:
 _P = TypeVar("_P", bound=type["Player"])
 
 logger = nonebot.logger.opt(colors=True)
+
+
+class _SendHandler(SendHandler[str | None]):
+    def solve_msg(
+        self,
+        msg: UniMessage,
+        stop_btn_label: str | None = None,
+    ) -> UniMessage:
+        if stop_btn_label is not None:
+            msg = add_stop_button(msg, stop_btn_label)
+        return msg
 
 
 class Player:
@@ -48,6 +66,8 @@ class Player:
         self.bot = bot
         self.killed = anyio.Event()
         self._member = None
+        self._send_handler = _SendHandler()
+        self._send_handler.update(self.__user, bot)
 
     @classmethod
     def register_role(cls, role: Role, role_group: RoleGroup, /) -> Callable[[_P], _P]:
@@ -129,26 +149,33 @@ class Player:
         return name
 
     @final
-    def _log(self, text: str) -> None:
+    def log(self, text: str) -> None:
         text = text.replace("\n", "\\n")
-        logger.info(
-            f"{self.game.colored_name} | "
-            f"[<b><m>{self.role_name}</m></b>] "
-            f"{self.colored_name} | {text}",
-        )
+        self.game.log(f"[<b><m>{self.role_name}</m></b>] {self.colored_name} | {text}")
 
     @final
-    async def send(self, message: str | UniMessage) -> Receipt:
+    async def send(
+        self,
+        message: str | UniMessage,
+        stop_btn_label: str | None = None,
+        select_players: "PlayerSet | None" = None,
+        skip_handler: bool = False,  # noqa: FBT001, FBT002
+    ) -> Receipt:
         if isinstance(message, str):
             message = UniMessage.text(message)
 
-        self._log(f"<g>Send</g> | {escape_tag(str(message))}")
-        return await message.send(target=self.__user, bot=self.bot)
+        self.log(f"<g>Send</g> | {escape_tag(str(message))}")
+
+        if select_players:
+            message = add_players_button(message, select_players)
+        if skip_handler:
+            return await message.send(self.__user, self.bot)
+        return await self._send_handler.send(message, stop_btn_label)
 
     @final
     async def receive(self) -> UniMessage:
         result = await InputStore.fetch(self.user_id)
-        self._log(f"<y>Recv</y> | {escape_tag(str(result))}")
+        self.log(f"<y>Recv</y> | {escape_tag(str(result))}")
         return result
 
     @final
@@ -203,7 +230,9 @@ class Player:
             f"{players.show()}\n\n"
             "🗳️发送编号选择玩家\n"
             f"❌发送 “{STOP_COMMAND_PROMPT}” 弃票\n\n"
-            "限时1分钟，超时将视为弃票"
+            "限时1分钟，超时将视为弃票",
+            stop_btn_label="弃票",
+            select_players=players,
         )
 
         try:
@@ -230,6 +259,7 @@ class Player:
         *,
         on_stop: str | None = None,
         on_index_error: str | None = None,
+        stop_btn_label: str | None = None,
     ) -> "Player | None":
         on_stop = on_stop or "ℹ️你选择了取消，回合结束"
         on_index_error = (
@@ -245,7 +275,11 @@ class Player:
                 return None
             index = check_index(text, len(players))
             if index is None:
-                await self.send(on_index_error)
+                await self.send(
+                    on_index_error,
+                    stop_btn_label=stop_btn_label,
+                    select_players=players,
+                )
                 continue
             selected = await self._check_selected(players[index - 1])
 

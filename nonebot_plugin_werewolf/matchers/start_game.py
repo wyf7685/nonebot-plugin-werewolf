@@ -10,31 +10,29 @@ from nonebot.permission import SUPERUSER
 from nonebot.rule import Rule, to_me
 from nonebot.typing import T_State
 from nonebot.utils import escape_tag
-from nonebot_plugin_alconna import (
-    Alconna,
+from nonebot_plugin_alconna import Alconna, Option, on_alconna
+from nonebot_plugin_alconna.uniseg import (
     Button,
     FallbackStrategy,
     MsgTarget,
-    Option,
     Target,
     UniMessage,
     UniMsg,
-    on_alconna,
 )
 from nonebot_plugin_localstore import get_plugin_data_file
 from nonebot_plugin_uninfo import QryItrface, Uninfo
 
-from ..config import PresetData, config
+from ..config import PresetData
 from ..constant import STOP_COMMAND_PROMPT
 from ..game import Game, get_running_games, get_starting_games
-from ..utils import ObjectStream, extract_session_member_nick
+from ..utils import ObjectStream, SendHandler, extract_session_member_nick
 from .depends import rule_not_in_game
 from .poke import poke_enabled
 
 start_game = on_alconna(
     Alconna(
         "werewolf",
-        Option("restart|--restart|重开", dest="restart"),
+        Option("restart|-r|--restart|重开", dest="restart"),
     ),
     rule=to_me() & rule_not_in_game,
     aliases={"狼人杀"},
@@ -71,13 +69,11 @@ def solve_button(msg: UniMessage) -> UniMessage:
     def btn(text: str) -> Button:
         return Button("input", label=text, text=text)
 
-    if config.enable_button:
-        msg = (
-            msg.keyboard(btn("加入游戏"), btn("退出游戏"))
-            .keyboard(btn("当前玩家"))
-            .keyboard(btn("开始游戏"), btn("结束游戏"))
-        )
-    return msg
+    return (
+        msg.keyboard(btn("当前玩家"))
+        .keyboard(btn("加入游戏"), btn("退出游戏"))
+        .keyboard(btn("开始游戏"), btn("结束游戏"))
+    )
 
 
 async def _prepare_receive(
@@ -105,28 +101,35 @@ async def _prepare_receive(
         await stream.send((event, text, name))
 
 
+class _SendHandler(SendHandler):
+    def solve_msg(self, msg: UniMessage, *_: object) -> UniMessage:
+        return solve_button(msg)
+
+    async def send_finished(self) -> None:
+        msg = (
+            UniMessage.text("ℹ️已结束当前游戏")
+            .keyboard(Button("input", label="发起游戏", text="werewolf"))
+            .keyboard(Button("input", label="重开上次游戏", text="werewolf restart"))
+        )
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(self._edit)
+            tg.start_soon(self._send, msg)
+
+
 async def _prepare_handle(
     stream: ObjectStream[tuple[Event, str, str]],
     players: dict[str, str],
     admin_id: str,
 ) -> None:
     logger = nonebot.logger.opt(colors=True)
-
-    async def send(msg: str, /, *, button: bool = True) -> None:
-        message = UniMessage.text(msg)
-        if button:
-            message = solve_button(message)
-
-        await message.send(
-            target=event,
-            reply_to=True,
-            fallback=FallbackStrategy.ignore,
-        )
+    handler = _SendHandler()
+    handler.reply_to = True
 
     while not stream.closed:
         event, text, name = await stream.recv()
         user_id = event.get_user_id()
         colored = f"<y>{escape_tag(name)}</y>(<c>{escape_tag(user_id)}</c>)"
+        handler.update(event)
 
         # 更新用户名
         # 当用户通过 chronoca:poke 加入游戏时, 插件无法获取用户名, 原字典值为用户ID
@@ -139,65 +142,67 @@ async def _prepare_handle(
                 player_num = len(players)
                 role_preset = PresetData.load().role_preset
                 if player_num < min(role_preset):
-                    await send(
+                    await handler.send(
                         f"⚠️游戏至少需要 {min(role_preset)} 人, "
                         f"当前已有 {player_num} 人"
                     )
                 elif player_num > max(role_preset):
-                    await send(
+                    await handler.send(
                         f"⚠️游戏最多需要 {max(role_preset)} 人, "
                         f"当前已有 {player_num} 人"
                     )
                 elif player_num not in role_preset:
-                    await send(f"⚠️不存在总人数为 {player_num} 的预设, 无法开始游戏")
+                    await handler.send(
+                        f"⚠️不存在总人数为 {player_num} 的预设, 无法开始游戏"
+                    )
                 else:
-                    await send("✏️游戏即将开始...")
+                    await handler.send("✏️游戏即将开始...")
                     logger.info(f"游戏发起者 {colored} 开始游戏")
                     stream.close()
                     players["#$start_game$#"] = user_id
                     return
 
             case ("开始游戏", False):
-                await send("⚠️只有游戏发起者可以开始游戏")
+                await handler.send("⚠️只有游戏发起者可以开始游戏")
 
             case ("结束游戏", True):
                 logger.info(f"游戏发起者 {colored} 结束游戏")
-                await send("ℹ️已结束当前游戏", button=False)
+                await handler.send_finished()
                 stream.close()
                 return
 
             case ("结束游戏", False):
                 if await SUPERUSER(current_bot.get(), event):
                     logger.info(f"超级用户 {colored} 结束游戏")
-                    await send("ℹ️已结束当前游戏", button=False)
+                    await handler.send_finished()
                     stream.close()
                     return
-                await send("⚠️只有游戏发起者或超级用户可以结束游戏")
+                await handler.send("⚠️只有游戏发起者或超级用户可以结束游戏")
 
             case ("加入游戏", True):
-                await send("ℹ️游戏发起者已经加入游戏了")
+                await handler.send("ℹ️游戏发起者已经加入游戏了")
 
             case ("加入游戏", False):
                 if user_id not in players:
                     players[user_id] = name
                     logger.info(f"玩家 {colored} 加入游戏")
-                    await send("✅成功加入游戏")
+                    await handler.send("✅成功加入游戏")
                 else:
-                    await send("ℹ️你已经加入游戏了")
+                    await handler.send("ℹ️你已经加入游戏了")
 
             case ("退出游戏", True):
-                await send("ℹ️游戏发起者无法退出游戏")
+                await handler.send("ℹ️游戏发起者无法退出游戏")
 
             case ("退出游戏", False):
                 if user_id in players:
                     del players[user_id]
                     logger.info(f"玩家 {colored} 退出游戏")
-                    await send("✅成功退出游戏")
+                    await handler.send("✅成功退出游戏")
                 else:
-                    await send("ℹ️你还没有加入游戏")
+                    await handler.send("ℹ️你还没有加入游戏")
 
             case ("当前玩家", _):
-                await send(
+                await handler.send(
                     "✨当前玩家:\n"
                     + "\n".join(
                         f"{idx}. {players[user_id]}"

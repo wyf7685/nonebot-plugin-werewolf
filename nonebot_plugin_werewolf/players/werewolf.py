@@ -42,7 +42,11 @@ class Werewolf(Player):
             if index is not None:
                 self.selected = players[index - 1]
                 msg = f"当前选择玩家: {self.selected.name}"
-                await self.send(f"🎯{msg}\n发送 “{STOP_COMMAND_PROMPT}” 结束回合")
+                await self.send(
+                    f"🎯{msg}\n发送 “{STOP_COMMAND_PROMPT}” 结束回合",
+                    stop_btn_label="结束回合",
+                    select_players=players,
+                )
                 await self.stream.send(f"📝队友 {self.name} {msg}")
             if text == STOP_COMMAND:
                 if self.selected is not None:
@@ -50,9 +54,14 @@ class Werewolf(Player):
                     await self.stream.send(f"📝队友 {self.name} 结束当前回合")
                     self.stream.close()
                     return
-                await self.send("⚠️当前未选择玩家，无法结束回合")
+                await self.send(
+                    "⚠️当前未选择玩家，无法结束回合",
+                    select_players=players,
+                )
             else:
-                await self.stream.send(UniMessage(f"💬队友 {self.name}:\n") + input_msg)
+                await self.stream.send(
+                    UniMessage.text(f"💬队友 {self.name}:\n") + input_msg
+                )
 
     async def _handle_broadcast(self, partners: "PlayerSet") -> None:
         while not self.stream.closed:
@@ -80,7 +89,8 @@ class Werewolf(Player):
             .text(players.show())
             .text("\n\n🔪发送编号选择玩家")
             .text(f"\n❌发送 “{STOP_COMMAND_PROMPT}” 结束回合")
-            .text("\n\n⚠️意见未统一将空刀")
+            .text("\n\n⚠️意见未统一将空刀"),
+            select_players=players,
         )
 
         self.stream = ObjectStream[str | UniMessage](8)

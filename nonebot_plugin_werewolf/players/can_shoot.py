@@ -24,7 +24,7 @@ class CanShoot(Player):
 
         if shoot is not None:
             self.game.state.shoot = self
-            await self.send(
+            await self.game.send(
                 UniMessage.text(f"🔫{self.role_name} ")
                 .at(self.user_id)
                 .text(" 射杀了玩家 ")
@@ -33,7 +33,7 @@ class CanShoot(Player):
             await shoot.kill(KillReason.Shoot, self)
             self.selected = shoot
         else:
-            await self.send(f"ℹ️{self.role_name}选择了取消技能")
+            await self.game.send(f"ℹ️{self.role_name}选择了取消技能")
         return await super().post_kill()
 
     async def shoot(self) -> Player | None:
@@ -42,12 +42,15 @@ class CanShoot(Player):
             "💫请选择需要射杀的玩家:\n"
             f"{players.show()}\n\n"
             "🔫发送编号选择玩家\n"
-            f"❌发送 “{STOP_COMMAND_PROMPT}” 取消技能"
+            f"❌发送 “{STOP_COMMAND_PROMPT}” 取消技能",
+            stop_btn_label="取消技能",
+            select_players=players,
         )
 
         if selected := await self._select_player(
             players,
             on_stop="ℹ️已取消技能，回合结束",
+            stop_btn_label="取消技能",
         ):
             await self.send(f"🎯选择射杀的玩家: {selected.name}")
 

@@ -70,7 +70,7 @@ class PlayerSet(set[Player]):
 
         async with anyio.create_task_group() as tg:
             for p in self:
-                tg.start_soon(p.send, message)
+                tg.start_soon(p.send, message, None, None, True)  # noqa: FBT003
 
     def show(self) -> str:
         return "\n".join(f"{i}. {p.name}" for i, p in enumerate(self.sorted, 1))

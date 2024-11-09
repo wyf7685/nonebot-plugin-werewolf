@@ -27,12 +27,17 @@ class Witch(Player):
             return False
 
         msg.text(f"✏️使用解药请发送 “1”\n❌不使用解药请发送 “{STOP_COMMAND_PROMPT}”")
-        await self.send(msg)
+        await self.send(
+            msg,
+            stop_btn_label="不使用解药",
+            select_players=as_player_set(killed),
+        )
 
         if not await self._select_player(
             as_player_set(killed),
             on_stop=f"ℹ️你选择不对 {killed.name} 使用解药",
             on_index_error=f"⚠️输入错误: 请输入 “1” 或 “{STOP_COMMAND_PROMPT}”",
+            stop_btn_label="不使用解药",
         ):
             return False
 
@@ -62,12 +67,15 @@ class Witch(Player):
             "玩家列表:\n"
             f"{players.show()}\n\n"
             "🧪发送玩家编号使用毒药\n"
-            f"❌发送 “{STOP_COMMAND_PROMPT}” 结束回合(不使用药水)"
+            f"❌发送 “{STOP_COMMAND_PROMPT}” 结束回合(不使用药水)",
+            stop_btn_label="结束回合",
+            select_players=players,
         )
 
         if selected := await self._select_player(
             players,
             on_stop="ℹ️你选择不使用毒药，回合结束",
+            stop_btn_label="结束回合",
         ):
             self.poison = False
             self.selected = selected

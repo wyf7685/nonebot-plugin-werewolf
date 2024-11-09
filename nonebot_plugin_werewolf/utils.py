@@ -1,20 +1,32 @@
+import abc
 import functools
 import itertools
 from collections import defaultdict
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar
 
 import anyio
 import anyio.streams.memory
-from nonebot_plugin_alconna import UniMessage
+from nonebot.adapters import Bot, Event
+from nonebot.internal.matcher import current_bot
+from nonebot_plugin_alconna.uniseg import (
+    Button,
+    FallbackStrategy,
+    Keyboard,
+    Receipt,
+    Target,
+    UniMessage,
+)
 from nonebot_plugin_uninfo import Session
 
-from .constant import STOP_COMMAND
+from .config import config
+from .constant import STOP_COMMAND, STOP_COMMAND_PROMPT
 
 if TYPE_CHECKING:
     from .player_set import PlayerSet
     from .players import Player
 
 T = TypeVar("T")
+P = ParamSpec("P")
 
 
 def check_index(text: str, arrlen: int) -> int | None:
@@ -148,3 +160,83 @@ class ObjectStream(Generic[T]):
 
     async def wait_closed(self) -> None:
         await self._closed.wait()
+
+
+def btn(label: str, text: str, /) -> Button:
+    return Button(flag="input", label=label, text=text)
+
+
+def add_stop_button(msg: str | UniMessage, label: str | None = None) -> UniMessage:
+    if isinstance(msg, str):
+        msg = UniMessage.text(msg)
+    return msg.keyboard(btn(label or STOP_COMMAND_PROMPT, STOP_COMMAND_PROMPT))
+
+
+def add_players_button(msg: str | UniMessage, players: "PlayerSet") -> UniMessage:
+    if isinstance(msg, str):
+        msg = UniMessage.text(msg)
+
+    pls = list(enumerate(players, 1))
+    while pls:
+        msg = msg.keyboard(*(btn(p.name, str(i)) for i, p in pls[:3]))
+        pls = pls[3:]
+    return msg
+
+
+class SendHandler(abc.ABC, Generic[P]):
+    bot: Bot
+    target: Event | Target
+    reply_to: bool | None = None
+    last_msg: UniMessage | None = None
+    last_receipt: Receipt | None = None
+
+    def update(self, target: Event | Target, bot: Bot | None = None) -> None:
+        self.bot = bot or current_bot.get()
+        self.target = target
+
+    async def _edit(self) -> None:
+        if (
+            self.last_msg is not None
+            and self.last_receipt is not None
+            and self.last_receipt.editable
+        ):
+            await self.last_receipt.edit(self.last_msg.exclude(Keyboard))
+
+    async def _send(self, message: UniMessage) -> None:
+        if not config.enable_button:
+            message = message.exclude(Keyboard)
+        receipt = await message.send(
+            target=self.target,
+            bot=self.bot,
+            reply_to=self.reply_to,
+            fallback=FallbackStrategy.ignore,
+        )
+        self.last_msg = message
+        self.last_receipt = receipt
+
+    @abc.abstractmethod
+    def solve_msg(
+        self,
+        msg: UniMessage,
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> UniMessage:
+        raise NotImplementedError
+
+    async def send(
+        self,
+        msg: str | UniMessage,
+        *args: P.args,
+        **kwargs: P.kwargs,
+    ) -> Receipt:
+        msg = UniMessage.text(msg) if isinstance(msg, str) else msg
+        msg = self.solve_msg(msg, *args, **kwargs)
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(self._edit)
+            tg.start_soon(self._send, msg)
+
+        if TYPE_CHECKING:
+            assert self.last_receipt is not None
+
+        return self.last_receipt
