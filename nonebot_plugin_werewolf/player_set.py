@@ -75,5 +75,5 @@ class PlayerSet(set[Player]):
     def show(self) -> str:
         return "\n".join(f"{i}. {p.name}" for i, p in enumerate(self.sorted, 1))
 
-    def __getitem__(self, __index: int) -> Player:
-        return self.sorted[__index]
+    def __getitem__(self, index: int, /) -> Player:
+        return self.sorted[index]
