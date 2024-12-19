@@ -196,7 +196,8 @@ class SendHandler(abc.ABC, Generic[P]):
 
     async def _edit(self) -> None:
         if (
-            self.last_msg is not None
+            config.enable_button
+            and self.last_msg is not None
             and self.last_receipt is not None
             and self.last_receipt.editable
         ):
