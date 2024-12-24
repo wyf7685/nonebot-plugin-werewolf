@@ -1,4 +1,4 @@
-name: Pyright Lint
+name: Lint
 
 on:
   push:
@@ -7,14 +7,27 @@ on:
   pull_request:
     paths:
       - "nonebot_plugin_werewolf/**"
-      - ".github/workflows/pyright.yml"
+      - ".github/workflows/lint.yml"
       - "pyproject.toml"
       - "uv.lock"
 
 jobs:
+  ruff:
+    name: Ruff Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Ruff Lint
+        uses: astral-sh/ruff-action@v2
+        with:
+          src: >-
+            nonebot_plugin_werewolf/
+
   pyright:
     name: Pyright Lint (${{ matrix.python-version }})
     runs-on: ubuntu-latest
+    needs: ruff
     concurrency:
       group: pyright-${{ github.ref }}-${{ matrix.python-version }}
       cancel-in-progress: true
