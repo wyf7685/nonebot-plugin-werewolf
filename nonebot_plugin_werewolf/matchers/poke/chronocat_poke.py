@@ -33,7 +33,7 @@ with contextlib.suppress(ImportError):
         gen = (
             seg.data["operatorId"]
             for seg in poke
-            if seg.data["userId"] == event.self_id
+            if seg.data["userId"] == event.login.sn
         )
         return next(gen, None)
 
@@ -114,4 +114,7 @@ with contextlib.suppress(ImportError):
             return False
 
         event = current_event.get()
-        return isinstance(event, MessageCreatedEvent) and event.platform == "chronocat"
+        return (
+            isinstance(event, MessageCreatedEvent)
+            and event.login.platform == "chronocat"
+        )
