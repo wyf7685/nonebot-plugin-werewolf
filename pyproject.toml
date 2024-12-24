@@ -31,17 +31,6 @@ dev-dependencies = [
     "websockets>=13.1",
 ]
 
-[tool.black]
-line-length = 88
-target-version = ["py310"]
-include = '\.pyi?$'
-extend-exclude = '''
-'''
-
-[tool.isort]
-profile = "black"
-line_length = 88
-
 [tool.ruff]
 line-length = 88
 target-version = "py310"
@@ -105,6 +94,23 @@ ignore = [
     "TID252", # relative-imports
     "ISC001", # single-line-implicit-string-concatenation
 ]
+
+[tool.ruff.format]
+line-ending = "lf"
+
+[tool.ruff.lint.flake8-builtins]
+builtins-ignorelist = ["id", "dir"]
+
+[tool.ruff.lint.flake8-pytest-style]
+fixture-parentheses = false
+mark-parentheses = false
+
+[tool.ruff.lint.isort]
+known-first-party = ["nonebot_plugin_werewolf", "tests/*"]
+extra-standard-library = ["typing_extensions"]
+
+[tool.ruff.lint.pyupgrade]
+keep-runtime-typing = true
 
 [tool.pyright]
 pythonVersion = "3.10"
