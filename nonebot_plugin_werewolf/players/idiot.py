@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
+from typing_extensions import override
 
 from nonebot_plugin_alconna.uniseg import UniMessage
-from typing_extensions import override
 
 from ..models import KillReason, Role, RoleGroup
 from .player import Player

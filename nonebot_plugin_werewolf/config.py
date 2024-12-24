@@ -1,10 +1,10 @@
 import json
+from typing_extensions import Self
 
 import nonebot
 from nonebot.compat import model_dump, type_validate_json
 from nonebot_plugin_localstore import get_plugin_data_file
 from pydantic import BaseModel, Field
-from typing_extensions import Self
 
 from .constant import (
     default_priesthood_proirity,
