@@ -88,6 +88,7 @@ class PrepareGame:
         name: str
         colored: str
         is_admin: bool
+        is_super_user: bool
 
     class _SendHandler(SendHandler):
         def __init__(self) -> None:
@@ -159,9 +160,8 @@ class PrepareGame:
             return (event, text, re.sub(r"[\u2066-\u2069]", "", name))
 
         async for event, text, name in wait(default=(None, "", "")):
-            if event is None:
-                continue
-            await self.stream.send((event, text, name))
+            if event is not None:
+                await self.stream.send((event, text, name))
 
     async def _send(self, msg: str | UniMessage) -> None:
         await self.handler.send(msg)
@@ -199,10 +199,9 @@ class PrepareGame:
         return False
 
     async def _handle_end(self) -> bool:
-        is_admin = self.current.id == self.admin_id
-        if is_admin or await SUPERUSER(current_bot.get(), self.event):
-            colored = ("游戏发起者" if is_admin else "超级用户") + self.current.colored
-            self.logger.info(f"{colored} 结束游戏")
+        if self.current.is_admin or self.current.is_super_user:
+            prefix = "游戏发起者" if self.current.is_admin else "超级用户"
+            self.logger.info(f"{prefix} {self.current.colored} 结束游戏")
             await self._send_finished()
             self.stream.close()
             return True
@@ -251,6 +250,7 @@ class PrepareGame:
                 name=name,
                 colored=colored,
                 is_admin=user_id == self.admin_id,
+                is_super_user=await SUPERUSER(current_bot.get(), event),
             )
             self.handler.update(event)
 
