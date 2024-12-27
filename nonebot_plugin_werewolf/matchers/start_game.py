@@ -12,14 +12,16 @@ from nonebot.permission import SUPERUSER
 from nonebot.rule import Rule, to_me
 from nonebot.typing import T_State
 from nonebot.utils import escape_tag
-from nonebot_plugin_alconna import Alconna, Option, on_alconna
-from nonebot_plugin_alconna.uniseg import (
+from nonebot_plugin_alconna import (
+    Alconna,
     Button,
     FallbackStrategy,
     MsgTarget,
+    Option,
     Target,
     UniMessage,
     UniMsg,
+    on_alconna,
 )
 from nonebot_plugin_localstore import get_plugin_data_file
 from nonebot_plugin_uninfo import QryItrface, Uninfo
@@ -62,9 +64,7 @@ def dump_players(target: Target, players: dict[str, str]) -> None:
 
 
 def load_players(target: Target) -> dict[str, str] | None:
-    data: list[dict] = json.loads(player_data_file.read_text(encoding="utf-8"))
-
-    for item in data:
+    for item in json.loads(player_data_file.read_text(encoding="utf-8")):
         if Target.load(item["target"]).verify(target):
             return item["players"]
     return None
