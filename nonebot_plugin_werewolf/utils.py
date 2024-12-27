@@ -118,7 +118,7 @@ def as_player_set(*player: "Player") -> "PlayerSet":
 
 
 class ObjectStream(Generic[T]):
-    __unset: Any = object()
+    __UNSET: Any = object()
     _send: anyio.streams.memory.MemoryObjectSendStream[T]
     _recv: anyio.streams.memory.MemoryObjectReceiveStream[T]
     _closed: anyio.Event
@@ -131,7 +131,7 @@ class ObjectStream(Generic[T]):
         await self._send.send(obj)
 
     async def recv(self) -> T:
-        result = self.__unset
+        result = self.__UNSET
 
         async def _recv() -> None:
             nonlocal result
@@ -146,7 +146,7 @@ class ObjectStream(Generic[T]):
             tg.start_soon(_recv)
             tg.start_soon(_cancel)
 
-        if result is self.__unset:
+        if result is self.__UNSET:
             raise anyio.EndOfStream
 
         return result
