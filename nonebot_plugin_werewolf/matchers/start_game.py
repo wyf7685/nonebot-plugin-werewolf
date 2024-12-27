@@ -1,5 +1,7 @@
 import json
 import re
+from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import anyio
 import nonebot
@@ -28,6 +30,9 @@ from ..game import Game, get_running_games, get_starting_games
 from ..utils import ObjectStream, SendHandler, extract_session_member_nick
 from .depends import rule_not_in_game
 from .poke import poke_enabled
+
+if TYPE_CHECKING:
+    from collections.abc import Awaitable, Callable
 
 start_game = on_alconna(
     Alconna(
@@ -76,167 +81,192 @@ def solve_button(msg: UniMessage) -> UniMessage:
     )
 
 
-async def _prepare_receive(
-    stream: ObjectStream[tuple[Event, str, str]],
-    event_type: str,
-    group: Target,
-) -> None:
-    @Rule
-    async def same_group(target: MsgTarget) -> bool:
-        return group.verify(target)
+class PrepareGame:
+    @dataclass
+    class _Current:
+        id: str
+        name: str
+        colored: str
+        is_admin: bool
 
-    @waiter.waiter(
-        waits=[event_type],
-        keep_session=False,
-        rule=same_group & rule_not_in_game,
-    )
-    def wait(event: Event, msg: UniMsg, session: Uninfo) -> tuple[Event, str, str]:
-        text = msg.extract_plain_text().strip()
-        name = extract_session_member_nick(session) or event.get_user_id()
-        return (event, text, re.sub(r"[\u2066-\u2069]", "", name))
+    class _SendHandler(SendHandler):
+        def __init__(self) -> None:
+            self.reply_to = True
 
-    async for event, text, name in wait(default=(None, "", "")):
-        if event is None:
-            continue
-        await stream.send((event, text, name))
+        def solve_msg(self, msg: UniMessage) -> UniMessage:
+            return solve_button(msg)
 
+        async def send_finished(self) -> None:
+            btn_start = Button("input", label="发起游戏", text="werewolf")
+            btn_restart = Button("input", label="重开上次游戏", text="werewolf restart")
+            msg = (
+                UniMessage.text("ℹ️已结束当前游戏")
+                .keyboard(btn_start)
+                .keyboard(btn_restart)
+            )
+            async with anyio.create_task_group() as tg:
+                tg.start_soon(self._edit)
+                tg.start_soon(self._send, msg)
 
-class _SendHandler(SendHandler):
-    def solve_msg(self, msg: UniMessage, *_: object) -> UniMessage:
-        return solve_button(msg)
+    def __init__(self, event: Event, players: dict[str, str]) -> None:
+        self.event = event
+        self.admin_id = event.get_user_id()
+        self.group = UniMessage.get_target(event)
+        self.stream = ObjectStream[tuple[Event, str, str]](16)
+        self.players = players
+        self.handler = self._SendHandler()
+        self.logger = nonebot.logger.opt(colors=True)
+        self.shoud_start_game = False
+        self._msg_handler: dict[str, Callable[[], Awaitable[bool | None]]] = {
+            "开始游戏": self._handle_start,
+            "结束游戏": self._handle_end,
+            "加入游戏": self._handle_join,
+            "退出游戏": self._handle_quit,
+            "当前玩家": self._handle_list,
+        }
+        get_starting_games()[self.group] = self.players
 
-    async def send_finished(self) -> None:
-        msg = (
-            UniMessage.text("ℹ️已结束当前游戏")
-            .keyboard(Button("input", label="发起游戏", text="werewolf"))
-            .keyboard(Button("input", label="重开上次游戏", text="werewolf restart"))
+    async def run(self) -> None:
+        try:
+            async with anyio.create_task_group() as tg:
+                self.task_group = tg
+                tg.start_soon(self._wait_cancel)
+                tg.start_soon(self._receive)
+                tg.start_soon(self._handle)
+        except Exception as err:
+            await UniMessage(f"狼人杀准备阶段出现未知错误: {err!r}").finish()
+
+        del get_starting_games()[self.group]
+        if not self.shoud_start_game:
+            await start_game.finish()
+
+    async def _wait_cancel(self) -> None:
+        await self.stream.wait_closed()
+        self.task_group.cancel_scope.cancel()
+
+    async def _receive(self) -> None:
+        async def same_group(target: MsgTarget) -> bool:
+            return self.group.verify(target)
+
+        @waiter.waiter(
+            waits=[self.event.get_type()],
+            keep_session=False,
+            rule=Rule(same_group) & rule_not_in_game,
         )
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(self._edit)
-            tg.start_soon(self._send, msg)
+        def wait(event: Event, msg: UniMsg, session: Uninfo) -> tuple[Event, str, str]:
+            text = msg.extract_plain_text().strip()
+            name = extract_session_member_nick(session) or event.get_user_id()
+            return (event, text, re.sub(r"[\u2066-\u2069]", "", name))
 
+        async for event, text, name in wait(default=(None, "", "")):
+            if event is None:
+                continue
+            await self.stream.send((event, text, name))
 
-async def _prepare_handle(
-    stream: ObjectStream[tuple[Event, str, str]],
-    players: dict[str, str],
-    admin_id: str,
-) -> None:
-    logger = nonebot.logger.opt(colors=True)
-    handler = _SendHandler()
-    handler.reply_to = True
+    async def _send(self, msg: str | UniMessage) -> None:
+        await self.handler.send(msg)
 
-    while not stream.closed:
-        event, text, name = await stream.recv()
-        user_id = event.get_user_id()
-        colored = f"<y>{escape_tag(name)}</y>(<c>{escape_tag(user_id)}</c>)"
-        handler.update(event)
+    async def _send_finished(self) -> None:
+        await self.handler.send_finished()
 
-        # 更新用户名
-        # 当用户通过 chronoca:poke 加入游戏时, 插件无法获取用户名, 原字典值为用户ID
-        if user_id in players and players.get(user_id) != name:
-            logger.debug(f"更新玩家显示名称: {colored}")
-            players[user_id] = name
+    async def _handle_start(self) -> bool:
+        if not self.current.is_admin:
+            await self._send("⚠️只有游戏发起者可以开始游戏")
+            return False
 
-        match (text, user_id == admin_id):
-            case ("开始游戏", True):
-                player_num = len(players)
-                role_preset = PresetData.load().role_preset
-                if player_num < min(role_preset):
-                    await handler.send(
-                        f"⚠️游戏至少需要 {min(role_preset)} 人, "
-                        f"当前已有 {player_num} 人"
-                    )
-                elif player_num > max(role_preset):
-                    await handler.send(
-                        f"⚠️游戏最多需要 {max(role_preset)} 人, "
-                        f"当前已有 {player_num} 人"
-                    )
-                elif player_num not in role_preset:
-                    await handler.send(
-                        f"⚠️不存在总人数为 {player_num} 的预设, 无法开始游戏"
-                    )
-                else:
-                    await handler.send("✏️游戏即将开始...")
-                    logger.info(f"游戏发起者 {colored} 开始游戏")
-                    stream.close()
-                    players["#$start_game$#"] = user_id
-                    return
+        player_num = len(self.players)
+        role_preset = PresetData.load().role_preset
+        if player_num < min(role_preset):
+            await self._send(
+                f"⚠️游戏至少需要 {min(role_preset)} 人, " f"当前已有 {player_num} 人"
+            )
+        elif player_num > max(role_preset):
+            await self._send(
+                f"⚠️游戏最多需要 {max(role_preset)} 人, " f"当前已有 {player_num} 人"
+            )
+        elif player_num not in role_preset:
+            await self._send(
+                f"⚠️不存在总人数为 {player_num} 的预设, 无法开始游戏\n"
+                f"可用的预设总人数: {', '.join(map(str, role_preset))}"
+            )
+        else:
+            await self._send("✏️游戏即将开始...")
+            self.logger.info(f"游戏发起者 {self.current.colored} 开始游戏")
+            self.stream.close()
+            self.shoud_start_game = True
+            return True
 
-            case ("开始游戏", False):
-                await handler.send("⚠️只有游戏发起者可以开始游戏")
+        return False
 
-            case ("结束游戏", True):
-                logger.info(f"游戏发起者 {colored} 结束游戏")
-                await handler.send_finished()
-                stream.close()
+    async def _handle_end(self) -> bool:
+        is_admin = self.current.id == self.admin_id
+        if is_admin or await SUPERUSER(current_bot.get(), self.event):
+            colored = ("游戏发起者" if is_admin else "超级用户") + self.current.colored
+            self.logger.info(f"{colored} 结束游戏")
+            await self._send_finished()
+            self.stream.close()
+            return True
+
+        await self._send("⚠️只有游戏发起者或超级用户可以结束游戏")
+        return False
+
+    async def _handle_join(self) -> None:
+        if self.current.is_admin:
+            await self._send("⚠️只有游戏发起者可以开始游戏")
+            return
+
+        if self.current.id not in self.players:
+            self.players[self.current.id] = self.current.name
+            self.logger.info(f"玩家 {self.current.colored} 加入游戏")
+            await self._send("✅成功加入游戏")
+        else:
+            await self._send("ℹ️你已经加入游戏了")
+
+    async def _handle_quit(self) -> None:
+        if self.current.is_admin:
+            await self._send("ℹ️游戏发起者无法退出游戏")
+            return
+
+        if self.current.id in self.players:
+            del self.players[self.current.id]
+            self.logger.info(f"玩家 {self.current.colored} 退出游戏")
+            await self._send("✅成功退出游戏")
+        else:
+            await self._send("ℹ️你还没有加入游戏")
+
+    async def _handle_list(self) -> None:
+        lines = (
+            f"{idx}. {self.players[user_id]}"
+            for idx, user_id in enumerate(self.players, 1)
+        )
+        await self._send("✨当前玩家:\n" + "\n".join(lines))
+
+    async def _handle(self) -> None:
+        while not self.stream.closed:
+            event, text, name = await self.stream.recv()
+            user_id = event.get_user_id()
+            colored = f"<y>{escape_tag(name)}</y>(<c>{escape_tag(user_id)}</c>)"
+            self.current = self._Current(
+                id=user_id,
+                name=name,
+                colored=colored,
+                is_admin=user_id == self.admin_id,
+            )
+            self.handler.update(event)
+
+            # 更新用户名
+            # 当用户通过 chronoca:poke 加入游戏时, 插件无法获取用户名, 原字典值为用户ID
+            if user_id in self.players and self.players.get(user_id) != name:
+                self.logger.debug(f"更新玩家显示名称: {self.current.colored}")
+                self.players[user_id] = name
+
+            handler = self._msg_handler[text]
+            if await handler():
                 return
-
-            case ("结束游戏", False):
-                if await SUPERUSER(current_bot.get(), event):
-                    logger.info(f"超级用户 {colored} 结束游戏")
-                    await handler.send_finished()
-                    stream.close()
-                    return
-                await handler.send("⚠️只有游戏发起者或超级用户可以结束游戏")
-
-            case ("加入游戏", True):
-                await handler.send("ℹ️游戏发起者已经加入游戏了")
-
-            case ("加入游戏", False):
-                if user_id not in players:
-                    players[user_id] = name
-                    logger.info(f"玩家 {colored} 加入游戏")
-                    await handler.send("✅成功加入游戏")
-                else:
-                    await handler.send("ℹ️你已经加入游戏了")
-
-            case ("退出游戏", True):
-                await handler.send("ℹ️游戏发起者无法退出游戏")
-
-            case ("退出游戏", False):
-                if user_id in players:
-                    del players[user_id]
-                    logger.info(f"玩家 {colored} 退出游戏")
-                    await handler.send("✅成功退出游戏")
-                else:
-                    await handler.send("ℹ️你还没有加入游戏")
-
-            case ("当前玩家", _):
-                await handler.send(
-                    "✨当前玩家:\n"
-                    + "\n".join(
-                        f"{idx}. {players[user_id]}"
-                        for idx, user_id in enumerate(players, 1)
-                    )
-                )
-
-
-async def prepare_game(event: Event, players: dict[str, str]) -> None:
-    admin_id = event.get_user_id()
-    group = UniMessage.get_target(event)
-    get_starting_games()[group] = players
-
-    stream = ObjectStream[tuple[Event, str, str]](16)
-
-    async def _handle_cancel() -> None:
-        await stream.wait_closed()
-        tg.cancel_scope.cancel()
-
-    try:
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(_handle_cancel)
-            tg.start_soon(_prepare_receive, stream, event.get_type(), group)
-            tg.start_soon(_prepare_handle, stream, players, admin_id)
-    except Exception as err:
-        await UniMessage(f"狼人杀准备阶段出现未知错误: {err!r}").send()
-
-    del get_starting_games()[group]
-    if players.pop("#$start_game$#", None) != admin_id:
-        await start_game.finish()
 
 
 @start_game.handle()
-async def handle_notice(target: MsgTarget, state: T_State) -> None:
+async def handle_notice(target: MsgTarget) -> None:
     if target.private:
         await UniMessage("⚠️请在群组中创建新游戏").finish(reply_to=True)
     if any(target.verify(g.group) for g in get_running_games()):
@@ -246,19 +276,17 @@ async def handle_notice(target: MsgTarget, state: T_State) -> None:
             .finish(reply_to=True)
         )
 
-    msg = (
-        UniMessage.text("🎉成功创建游戏\n\n")
-        .text("  玩家请发送 “加入游戏”、“退出游戏”\n")
-        .text("  玩家发送 “当前玩家” 可查看玩家列表\n")
-        .text("  游戏发起者发送 “结束游戏” 可结束当前游戏\n")
-        .text("  玩家均加入后，游戏发起者请发送 “开始游戏”\n")
+    msg = UniMessage.text(
+        "🎉成功创建游戏\n\n"
+        "  玩家请发送 “加入游戏”、“退出游戏”\n"
+        "  玩家发送 “当前玩家” 可查看玩家列表\n"
+        "  游戏发起者发送 “结束游戏” 可结束当前游戏\n"
+        "  玩家均加入后，游戏发起者请发送 “开始游戏”\n"
     )
     if poke_enabled():
         msg.text(f"\n💫可使用戳一戳代替游戏交互中的 “{STOP_COMMAND_PROMPT}” 命令\n")
     msg.text("\nℹ️游戏准备阶段限时5分钟，超时将自动结束")
     await solve_button(msg).send(reply_to=True, fallback=FallbackStrategy.ignore)
-
-    state["players"] = {}
 
 
 @start_game.assign("restart")
@@ -285,14 +313,14 @@ async def handle_start(
     interface: QryItrface,
     state: T_State,
 ) -> None:
-    players: dict[str, str] = state["players"]
+    players: dict[str, str] = state.get("players", {})
     admin_id = event.get_user_id()
     admin_name = extract_session_member_nick(session) or admin_id
     players[admin_id] = admin_name
 
     try:
         with anyio.fail_after(5 * 60):
-            await prepare_game(event, players)
+            await PrepareGame(event, players).run()
     except TimeoutError:
         await UniMessage.text("⚠️游戏准备超时，已自动结束").finish()
 
