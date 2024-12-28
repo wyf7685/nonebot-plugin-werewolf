@@ -8,7 +8,7 @@ import nonebot
 import nonebot_plugin_waiter as waiter
 from nonebot.adapters import Bot, Event
 from nonebot.internal.matcher import current_bot
-from nonebot.permission import SUPERUSER
+from nonebot.permission import SuperUser
 from nonebot.rule import Rule, to_me
 from nonebot.typing import T_State
 from nonebot.utils import escape_tag
@@ -115,7 +115,7 @@ class PrepareGame:
         self.group = UniMessage.get_target(event)
         self.stream = ObjectStream[tuple[Event, str, str]](16)
         self.players = players
-        self.handler = self._SendHandler()
+        self.send_handler = self._SendHandler()
         self.logger = nonebot.logger.opt(colors=True)
         self.shoud_start_game = False
         self._msg_handler: dict[str, Callable[[], Awaitable[bool | None]]] = {
@@ -164,10 +164,10 @@ class PrepareGame:
                 await self.stream.send((event, text, name))
 
     async def _send(self, msg: str | UniMessage) -> None:
-        await self.handler.send(msg)
+        await self.send_handler.send(msg)
 
     async def _send_finished(self) -> None:
-        await self.handler.send_finished()
+        await self.send_handler.send_finished()
 
     async def _handle_start(self) -> bool:
         if not self.current.is_admin:
@@ -241,6 +241,9 @@ class PrepareGame:
         await self._send("✨当前玩家:\n" + "\n".join(lines))
 
     async def _handle(self) -> None:
+        bot = current_bot.get()
+        superuser = SuperUser()
+
         while not self.stream.closed:
             event, text, name = await self.stream.recv()
             user_id = event.get_user_id()
@@ -250,9 +253,9 @@ class PrepareGame:
                 name=name,
                 colored=colored,
                 is_admin=user_id == self.admin_id,
-                is_super_user=await SUPERUSER(current_bot.get(), event),
+                is_super_user=await superuser(bot, event),
             )
-            self.handler.update(event)
+            self.send_handler.update(event)
 
             # 更新用户名
             # 当用户通过 chronoca:poke 加入游戏时, 插件无法获取用户名, 原字典值为用户ID
@@ -260,8 +263,8 @@ class PrepareGame:
                 self.logger.debug(f"更新玩家显示名称: {self.current.colored}")
                 self.players[user_id] = name
 
-            handler = self._msg_handler[text]
-            if await handler():
+            handler = self._msg_handler.get(text)
+            if handler is not None and await handler():
                 return
 
 
@@ -269,7 +272,7 @@ class PrepareGame:
 async def handle_notice(target: MsgTarget) -> None:
     if target.private:
         await UniMessage("⚠️请在群组中创建新游戏").finish(reply_to=True)
-    if any(target.verify(g.group) for g in get_running_games()):
+    if any(target.verify(game.group) for game in get_running_games()):
         await (
             UniMessage.text("⚠️当前群组内有正在进行的游戏\n")
             .text("无法开始新游戏")
