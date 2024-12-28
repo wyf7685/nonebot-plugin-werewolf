@@ -123,16 +123,16 @@ class DeadChannel:
 
         while True:
             msg = await player.receive()
+            self.counter[user_id] += 1
+            self._task_group.start_soon(self._decrease, user_id)
 
             # 发言频率限制
-            self.counter[user_id] += 1
             if self.counter[user_id] > 8:
                 await player.send("❌发言频率超过限制, 该消息被屏蔽")
                 continue
 
             # 推送消息
             await self.stream.send((player, msg))
-            self._task_group.start_soon(self._decrease, user_id)
 
     async def run(self) -> NoReturn:
         async with anyio.create_task_group() as tg:
@@ -262,15 +262,16 @@ class Game:
 
         for player in players.dead():
             await player.post_kill()
-            if player.kill_info is not None:
-                self.killed_players.append((player.name, player.kill_info))
+            if player.kill_info is None:
+                continue
 
+            self.killed_players.append((player.name, player.kill_info))
             shooter = self.state.shoot
             if shooter is not None and (shoot := shooter.selected) is not None:
                 await self.send(
                     UniMessage.text("🔫玩家 ")
                     .at(shoot.user_id)
-                    .text(f" 被{shooter.role_name}射杀, 请发表遗言\n")
+                    .text(f" 被{shooter.name}射杀, 请发表遗言\n")
                     .text(f"限时1分钟, 发送 “{STOP_COMMAND_PROMPT}” 结束发言")
                 )
                 await self.wait_stop(shoot, timeout_secs=60)
