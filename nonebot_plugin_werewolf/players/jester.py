@@ -1,5 +1,4 @@
 from typing import TYPE_CHECKING
-
 from typing_extensions import override
 
 from ..exception import GameFinished
@@ -8,7 +7,7 @@ from .player import Player
 
 
 @Player.register_role(Role.JESTER, RoleGroup.OTHERS)
-class Joker(Player):
+class Jester(Player):
     @override
     async def notify_role(self) -> None:
         await super().notify_role()
