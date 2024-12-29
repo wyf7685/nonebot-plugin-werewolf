@@ -10,40 +10,40 @@ if TYPE_CHECKING:
 
 class Role(int, Enum):
     # 狼人
-    Werewolf = 1
-    WolfKing = 2
+    WEREWOLF = 1
+    WOLFKING = 2
 
     # 神职
-    Prophet = 11
-    Witch = 12
-    Hunter = 13
-    Guard = 14
-    Idiot = 15
+    PROPHET = 11
+    WITCH = 12
+    HUNTER = 13
+    GUARD = 14
+    IDIOT = 15
 
     # 其他
-    Joker = 51
+    JESTER = 51
 
     # 平民
-    Civilian = 0
+    CIVILIAN = 0
 
 
 class RoleGroup(Enum):
-    Werewolf = auto()
-    GoodGuy = auto()
-    Others = auto()
+    WEREWOLF = auto()
+    GOODGUY = auto()
+    OTHERS = auto()
 
 
 class KillReason(Enum):
-    Werewolf = auto()
-    Poison = auto()
-    Shoot = auto()
-    Vote = auto()
+    WEREWOLF = auto()
+    POISON = auto()
+    SHOOT = auto()
+    VOTE = auto()
 
 
 class GameStatus(Enum):
-    GoodGuy = auto()
-    Werewolf = auto()
-    Joker = auto()
+    GOODGUY = auto()
+    WEREWOLF = auto()
+    JESTER = auto()
 
 
 @dataclasses.dataclass

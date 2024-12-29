@@ -152,9 +152,9 @@ async def assign_werewolf(state: T_State) -> None:
     for role in roles:
         match role:
             case "狼人" | "狼":
-                result.append(Role.Werewolf)
+                result.append(Role.WEREWOLF)
             case "狼王":
-                result.append(Role.WolfKing)
+                result.append(Role.WOLFKING)
             case x:
                 await finish(f"未知职业: {x}")
 
@@ -195,15 +195,15 @@ async def assign_priesthood(state: T_State) -> None:
     for role in roles:
         match role:
             case "预言家" | "预言" | "预":
-                result.append(Role.Prophet)
+                result.append(Role.PROPHET)
             case "女巫" | "巫":
-                result.append(Role.Witch)
+                result.append(Role.WITCH)
             case "猎人" | "猎":
-                result.append(Role.Hunter)
+                result.append(Role.HUNTER)
             case "守卫":
-                result.append(Role.Guard)
+                result.append(Role.GUARD)
             case "白痴":
-                result.append(Role.Idiot)
+                result.append(Role.IDIOT)
             case x:
                 await finish(f"未知职业: {x}")
 

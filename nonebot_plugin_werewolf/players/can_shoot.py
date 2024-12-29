@@ -1,6 +1,5 @@
-from typing_extensions import override
-
 from nonebot_plugin_alconna.uniseg import UniMessage
+from typing_extensions import override
 
 from ..constant import STOP_COMMAND_PROMPT
 from ..models import KillReason
@@ -10,7 +9,7 @@ from .player import Player
 class CanShoot(Player):
     @override
     async def post_kill(self) -> None:
-        if self.kill_info and self.kill_info.reason == KillReason.Poison:
+        if self.kill_info and self.kill_info.reason == KillReason.POISON:
             await self.send("⚠️你昨晚被女巫毒杀，无法使用技能")
             return await super().post_kill()
 
@@ -31,7 +30,7 @@ class CanShoot(Player):
                 .text(" 射杀了玩家 ")
                 .at(shoot.user_id)
             )
-            await shoot.kill(KillReason.Shoot, self)
+            await shoot.kill(KillReason.SHOOT, self)
             self.selected = shoot
         else:
             await self.game.send(f"ℹ️{self.role_name}选择了取消技能")

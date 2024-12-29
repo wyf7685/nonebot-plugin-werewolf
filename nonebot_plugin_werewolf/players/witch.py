@@ -1,7 +1,6 @@
-from typing_extensions import override
-
 import nonebot
 from nonebot_plugin_alconna.uniseg import UniMessage
+from typing_extensions import override
 
 from ..constant import STOP_COMMAND_PROMPT
 from ..models import Role, RoleGroup
@@ -11,7 +10,7 @@ from .player import Player
 logger = nonebot.logger.opt(colors=True)
 
 
-@Player.register_role(Role.Witch, RoleGroup.GoodGuy)
+@Player.register_role(Role.WITCH, RoleGroup.GOODGUY)
 class Witch(Player):
     antidote: bool = True
     poison: bool = True

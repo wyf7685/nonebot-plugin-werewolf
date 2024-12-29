@@ -10,43 +10,43 @@ STOP_COMMAND = "{{stop}}"
 
 
 role_name_conv: dict[Role | RoleGroup, str] = {
-    Role.Werewolf: "狼人",
-    Role.WolfKing: "狼王",
-    Role.Prophet: "预言家",
-    Role.Witch: "女巫",
-    Role.Hunter: "猎人",
-    Role.Guard: "守卫",
-    Role.Idiot: "白痴",
-    Role.Joker: "小丑",
-    Role.Civilian: "平民",
-    RoleGroup.Werewolf: "狼人",
-    RoleGroup.GoodGuy: "好人",
-    RoleGroup.Others: "其他",
+    Role.WEREWOLF: "狼人",
+    Role.WOLFKING: "狼王",
+    Role.PROPHET: "预言家",
+    Role.WITCH: "女巫",
+    Role.HUNTER: "猎人",
+    Role.GUARD: "守卫",
+    Role.IDIOT: "白痴",
+    Role.JESTER: "小丑",
+    Role.CIVILIAN: "平民",
+    RoleGroup.WEREWOLF: "狼人",
+    RoleGroup.GOODGUY: "好人",
+    RoleGroup.OTHERS: "其他",
 }
 
 role_emoji: dict[Role, str] = {
-    Role.Werewolf: "🐺",
-    Role.WolfKing: "🐺👑",
-    Role.Prophet: "🔮",
-    Role.Witch: "🧙‍♀️",
-    Role.Hunter: "🕵️",
-    Role.Guard: "🛡️",
-    Role.Idiot: "👨🏻‍🦲",
-    Role.Joker: "🤡",
-    Role.Civilian: "👨🏻‍🌾",
+    Role.WEREWOLF: "🐺",
+    Role.WOLFKING: "🐺👑",
+    Role.PROPHET: "🔮",
+    Role.WITCH: "🧙‍♀️",
+    Role.HUNTER: "🕵️",
+    Role.GUARD: "🛡️",
+    Role.IDIOT: "👨🏻‍🦲",
+    Role.JESTER: "🤡",
+    Role.CIVILIAN: "👨🏻‍🌾",
 }
 
 game_status_conv: dict[GameStatus, str] = {
-    GameStatus.GoodGuy: "好人",
-    GameStatus.Werewolf: "狼人",
-    GameStatus.Joker: "小丑",
+    GameStatus.GOODGUY: "好人",
+    GameStatus.WEREWOLF: "狼人",
+    GameStatus.JESTER: "小丑",
 }
 
 report_text: dict[KillReason, tuple[str, str]] = {
-    KillReason.Werewolf: ("🔪", "刀了"),
-    KillReason.Poison: ("🧪", "毒死"),
-    KillReason.Shoot: ("🔫", "射杀"),
-    KillReason.Vote: ("🗳️", "票出"),
+    KillReason.WEREWOLF: ("🔪", "刀了"),
+    KillReason.POISON: ("🧪", "毒死"),
+    KillReason.SHOOT: ("🔫", "射杀"),
+    KillReason.VOTE: ("🗳️", "票出"),
 }
 
 default_role_preset: dict[int, tuple[int, int, int]] = {
@@ -60,15 +60,15 @@ default_role_preset: dict[int, tuple[int, int, int]] = {
     12: (4, 5, 3),
 }
 default_werewolf_priority: list[Role] = [
-    Role.Werewolf,
-    Role.Werewolf,
-    Role.WolfKing,
-    Role.Werewolf,
+    Role.WEREWOLF,
+    Role.WEREWOLF,
+    Role.WOLFKING,
+    Role.WEREWOLF,
 ]
 default_priesthood_proirity: list[Role] = [
-    Role.Witch,
-    Role.Prophet,
-    Role.Hunter,
-    Role.Guard,
-    Role.Idiot,
+    Role.WITCH,
+    Role.PROPHET,
+    Role.HUNTER,
+    Role.GUARD,
+    Role.IDIOT,
 ]

@@ -48,11 +48,11 @@ def init_players(bot: Bot, game: "Game", players: set[str]) -> PlayerSet:
     roles: list[Role] = []
     roles.extend(preset_data.werewolf_priority[:w])
     roles.extend(preset_data.priesthood_proirity[:p])
-    roles.extend([Role.Civilian] * c)
+    roles.extend([Role.CIVILIAN] * c)
 
     if c >= 2 and secrets.randbelow(100) <= preset_data.joker_probability * 100:
-        roles.remove(Role.Civilian)
-        roles.append(Role.Joker)
+        roles.remove(Role.CIVILIAN)
+        roles.append(Role.JESTER)
 
     def _select_role() -> Role:
         return roles.pop(secrets.randbelow(len(roles)))
@@ -215,21 +215,21 @@ class Game:
 
     def raise_for_status(self) -> None:
         players = self.players.alive()
-        w = players.select(RoleGroup.Werewolf)
-        p = players.exclude(RoleGroup.Werewolf)
+        w = players.select(RoleGroup.WEREWOLF)
+        p = players.exclude(RoleGroup.WEREWOLF)
 
         # 狼人数量大于其他职业数量
         if w.size >= p.size:
-            raise GameFinished(GameStatus.Werewolf)
+            raise GameFinished(GameStatus.WEREWOLF)
         # 屠边-村民/中立全灭
-        if not p.select(Role.Civilian, RoleGroup.Others).size:
-            raise GameFinished(GameStatus.Werewolf)
+        if not p.select(Role.CIVILIAN, RoleGroup.OTHERS).size:
+            raise GameFinished(GameStatus.WEREWOLF)
         # 屠边-神职全灭
-        if not p.exclude(Role.Civilian, RoleGroup.Others).size:
-            raise GameFinished(GameStatus.Werewolf)
+        if not p.exclude(Role.CIVILIAN, RoleGroup.OTHERS).size:
+            raise GameFinished(GameStatus.WEREWOLF)
         # 狼人全灭
         if not w.size:
-            raise GameFinished(GameStatus.GoodGuy)
+            raise GameFinished(GameStatus.GOODGUY)
 
     async def notify_player_role(self) -> None:
         msg = UniMessage()
@@ -291,8 +291,8 @@ class Game:
         ):
             # 狼人正常击杀玩家
             await killed.kill(
-                KillReason.Werewolf,
-                *players.select(RoleGroup.Werewolf),
+                KillReason.WEREWOLF,
+                *players.select(RoleGroup.WEREWOLF),
             )
         else:
             killed = None
@@ -303,7 +303,7 @@ class Game:
                 continue
             if witch.selected not in self.state.protected:  # 守卫未保护
                 # 女巫毒杀玩家
-                await witch.selected.kill(KillReason.Poison, witch)
+                await witch.selected.kill(KillReason.POISON, witch)
 
         return killed
 
@@ -357,7 +357,7 @@ class Game:
 
         # 仅有一名玩家票数最高
         voted = vs.pop()
-        if not await voted.kill(KillReason.Vote, *vote_result[voted]):
+        if not await voted.kill(KillReason.VOTE, *vote_result[voted]):
             # 投票放逐失败 (例: 白痴)
             return
 

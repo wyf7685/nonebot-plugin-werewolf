@@ -5,7 +5,7 @@ from ..models import Role, RoleGroup
 from .player import Player
 
 
-@Player.register_role(Role.Guard, RoleGroup.GoodGuy)
+@Player.register_role(Role.GUARD, RoleGroup.GOODGUY)
 class Guard(Player):
     @override
     async def _check_selected(self, player: Player) -> Player | None:

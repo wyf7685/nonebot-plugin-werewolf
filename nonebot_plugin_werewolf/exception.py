@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -13,7 +11,7 @@ class Error(Exception):
 class GameFinished(Error):  # noqa: N818
     """游戏结束时抛出，无视游戏进程进入结算"""
 
-    status: GameStatus
+    status: "GameStatus"
 
-    def __init__(self, status: GameStatus) -> None:
+    def __init__(self, status: "GameStatus") -> None:
         self.status = status

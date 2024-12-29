@@ -6,7 +6,7 @@ from .player import Player
 from .werewolf import Werewolf
 
 
-@Player.register_role(Role.WolfKing, RoleGroup.Werewolf)
+@Player.register_role(Role.WOLFKING, RoleGroup.WEREWOLF)
 class WolfKing(CanShoot, Werewolf):
     @override
     async def notify_role(self) -> None:

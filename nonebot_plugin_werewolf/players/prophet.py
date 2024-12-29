@@ -5,7 +5,7 @@ from ..models import Role, RoleGroup
 from .player import Player
 
 
-@Player.register_role(Role.Prophet, RoleGroup.GoodGuy)
+@Player.register_role(Role.PROPHET, RoleGroup.GOODGUY)
 class Prophet(Player):
     @override
     async def _interact(self) -> None:
@@ -20,5 +20,5 @@ class Prophet(Player):
         )
 
         if selected := await self._select_player(players, stop_btn_label="结束回合"):
-            result = "狼人" if selected.role_group == RoleGroup.Werewolf else "好人"
+            result = "狼人" if selected.role_group == RoleGroup.WEREWOLF else "好人"
             await self.send(f"✏️玩家 {selected.name} 的阵营是『{result}』")

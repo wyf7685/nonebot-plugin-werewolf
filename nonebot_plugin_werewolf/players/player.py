@@ -198,16 +198,15 @@ class Player:
 
         await self._before_interact()
 
-        text = self.role_name
         timeout = self.interact_timeout
-        await self.send(f"✏️{text}交互开始，限时 {timeout/60:.2f} 分钟")
+        await self.send(f"✏️{self.role_name}交互开始，限时 {timeout/60:.2f} 分钟")
 
         try:
             with anyio.fail_after(timeout):
                 await self._interact()
         except TimeoutError:
-            logger.debug(f"{text}交互超时 (<y>{timeout}</y>s)")
-            await self.send(f"⚠️{text}交互超时")
+            logger.debug(f"{self.role_name}交互超时 (<y>{timeout}</y>s)")
+            await self.send(f"⚠️{self.role_name}交互超时")
 
         await self._after_interact()
 

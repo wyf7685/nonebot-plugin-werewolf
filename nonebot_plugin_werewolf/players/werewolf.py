@@ -1,10 +1,10 @@
 import secrets
 from typing import TYPE_CHECKING
-from typing_extensions import override
 
 import anyio
 import nonebot
 from nonebot_plugin_alconna.uniseg import UniMessage
+from typing_extensions import override
 
 from ..constant import STOP_COMMAND, STOP_COMMAND_PROMPT
 from ..models import Role, RoleGroup
@@ -17,7 +17,7 @@ if TYPE_CHECKING:
 logger = nonebot.logger.opt(colors=True)
 
 
-@Player.register_role(Role.Werewolf, RoleGroup.Werewolf)
+@Player.register_role(Role.WEREWOLF, RoleGroup.WEREWOLF)
 class Werewolf(Player):
     interact_timeout = 120
     stream: ObjectStream[str | UniMessage]
@@ -25,7 +25,7 @@ class Werewolf(Player):
     @override
     async def notify_role(self) -> None:
         await super().notify_role()
-        partners = self.game.players.alive().select(RoleGroup.Werewolf).exclude(self)
+        partners = self.game.players.alive().select(RoleGroup.WEREWOLF).exclude(self)
         if partners:
             await self.send(
                 "🐺你的队友:\n"
@@ -75,7 +75,7 @@ class Werewolf(Player):
     @override
     async def _interact(self) -> None:
         players = self.game.players.alive()
-        partners = players.select(RoleGroup.Werewolf).exclude(self)
+        partners = players.select(RoleGroup.WEREWOLF).exclude(self)
 
         msg = UniMessage()
         if partners:
@@ -107,12 +107,12 @@ class Werewolf(Player):
         state = self.game.state
         if not state.werewolf_finished.is_set():
             state.werewolf_finished.set()
-            w = self.game.players.alive().select(RoleGroup.Werewolf)
+            w = self.game.players.alive().select(RoleGroup.WEREWOLF)
             if (s := w.player_selected()).size == 1:
                 state.killed = s.pop()
                 await w.broadcast(f"🔪今晚选择的目标为: {state.killed.name}")
             else:
                 await w.broadcast("⚠️狼人阵营意见未统一，此晚空刀")
 
-        if not self.game.players.alive().select(Role.Witch):
+        if not self.game.players.alive().select(Role.WITCH):
             await anyio.sleep(5 + secrets.randbelow(15))

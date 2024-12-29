@@ -22,10 +22,10 @@ class PresetData(BaseModel):
 
     @classmethod
     def load(cls) -> Self:
-        return type_validate_json(cls, preset_data_file.read_text())
+        return type_validate_json(cls, PRESET_DATA_FILE.read_text())
 
     def save(self) -> None:
-        preset_data_file.write_text(json.dumps(model_dump(self)))
+        PRESET_DATA_FILE.write_text(json.dumps(model_dump(self)))
 
 
 class PluginConfig(BaseModel):
@@ -37,8 +37,8 @@ class Config(BaseModel):
     werewolf: PluginConfig = PluginConfig()
 
 
-preset_data_file = get_plugin_data_file("preset.json")
-if not preset_data_file.exists():
+PRESET_DATA_FILE = get_plugin_data_file("preset.json")
+if not PRESET_DATA_FILE.exists():
     PresetData().save()
 
 config = nonebot.get_plugin_config(Config).werewolf

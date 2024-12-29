@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
-from typing_extensions import override
 
 from nonebot_plugin_alconna.uniseg import UniMessage
+from typing_extensions import override
 
 from ..models import KillReason, Role, RoleGroup
 from .player import Player
@@ -12,7 +12,7 @@ if TYPE_CHECKING:
     from ..player_set import PlayerSet
 
 
-@Player.register_role(Role.Idiot, RoleGroup.GoodGuy)
+@Player.register_role(Role.IDIOT, RoleGroup.GOODGUY)
 class Idiot(Player):
     voted: bool = False
 
@@ -26,7 +26,7 @@ class Idiot(Player):
 
     @override
     async def kill(self, reason: KillReason, *killers: Player) -> bool:
-        if reason == KillReason.Vote and not self.voted:
+        if reason == KillReason.VOTE and not self.voted:
             self.voted = True
             await self.game.send(
                 UniMessage.text("⚙️玩家")
