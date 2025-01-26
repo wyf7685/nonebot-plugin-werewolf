@@ -51,9 +51,9 @@ alc = Alconna(
     ),
     Subcommand(
         "dead_chat",
-        Args["limit#限制时间", int],
+        Args["limit#每分钟限制次数", int],
         alias={"死亡聊天"},
-        help_text="设置死亡玩家发言每秒限制",
+        help_text="设置死亡玩家发言频率限制",
     ),
     Subcommand(
         "timeout",
@@ -65,7 +65,7 @@ alc = Alconna(
         Subcommand(
             "speak",
             Args["time#时间", int],
-            help_text="发言阶段超时时间(秒)",
+            help_text="个人发言超时时间(秒)",
         ),
         Subcommand(
             "group_speak",
@@ -75,7 +75,7 @@ alc = Alconna(
         Subcommand(
             "interact",
             Args["time#时间", int],
-            help_text="互动阶段超时时间(秒)",
+            help_text="交互阶段超时时间(秒)",
         ),
         Subcommand(
             "vote",
@@ -85,7 +85,7 @@ alc = Alconna(
         Subcommand(
             "werewolf",
             Args["time#时间", int],
-            help_text="狼人阶段超时时间(秒)",
+            help_text="狼人交互超时时间(秒)",
         ),
         alias={"超时"},
         help_text="设置各阶段超时时间",
@@ -111,87 +111,89 @@ edit_behavior = on_alconna(
 
 
 @edit_behavior.assign("show_roles")
-async def set_show_roles(enabled: bool, behavior: Behavior) -> None:
+async def set_show_roles(behavior: Behavior, enabled: bool) -> None:
     behavior.show_roles_list_on_start = enabled
     await finish(f"已{'启用' if enabled else '禁用'}游戏开始时显示职业列表")
 
 
 @edit_behavior.assign("speak_order")
-async def set_speak_order(enabled: bool, behavior: Behavior) -> None:
+async def set_speak_order(behavior: Behavior, enabled: bool) -> None:
     behavior.speak_in_turn = enabled
     await finish(f"已{'启用' if enabled else '禁用'}按顺序发言")
 
 
 @edit_behavior.assign("dead_chat")
-async def set_dead_chat(limit: int, behavior: Behavior) -> None:
-    if not 0 < limit <= 300:  # 最大限制5分钟
-        await finish("限制时间必须在 1-300 秒之间")
+async def set_dead_chat(behavior: Behavior, limit: int) -> None:
+    if limit < 0:
+        await finish("限制次数必须大于零")
     behavior.dead_channel_rate_limit = limit
-    await finish(f"已设置死亡玩家发言限制为 {limit} 秒")
+    await finish(f"已设置死亡玩家发言限制为 {limit} 次/分钟")
 
 
 @edit_behavior.assign("timeout.prepare")
-async def set_prepare_timeout(time: int, behavior: Behavior) -> None:
-    if not 30 <= time <= 600:  # 30秒到10分钟
-        await finish("准备时间必须在 30-600 秒之间")
+async def set_prepare_timeout(behavior: Behavior, time: int) -> None:
+    if time < 300:
+        await finish("准备时间必须大于 300 秒")
     behavior.timeout.prepare = time
     await finish(f"已设置准备阶段超时时间为 {time} 秒")
 
 
 @edit_behavior.assign("timeout.speak")
-async def set_speak_timeout(time: int, behavior: Behavior) -> None:
-    if not 30 <= time <= 300:  # 30秒到5分钟
-        await finish("发言时间必须在 30-300 秒之间")
+async def set_speak_timeout(behavior: Behavior, time: int) -> None:
+    if time < 60:
+        await finish("发言时间必须大于 60 秒")
     behavior.timeout.speak = time
     await finish(f"已设置发言阶段超时时间为 {time} 秒")
 
 
 @edit_behavior.assign("timeout.group_speak")
-async def set_group_speak_timeout(time: int, behavior: Behavior) -> None:
-    if not 60 <= time <= 600:  # 1分钟到10分钟
-        await finish("集体发言时间必须在 60-600 秒之间")
+async def set_group_speak_timeout(behavior: Behavior, time: int) -> None:
+    if time < 120:
+        await finish("集体发言时间必须大于 120 秒")
     behavior.timeout.group_speak = time
     await finish(f"已设置集体发言超时时间为 {time} 秒")
 
 
 @edit_behavior.assign("timeout.interact")
-async def set_interact_timeout(time: int, behavior: Behavior) -> None:
-    if not 15 <= time <= 120:  # 15秒到2分钟
-        await finish("互动时间必须在 15-120 秒之间")
+async def set_interact_timeout(behavior: Behavior, time: int) -> None:
+    if time < 60:
+        await finish("交互时间必须大于 60 秒")
     behavior.timeout.interact = time
-    await finish(f"已设置互动阶段超时时间为 {time} 秒")
+    await finish(f"已设置交互阶段超时时间为 {time} 秒")
 
 
 @edit_behavior.assign("timeout.vote")
-async def set_vote_timeout(time: int, behavior: Behavior) -> None:
-    if not 15 <= time <= 120:  # 15秒到2分钟
-        await finish("投票时间必须在 15-120 秒之间")
+async def set_vote_timeout(behavior: Behavior, time: int) -> None:
+    if time < 60:
+        await finish("投票时间必须大于 60 秒")
     behavior.timeout.vote = time
     await finish(f"已设置投票阶段超时时间为 {time} 秒")
 
 
 @edit_behavior.assign("timeout.werewolf")
-async def set_werewolf_timeout(time: int, behavior: Behavior) -> None:
-    if not 30 <= time <= 180:  # 30秒到3分钟
-        await finish("狼人时间必须在 30-180 秒之间")
+async def set_werewolf_timeout(behavior: Behavior, time: int) -> None:
+    if time < 120:
+        await finish("狼人交互时间必须大于 120 秒")
     behavior.timeout.werewolf = time
-    await finish(f"已设置狼人阶段超时时间为 {time} 秒")
+    await finish(f"已设置狼人交互阶段超时时间为 {time} 秒")
 
 
 @edit_behavior.handle()
 async def handle_default(behavior: Behavior) -> None:
+    timeout = behavior.timeout
     lines = [
         "当前游戏配置:",
-        f"游戏开始显示职业列表: {'是' if behavior.show_roles_list_on_start else '否'}",
+        "",
+        f"游戏开始发送职业列表: {'是' if behavior.show_roles_list_on_start else '否'}",
         f"白天讨论按顺序发言: {'是' if behavior.speak_in_turn else '否'}",
-        f"死亡玩家发言转发限制: {behavior.dead_channel_rate_limit} 秒",
+        f"死亡玩家发言转发限制: {behavior.dead_channel_rate_limit} 次/分钟",
         "",
         "超时时间设置:",
-        f"准备阶段: {behavior.timeout.prepare} 秒",
-        f"发言阶段: {behavior.timeout.speak} 秒",
-        f"集体发言: {behavior.timeout.group_speak} 秒",
-        f"互动阶段: {behavior.timeout.interact} 秒",
-        f"投票阶段: {behavior.timeout.vote} 秒",
-        f"狼人阶段: {behavior.timeout.werewolf} 秒",
+        f"准备阶段: {timeout.prepare} 秒",
+        f"个人发言: {timeout.speak} 秒",
+        f"集体发言: {timeout.group_speak} 秒",
+        f"交互阶段: {timeout.interact} 秒",
+        f"投票阶段: {timeout.vote} 秒",
+        f"狼人交互: {timeout.werewolf} 秒",
     ]
     await finish("\n".join(lines))
