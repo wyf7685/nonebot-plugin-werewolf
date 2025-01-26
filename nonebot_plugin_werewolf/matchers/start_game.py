@@ -26,7 +26,7 @@ from nonebot_plugin_alconna import (
 from nonebot_plugin_localstore import get_plugin_data_file
 from nonebot_plugin_uninfo import QryItrface, Uninfo
 
-from ..config import PresetData
+from ..config import GameBehavior, PresetData
 from ..constant import stop_command_prompt
 from ..game import Game, get_running_games, get_starting_games
 from ..utils import ObjectStream, SendHandler, extract_session_member_nick
@@ -175,7 +175,7 @@ class PrepareGame:
             return False
 
         player_num = len(self.players)
-        role_preset = PresetData.load().role_preset
+        role_preset = PresetData.get().role_preset
         if player_num < min(role_preset):
             await self._send(
                 f"⚠️游戏至少需要 {min(role_preset)} 人, " f"当前已有 {player_num} 人"
@@ -322,7 +322,7 @@ async def handle_start(
     players[admin_id] = admin_name
 
     try:
-        with anyio.fail_after(5 * 60):
+        with anyio.fail_after(GameBehavior.get().timeout.prepare):
             await PrepareGame(event, players).run()
     except TimeoutError:
         await UniMessage.text("⚠️游戏准备超时，已自动结束").finish()
