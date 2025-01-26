@@ -9,6 +9,7 @@ COMMAND_START = next(
     iter(sorted(nonebot.get_driver().config.command_start, key=len)), ""
 )
 
+
 @functools.cache
 def stop_command_prompt() -> str:
     from .config import config  # circular import
