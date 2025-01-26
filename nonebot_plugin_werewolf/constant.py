@@ -1,12 +1,20 @@
+import functools
+
 import nonebot
 
 from .models import GameStatus, KillReason, Role, RoleGroup
 
+STOP_COMMAND = "{{stop}}"
 COMMAND_START = next(
     iter(sorted(nonebot.get_driver().config.command_start, key=len)), ""
 )
-STOP_COMMAND_PROMPT = f"{COMMAND_START}stop"
-STOP_COMMAND = "{{stop}}"
+
+
+@functools.cache
+def stop_command_prompt() -> str:
+    from .config import config  # circular import
+
+    return COMMAND_START + config.get_stop_command()[0]
 
 
 role_name_conv: dict[Role | RoleGroup, str] = {
