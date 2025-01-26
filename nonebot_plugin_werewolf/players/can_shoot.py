@@ -2,7 +2,7 @@ from typing_extensions import override
 
 from nonebot_plugin_alconna.uniseg import UniMessage
 
-from ..constant import STOP_COMMAND_PROMPT
+from ..constant import stop_command_prompt
 from ..models import KillReason
 from .player import Player
 
@@ -43,7 +43,7 @@ class CanShoot(Player):
             "💫请选择需要射杀的玩家:\n"
             f"{players.show()}\n\n"
             "🔫发送编号选择玩家\n"
-            f"❌发送 “{STOP_COMMAND_PROMPT}” 取消技能",
+            f"❌发送 “{stop_command_prompt()}” 取消技能",
             stop_btn_label="取消技能",
             select_players=players,
         )

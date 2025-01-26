@@ -48,6 +48,14 @@ class PresetData(ConfigFile):
 class PluginConfig(BaseModel):
     enable_poke: bool = True
     enable_button: bool = False
+    stop_command: str | set[str] = "stop"
+
+    def get_stop_command(self) -> list[str]:
+        return (
+            [self.stop_command]
+            if isinstance(self.stop_command, str)
+            else sorted(self.stop_command, key=len)
+        )
 
 
 class Config(BaseModel):

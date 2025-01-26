@@ -12,7 +12,7 @@ from nonebot_plugin_alconna.uniseg.message import Receipt
 from nonebot_plugin_uninfo import Interface, SceneType
 
 from .config import PresetData
-from .constant import STOP_COMMAND_PROMPT, game_status_conv, report_text
+from .constant import game_status_conv, report_text, stop_command_prompt
 from .exception import GameFinished
 from .models import GameState, GameStatus, KillInfo, KillReason, Role, RoleGroup
 from .player_set import PlayerSet
@@ -272,7 +272,7 @@ class Game:
                     UniMessage.text("🔫玩家 ")
                     .at(shoot.user_id)
                     .text(f" 被{shooter.name}射杀, 请发表遗言\n")
-                    .text(f"限时1分钟, 发送 “{STOP_COMMAND_PROMPT}” 结束发言")
+                    .text(f"限时1分钟, 发送 “{stop_command_prompt()}” 结束发言")
                 )
                 await self.wait_stop(shoot, timeout_secs=60)
                 self.state.shoot = shooter.selected = None
@@ -366,7 +366,7 @@ class Game:
             UniMessage.text("🔨玩家 ")
             .at(voted.user_id)
             .text(" 被投票放逐, 请发表遗言\n")
-            .text(f"限时1分钟, 发送 “{STOP_COMMAND_PROMPT}” 结束发言"),
+            .text(f"限时1分钟, 发送 “{stop_command_prompt()}” 结束发言"),
             stop_btn_label="结束发言",
         )
         await self.wait_stop(voted, timeout_secs=60)
@@ -405,7 +405,7 @@ class Game:
                     UniMessage.text("⚙️当前为第一天\n请被狼人杀死的 ")
                     .at(killed.user_id)
                     .text(" 发表遗言\n")
-                    .text(f"限时1分钟, 发送 “{STOP_COMMAND_PROMPT}” 结束发言"),
+                    .text(f"限时1分钟, 发送 “{stop_command_prompt()}” 结束发言"),
                     stop_btn_label="结束发言",
                 )
                 await self.wait_stop(killed, timeout_secs=60)
@@ -420,7 +420,7 @@ class Game:
             # 开始自由讨论
             await self.send(
                 "💬接下来开始自由讨论\n"
-                f"限时2分钟, 全员发送 “{STOP_COMMAND_PROMPT}” 结束发言",
+                f"限时2分钟, 全员发送 “{stop_command_prompt()}” 结束发言",
                 stop_btn_label="结束发言",
             )
             await self.wait_stop(*self.players.alive(), timeout_secs=120)

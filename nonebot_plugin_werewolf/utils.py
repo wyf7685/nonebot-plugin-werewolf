@@ -19,7 +19,7 @@ from nonebot_plugin_alconna.uniseg import (
 from nonebot_plugin_uninfo import Session
 
 from .config import config
-from .constant import STOP_COMMAND, STOP_COMMAND_PROMPT
+from .constant import STOP_COMMAND, stop_command_prompt
 
 if TYPE_CHECKING:
     from .player_set import PlayerSet
@@ -169,7 +169,7 @@ def btn(label: str, text: str, /) -> Button:
 def add_stop_button(msg: str | UniMessage, label: str | None = None) -> UniMessage:
     if isinstance(msg, str):
         msg = UniMessage.text(msg)
-    return msg.keyboard(btn(label or STOP_COMMAND_PROMPT, STOP_COMMAND_PROMPT))
+    return msg.keyboard(btn(label or stop_command_prompt(), stop_command_prompt()))
 
 
 def add_players_button(msg: str | UniMessage, players: "PlayerSet") -> UniMessage:

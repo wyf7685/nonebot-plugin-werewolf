@@ -6,7 +6,7 @@ import anyio
 import nonebot
 from nonebot_plugin_alconna.uniseg import UniMessage
 
-from ..constant import STOP_COMMAND, STOP_COMMAND_PROMPT
+from ..constant import STOP_COMMAND, stop_command_prompt
 from ..models import Role, RoleGroup
 from ..utils import ObjectStream, check_index
 from .player import Player
@@ -43,7 +43,7 @@ class Werewolf(Player):
                 self.selected = players[index - 1]
                 msg = f"当前选择玩家: {self.selected.name}"
                 await self.send(
-                    f"🎯{msg}\n发送 “{STOP_COMMAND_PROMPT}” 结束回合",
+                    f"🎯{msg}\n发送 “{stop_command_prompt()}” 结束回合",
                     stop_btn_label="结束回合",
                     select_players=players,
                 )
@@ -88,7 +88,7 @@ class Werewolf(Player):
             msg.text("💫请选择今晚的目标:\n")
             .text(players.show())
             .text("\n\n🔪发送编号选择玩家")
-            .text(f"\n❌发送 “{STOP_COMMAND_PROMPT}” 结束回合")
+            .text(f"\n❌发送 “{stop_command_prompt()}” 结束回合")
             .text("\n\n⚠️意见未统一将空刀"),
             select_players=players,
         )
