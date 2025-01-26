@@ -17,20 +17,20 @@ from nonebot_plugin_alconna import (
 
 from ..config import GameBehavior
 
-game_behavior_cache_key = "GAME_BEHAVIOR_KEY"
+GAME_BEHAVIOR_CACHE_KEY = "GAME_BEHAVIOR_CACHE_KEY"
 
 
 def _behavior(state: T_State) -> GameBehavior:
-    if game_behavior_cache_key not in state:
-        state[game_behavior_cache_key] = GameBehavior.get()
-    return state[game_behavior_cache_key]
+    if GAME_BEHAVIOR_CACHE_KEY not in state:
+        state[GAME_BEHAVIOR_CACHE_KEY] = GameBehavior.get()
+    return state[GAME_BEHAVIOR_CACHE_KEY]
 
 
 Behavior = Annotated[GameBehavior, Depends(_behavior)]
 
 
 async def finish(text: str) -> NoReturn:
-    behavior: GameBehavior = current_matcher.get().state[game_behavior_cache_key]
+    behavior: GameBehavior = current_matcher.get().state[GAME_BEHAVIOR_CACHE_KEY]
     behavior.save()
     await UniMessage.text(text).finish(reply_to=True)
 
