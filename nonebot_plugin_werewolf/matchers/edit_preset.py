@@ -236,7 +236,7 @@ async def assign_joker(probability: Match[float]) -> None:
         await finish("输入错误，概率应在 0 到 100 之间")
 
     data = PresetData.load()
-    data.joker_probability = probability.result / 100
+    data.jester_probability = probability.result / 100
     data.save()
     await finish(f"设置成功: 小丑概率 {probability.result:.1f}%")
 
@@ -258,6 +258,6 @@ async def handle_default() -> None:
 
     lines.append("狼人优先级: " + display_roles(data.werewolf_priority))
     lines.append("神职优先级: " + display_roles(data.priesthood_proirity))
-    lines.append(f"小丑概率: {data.joker_probability:.0%}")
+    lines.append(f"小丑概率: {data.jester_probability:.0%}")
 
     await finish("\n".join(lines))

@@ -50,7 +50,7 @@ def init_players(bot: Bot, game: "Game", players: set[str]) -> PlayerSet:
     roles.extend(preset_data.priesthood_proirity[:p])
     roles.extend([Role.CIVILIAN] * c)
 
-    if c >= 2 and secrets.randbelow(100) <= preset_data.joker_probability * 100:
+    if c >= 2 and secrets.randbelow(100) <= preset_data.jester_probability * 100:
         roles.remove(Role.CIVILIAN)
         roles.append(Role.JESTER)
 

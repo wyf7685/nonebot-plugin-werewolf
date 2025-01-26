@@ -1,4 +1,6 @@
 import json
+from pathlib import Path
+from typing import Any, ClassVar
 from typing_extensions import Self
 
 import nonebot
@@ -14,18 +16,33 @@ from .constant import (
 from .models import Role
 
 
-class PresetData(BaseModel):
-    role_preset: dict[int, tuple[int, int, int]] = default_role_preset.copy()
-    werewolf_priority: list[Role] = default_werewolf_priority.copy()
-    priesthood_proirity: list[Role] = default_priesthood_proirity.copy()
-    joker_probability: float = Field(default=0.0, ge=0.0, le=1.0)
+class ConfigFile(BaseModel):
+    FILE: ClassVar[Path]
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:  # noqa: ANN401
+        super().__init_subclass__(**kwargs)
+        if not cls.FILE.exists():
+            cls().save()
 
     @classmethod
     def load(cls) -> Self:
-        return type_validate_json(cls, PRESET_DATA_FILE.read_text())
+        return type_validate_json(cls, cls.FILE.read_text())
 
     def save(self) -> None:
-        PRESET_DATA_FILE.write_text(json.dumps(model_dump(self)))
+        self.FILE.write_text(json.dumps(model_dump(self)))
+
+
+class PresetData(ConfigFile):
+    FILE: ClassVar[Path] = get_plugin_data_file("preset.json")
+
+    role_preset: dict[int, tuple[int, int, int]] = default_role_preset.copy()
+    werewolf_priority: list[Role] = default_werewolf_priority.copy()
+    priesthood_proirity: list[Role] = default_priesthood_proirity.copy()
+    jester_probability: float = Field(default=0.0, ge=0.0, le=1.0)
+
+
+# class GameBehavior(ConfigFile):
+#     FILE: ClassVar[Path] = get_plugin_data_file("behavior.json")
 
 
 class PluginConfig(BaseModel):
@@ -36,10 +53,6 @@ class PluginConfig(BaseModel):
 class Config(BaseModel):
     werewolf: PluginConfig = PluginConfig()
 
-
-PRESET_DATA_FILE = get_plugin_data_file("preset.json")
-if not PRESET_DATA_FILE.exists():
-    PresetData().save()
 
 config = nonebot.get_plugin_config(Config).werewolf
 nonebot.logger.debug(f"加载插件配置: {config}")
