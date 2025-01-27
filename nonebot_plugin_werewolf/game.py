@@ -12,7 +12,7 @@ from nonebot_plugin_alconna.uniseg.message import Receipt
 from nonebot_plugin_uninfo import Interface, SceneType
 
 from .config import PresetData
-from .constant import game_status_conv, report_text, stop_command_prompt
+from .constant import GAME_STATUS_CONV, REPORT_TEXT, stop_command_prompt
 from .exception import GameFinished
 from .models import GameState, GameStatus, KillInfo, KillReason, Role, RoleGroup
 from .player_set import PlayerSet
@@ -435,14 +435,14 @@ class Game:
             self.raise_for_status()
 
     async def handle_game_finish(self, status: GameStatus) -> None:
-        msg = UniMessage.text(f"🎉游戏结束，{game_status_conv[status]}获胜\n\n")
+        msg = UniMessage.text(f"🎉游戏结束，{GAME_STATUS_CONV[status]}获胜\n\n")
         for p in sorted(self.players, key=lambda p: (p.role.value, p.user_id)):
             msg.at(p.user_id).text(f": {p.role_name}\n")
         await self.send(msg)
 
         report: list[str] = ["📌玩家死亡报告:"]
         for name, info in self.killed_players:
-            emoji, action = report_text[info.reason]
+            emoji, action = REPORT_TEXT[info.reason]
             report.append(f"{emoji} {name} 被 {', '.join(info.killers)} {action}")
         await self.send("\n\n".join(report))
 

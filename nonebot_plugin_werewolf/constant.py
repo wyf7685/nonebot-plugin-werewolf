@@ -17,7 +17,7 @@ def stop_command_prompt() -> str:
     return COMMAND_START + config.get_stop_command()[0]
 
 
-role_name_conv: dict[Role | RoleGroup, str] = {
+ROLE_NAME_CONV: dict[Role | RoleGroup, str] = {
     Role.WEREWOLF: "狼人",
     Role.WOLFKING: "狼王",
     Role.PROPHET: "预言家",
@@ -32,7 +32,7 @@ role_name_conv: dict[Role | RoleGroup, str] = {
     RoleGroup.OTHERS: "其他",
 }
 
-role_emoji: dict[Role, str] = {
+ROLE_EMOJI: dict[Role, str] = {
     Role.WEREWOLF: "🐺",
     Role.WOLFKING: "🐺👑",
     Role.PROPHET: "🔮",
@@ -44,20 +44,20 @@ role_emoji: dict[Role, str] = {
     Role.CIVILIAN: "👨🏻‍🌾",
 }
 
-game_status_conv: dict[GameStatus, str] = {
+GAME_STATUS_CONV: dict[GameStatus, str] = {
     GameStatus.GOODGUY: "好人",
     GameStatus.WEREWOLF: "狼人",
     GameStatus.JESTER: "小丑",
 }
 
-report_text: dict[KillReason, tuple[str, str]] = {
+REPORT_TEXT: dict[KillReason, tuple[str, str]] = {
     KillReason.WEREWOLF: ("🔪", "刀了"),
     KillReason.POISON: ("🧪", "毒死"),
     KillReason.SHOOT: ("🔫", "射杀"),
     KillReason.VOTE: ("🗳️", "票出"),
 }
 
-default_role_preset: dict[int, tuple[int, int, int]] = {
+DEFAULT_ROLE_PRESET: dict[int, tuple[int, int, int]] = {
     # 总人数: (狼, 神, 民)
     6: (1, 2, 3),
     7: (2, 2, 3),
@@ -67,13 +67,13 @@ default_role_preset: dict[int, tuple[int, int, int]] = {
     11: (3, 5, 3),
     12: (4, 5, 3),
 }
-default_werewolf_priority: list[Role] = [
+DEFAULT_WEREWOLF_PRIORITY: list[Role] = [
     Role.WEREWOLF,
     Role.WEREWOLF,
     Role.WOLFKING,
     Role.WEREWOLF,
 ]
-default_priesthood_proirity: list[Role] = [
+DEFAULT_PRIESTHOOD_PRIORITY: list[Role] = [
     Role.WITCH,
     Role.PROPHET,
     Role.HUNTER,

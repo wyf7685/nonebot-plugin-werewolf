@@ -9,9 +9,9 @@ from nonebot_plugin_localstore import get_plugin_data_file
 from pydantic import BaseModel, Field
 
 from .constant import (
-    default_priesthood_proirity,
-    default_role_preset,
-    default_werewolf_priority,
+    DEFAULT_PRIESTHOOD_PRIORITY,
+    DEFAULT_ROLE_PRESET,
+    DEFAULT_WEREWOLF_PRIORITY,
 )
 from .models import Role
 
@@ -35,9 +35,9 @@ class ConfigFile(BaseModel):
 class PresetData(ConfigFile):
     FILE: ClassVar[Path] = get_plugin_data_file("preset.json")
 
-    role_preset: dict[int, tuple[int, int, int]] = default_role_preset.copy()
-    werewolf_priority: list[Role] = default_werewolf_priority.copy()
-    priesthood_proirity: list[Role] = default_priesthood_proirity.copy()
+    role_preset: dict[int, tuple[int, int, int]] = DEFAULT_ROLE_PRESET.copy()
+    werewolf_priority: list[Role] = DEFAULT_WEREWOLF_PRIORITY.copy()
+    priesthood_proirity: list[Role] = DEFAULT_PRIESTHOOD_PRIORITY.copy()
     jester_probability: float = Field(default=0.0, ge=0.0, le=1.0)
 
 

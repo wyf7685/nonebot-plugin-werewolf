@@ -15,7 +15,7 @@ from nonebot_plugin_alconna import (
 )
 
 from ..config import PresetData
-from ..constant import role_name_conv
+from ..constant import ROLE_NAME_CONV
 from ..models import Role
 
 alc = Alconna(
@@ -82,7 +82,7 @@ async def finish(text: str) -> NoReturn:
 
 
 def display_roles(roles: list[Role]) -> str:
-    role_name = role_name_conv.__getitem__
+    role_name = ROLE_NAME_CONV.__getitem__
     return ", ".join(map(role_name, roles))
 
 

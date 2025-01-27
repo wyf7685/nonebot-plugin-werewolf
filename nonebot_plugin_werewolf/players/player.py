@@ -10,7 +10,7 @@ from nonebot.utils import escape_tag
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 from nonebot_plugin_uninfo import SceneType
 
-from ..constant import STOP_COMMAND, role_emoji, role_name_conv, stop_command_prompt
+from ..constant import ROLE_EMOJI, ROLE_NAME_CONV, STOP_COMMAND, stop_command_prompt
 from ..models import KillInfo, KillReason, Role, RoleGroup
 from ..utils import (
     InputStore,
@@ -104,7 +104,7 @@ class Player:
 
     @functools.cached_property
     def role_name(self) -> str:
-        return role_name_conv[self.role]
+        return ROLE_NAME_CONV[self.role]
 
     async def _fetch_member(self) -> None:
         member = await self.game.interface.get_member(
@@ -212,7 +212,7 @@ class Player:
 
     async def notify_role(self) -> None:
         await self._fetch_member()
-        await self.send(f"⚙️你的身份: {role_emoji[self.role]}{self.role_name}")
+        await self.send(f"⚙️你的身份: {ROLE_EMOJI[self.role]}{self.role_name}")
 
     async def kill(self, reason: KillReason, *killers: "Player") -> bool:
         if self.alive:
