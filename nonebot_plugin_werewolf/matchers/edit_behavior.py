@@ -60,31 +60,37 @@ alc = Alconna(
         Subcommand(
             "prepare",
             Args["time#时间", int],
+            alias={"准备阶段"},
             help_text="准备阶段超时时间(秒)",
         ),
         Subcommand(
             "speak",
             Args["time#时间", int],
+            alias={"个人发言"},
             help_text="个人发言超时时间(秒)",
         ),
         Subcommand(
             "group_speak",
             Args["time#时间", int],
+            alias={"集体发言"},
             help_text="集体发言超时时间(秒)",
         ),
         Subcommand(
             "interact",
             Args["time#时间", int],
+            alias={"交互阶段"},
             help_text="交互阶段超时时间(秒)",
         ),
         Subcommand(
             "vote",
             Args["time#时间", int],
+            alias={"投票阶段"},
             help_text="投票阶段超时时间(秒)",
         ),
         Subcommand(
             "werewolf",
             Args["time#时间", int],
+            alias={"狼人交互"},
             help_text="狼人交互超时时间(秒)",
         ),
         alias={"超时"},
