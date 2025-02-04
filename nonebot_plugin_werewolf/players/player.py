@@ -88,9 +88,7 @@ class Player:
         return cls.__player_class[role](bot, game, user_id)
 
     def __repr__(self) -> str:
-        return (
-            f"<Player {self.role_name}: user={self.user_id!r} " f"alive={self.alive}>"
-        )
+        return f"<Player {self.role_name}: user={self.user_id!r} alive={self.alive}>"
 
     @property
     def game(self) -> "Game":
@@ -199,7 +197,7 @@ class Player:
         await self._before_interact()
 
         timeout = self.interact_timeout
-        await self.send(f"✏️{self.role_name}交互开始，限时 {timeout/60:.2f} 分钟")
+        await self.send(f"✏️{self.role_name}交互开始，限时 {timeout / 60:.2f} 分钟")
 
         try:
             with anyio.fail_after(timeout):
