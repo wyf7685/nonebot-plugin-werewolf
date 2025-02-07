@@ -20,8 +20,7 @@ class Idiot(Player):
     async def notify_role(self) -> None:
         await super().notify_role()
         await self.send(
-            "作为白痴，你可以在首次被投票放逐时免疫放逐，"
-            "但在之后的投票中无法继续投票"
+            "作为白痴，你可以在首次被投票放逐时免疫放逐，但在之后的投票中无法继续投票"
         )
 
     @override

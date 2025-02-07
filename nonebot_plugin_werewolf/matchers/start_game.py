@@ -178,11 +178,11 @@ class PrepareGame:
         role_preset = PresetData.load().role_preset
         if player_num < min(role_preset):
             await self._send(
-                f"⚠️游戏至少需要 {min(role_preset)} 人, " f"当前已有 {player_num} 人"
+                f"⚠️游戏至少需要 {min(role_preset)} 人, 当前已有 {player_num} 人"
             )
         elif player_num > max(role_preset):
             await self._send(
-                f"⚠️游戏最多需要 {max(role_preset)} 人, " f"当前已有 {player_num} 人"
+                f"⚠️游戏最多需要 {max(role_preset)} 人, 当前已有 {player_num} 人"
             )
         elif player_num not in role_preset:
             await self._send(
