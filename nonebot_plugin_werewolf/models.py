@@ -48,8 +48,15 @@ class GameStatus(Enum):
 
 @dataclasses.dataclass
 class GameState:
+    class State(Enum):
+        DAY = auto()
+        VOTE = auto()
+        NIGHT = auto()
+
     day: int
     """当前天数记录, 不会被 `reset()` 重置"""
+    state: State = State.NIGHT
+    """当前游戏状态, 不会被 `reset()` 重置"""
     werewolf_finished: anyio.Event = dataclasses.field(default_factory=anyio.Event)
     """狼人交互是否结束"""
     killed: "Player | None" = None

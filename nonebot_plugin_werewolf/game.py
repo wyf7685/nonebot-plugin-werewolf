@@ -423,6 +423,7 @@ class Game:
         while True:
             # 重置游戏状态，进入下一夜
             self.state.reset()
+            self.state.state = GameState.State.NIGHT
             await self.send("🌙天黑请闭眼...")
             players = self.players.alive()
 
@@ -431,6 +432,7 @@ class Game:
 
             # 公告
             self.state.day += 1
+            self.state.state = GameState.State.DAY
             msg = UniMessage.text(f"『第{self.state.day}天』☀️天亮了...\n")
             # 没有玩家死亡，平安夜
             if not (dead := players.dead()):
@@ -467,6 +469,7 @@ class Game:
             await self.send(
                 "🗳️讨论结束, 进入投票环节，限时1分钟\n请在私聊中进行投票交互"
             )
+            self.state.state = GameState.State.VOTE
             await self.run_vote()
 
             # 判断游戏状态

@@ -1,7 +1,7 @@
 from typing_extensions import override
 
 from ..constant import stop_command_prompt
-from ..models import Role, RoleGroup
+from ..models import GameState, Role, RoleGroup
 from .player import Player
 
 
@@ -9,10 +9,11 @@ from .player import Player
 class Guard(Player):
     @override
     async def _check_selected(self, player: Player) -> Player | None:
-        if player is not self.selected:
-            return player
-        await self.send("⚠️守卫不能连续两晚保护同一目标，请重新选择")
-        return None
+        if self.game.state.state == GameState.State.NIGHT and player is self.selected:
+            await self.send("⚠️守卫不能连续两晚保护同一目标，请重新选择")
+            return None
+
+        return player
 
     @override
     async def _interact(self) -> None:
