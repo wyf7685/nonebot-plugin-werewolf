@@ -22,19 +22,15 @@ class CanShoot(Player):
 
         self.game.state.shoot = None
         shoot = await self.shoot()
-
+        msg = UniMessage.text("玩家 ").at(self.user_id).text(" ")
         if shoot is not None:
             self.game.state.shoot = self
-            await self.game.send(
-                UniMessage.text(f"🔫{self.role_name} ")
-                .at(self.user_id)
-                .text(" 射杀了玩家 ")
-                .at(shoot.user_id)
-            )
+            await self.game.send("🔫" + msg.text("射杀了玩家 ").at(shoot.user_id))
             await shoot.kill(KillReason.SHOOT, self)
             self.selected = shoot
         else:
-            await self.game.send(f"ℹ️{self.role_name}选择了取消技能")
+            await self.game.send("ℹ️" + msg.text("选择了取消技能"))
+
         return await super().post_kill()
 
     async def shoot(self) -> Player | None:
