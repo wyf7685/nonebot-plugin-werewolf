@@ -6,6 +6,7 @@ import anyio
 import nonebot
 from nonebot_plugin_alconna.uniseg import UniMessage
 
+from ..config import GameBehavior
 from ..constant import STOP_COMMAND, stop_command_prompt
 from ..models import Role, RoleGroup
 from ..utils import ObjectStream, check_index
@@ -19,8 +20,12 @@ logger = nonebot.logger.opt(colors=True)
 
 @Player.register_role(Role.WEREWOLF, RoleGroup.WEREWOLF)
 class Werewolf(Player):
-    interact_timeout = 120
     stream: ObjectStream[str | UniMessage]
+
+    @property
+    @override
+    def interact_timeout(self) -> float:
+        return GameBehavior.get().timeout.werewolf
 
     @override
     async def notify_role(self) -> None:

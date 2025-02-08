@@ -1,6 +1,7 @@
 import contextlib
 import functools
 import secrets
+from collections import defaultdict
 from typing import NoReturn
 
 import anyio
@@ -11,8 +12,13 @@ from nonebot_plugin_alconna import At, Target, UniMessage
 from nonebot_plugin_alconna.uniseg.message import Receipt
 from nonebot_plugin_uninfo import Interface, SceneType
 
-from .config import PresetData
-from .constant import GAME_STATUS_CONV, REPORT_TEXT, stop_command_prompt
+from .config import GameBehavior, PresetData
+from .constant import (
+    GAME_STATUS_CONV,
+    REPORT_TEXT,
+    ROLE_EMOJI,
+    ROLE_NAME_CONV,
+)
 from .exception import GameFinished
 from .models import GameState, GameStatus, KillInfo, KillReason, Role, RoleGroup
 from .player_set import PlayerSet
@@ -36,7 +42,7 @@ def init_players(bot: Bot, game: "Game", players: set[str]) -> PlayerSet:
     # group.colored_name not available yet
     logger.debug(f"初始化 <c>{game.group_id}</c> 的玩家职业")
 
-    preset_data = PresetData.load()
+    preset_data = PresetData.get()
     if (preset := preset_data.role_preset.get(len(players))) is None:
         raise ValueError(
             f"玩家人数不符: "
@@ -127,7 +133,7 @@ class DeadChannel:
             self._task_group.start_soon(self._decrease, user_id)
 
             # 发言频率限制
-            if self.counter[user_id] > 8:
+            if self.counter[user_id] > GameBehavior.get().dead_channel_rate_limit:
                 await player.send("❌发言频率超过限制, 该消息被屏蔽")
                 continue
 
@@ -236,19 +242,34 @@ class Game:
         for p in sorted(self.players, key=lambda p: p.user_id):
             msg.at(p.user_id)
 
-        w, p, c = PresetData.load().role_preset[len(self.players)]
+        w, p, c = PresetData.get().role_preset[len(self.players)]
         msg = (
             msg.text("\n\n📝正在分配职业，请注意查看私聊消息\n")
             .text(f"当前玩家数: {len(self.players)}\n")
             .text(f"职业分配: 狼人x{w}, 神职x{p}, 平民x{c}")
         )
 
+        if GameBehavior.get().show_roles_list_on_start:
+            role_cnt: dict[Role, int] = defaultdict(lambda: 0)
+            for role in sorted((p.role for p in self.players), key=lambda r: r.value):
+                role_cnt[role] += 1
+
+            msg.text("\n\n📚职业列表:\n")
+            for role, cnt in role_cnt.items():
+                msg.text(f"- {ROLE_EMOJI[role]}{ROLE_NAME_CONV[role]}x{cnt}\n")
+
         async with anyio.create_task_group() as tg:
             tg.start_soon(self.send, msg)
             for p in self.players:
                 tg.start_soon(p.notify_role)
 
-    async def wait_stop(self, *players: Player, timeout_secs: float) -> None:
+    async def wait_stop(
+        self,
+        *players: Player,
+        timeout_secs: float | None = None,
+    ) -> None:
+        if timeout_secs is None:
+            timeout_secs = GameBehavior.get().timeout.speak
         with anyio.move_on_after(timeout_secs):
             async with anyio.create_task_group() as tg:
                 for p in players:
@@ -272,9 +293,9 @@ class Game:
                     UniMessage.text("🔫玩家 ")
                     .at(shoot.user_id)
                     .text(f" 被{shooter.name}射杀, 请发表遗言\n")
-                    .text(f"限时1分钟, 发送 “{stop_command_prompt()}” 结束发言")
+                    .text(GameBehavior.get().timeout.speak_timeout_prompt)
                 )
-                await self.wait_stop(shoot, timeout_secs=60)
+                await self.wait_stop(shoot)
                 self.state.shoot = shooter.selected = None
                 await self.post_kill(shoot)
 
@@ -306,6 +327,28 @@ class Game:
                 await witch.selected.kill(KillReason.POISON, witch)
 
         return killed
+
+    async def run_discussion(self) -> None:
+        behavior = GameBehavior.get()
+        timeout = behavior.timeout
+
+        if not behavior.speak_in_turn:
+            speak_timeout = timeout.group_speak
+            await self.send(
+                f"💬接下来开始自由讨论\n{timeout.group_speak_timeout_prompt}",
+                stop_btn_label="结束发言",
+            )
+            await self.wait_stop(*self.players.alive(), timeout_secs=speak_timeout)
+        else:
+            await self.send("💬接下来开始自由讨论")
+            speak_timeout = timeout.speak
+            for player in self.players.alive().sorted:
+                await self.send(
+                    f"💬轮到你发言\n{timeout.speak_timeout_prompt}",
+                    stop_btn_label="结束发言",
+                )
+                await self.wait_stop(player, timeout_secs=speak_timeout)
+            await self.send("💬所有玩家发言结束")
 
     async def run_vote(self) -> None:
         # 筛选当前存活玩家
@@ -366,10 +409,10 @@ class Game:
             UniMessage.text("🔨玩家 ")
             .at(voted.user_id)
             .text(" 被投票放逐, 请发表遗言\n")
-            .text(f"限时1分钟, 发送 “{stop_command_prompt()}” 结束发言"),
+            .text(GameBehavior.get().timeout.speak_timeout_prompt),
             stop_btn_label="结束发言",
         )
-        await self.wait_stop(voted, timeout_secs=60)
+        await self.wait_stop(voted)
         await self.post_kill(voted)
 
     async def mainloop(self) -> NoReturn:
@@ -405,10 +448,10 @@ class Game:
                     UniMessage.text("⚙️当前为第一天\n请被狼人杀死的 ")
                     .at(killed.user_id)
                     .text(" 发表遗言\n")
-                    .text(f"限时1分钟, 发送 “{stop_command_prompt()}” 结束发言"),
+                    .text(GameBehavior.get().timeout.speak_timeout_prompt),
                     stop_btn_label="结束发言",
                 )
-                await self.wait_stop(killed, timeout_secs=60)
+                await self.wait_stop(killed)
             await self.post_kill(dead)
 
             # 判断游戏状态
@@ -418,12 +461,7 @@ class Game:
             await self.send(f"📝当前存活玩家: \n\n{self.players.alive().show()}")
 
             # 开始自由讨论
-            await self.send(
-                "💬接下来开始自由讨论\n"
-                f"限时2分钟, 全员发送 “{stop_command_prompt()}” 结束发言",
-                stop_btn_label="结束发言",
-            )
-            await self.wait_stop(*self.players.alive(), timeout_secs=120)
+            await self.run_discussion()
 
             # 开始投票
             await self.send(
