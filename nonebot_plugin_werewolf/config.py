@@ -68,14 +68,14 @@ class GameBehavior(ConfigFile):
         @property
         def speak_timeout_prompt(self) -> str:
             return (
-                f"限时{self.speak/60:.1f}分钟, "
+                f"限时{self.speak / 60:.1f}分钟, "
                 f"发送 “{stop_command_prompt()}” 结束发言"
             )
 
         @property
         def group_speak_timeout_prompt(self) -> str:
             return (
-                f"限时{self.group_speak/60:.1f}分钟, "
+                f"限时{self.group_speak / 60:.1f}分钟, "
                 f"全员发送 “{stop_command_prompt()}” 结束发言"
             )
 
