@@ -118,7 +118,10 @@ def as_player_set(*player: "Player") -> "PlayerSet":
 
 
 class ObjectStream(Generic[T]):
-    __UNSET: Any = object()
+    class Unset: ...
+
+    __UNSET: ClassVar[Unset] = Unset()
+
     _send: anyio.streams.memory.MemoryObjectSendStream[T]
     _recv: anyio.streams.memory.MemoryObjectReceiveStream[T]
     _closed: anyio.Event
@@ -131,7 +134,7 @@ class ObjectStream(Generic[T]):
         await self._send.send(obj)
 
     async def recv(self) -> T:
-        result = self.__UNSET
+        result: Any = self.__UNSET
 
         async def _recv() -> None:
             nonlocal result
@@ -162,14 +165,16 @@ class ObjectStream(Generic[T]):
         await self._closed.wait()
 
 
-def btn(label: str, text: str, /) -> Button:
+def _btn(label: str, text: str, /) -> Button:
     return Button(flag="input", label=label, text=text)
 
 
 def add_stop_button(msg: str | UniMessage, label: str | None = None) -> UniMessage:
     if isinstance(msg, str):
         msg = UniMessage.text(msg)
-    return msg.keyboard(btn(label or stop_command_prompt(), stop_command_prompt()))
+
+    stop = stop_command_prompt()
+    return msg.keyboard(_btn(label or stop, stop))
 
 
 def add_players_button(msg: str | UniMessage, players: "PlayerSet") -> UniMessage:
@@ -178,7 +183,7 @@ def add_players_button(msg: str | UniMessage, players: "PlayerSet") -> UniMessag
 
     pls = list(enumerate(players, 1))
     while pls:
-        msg = msg.keyboard(*(btn(p.name, str(i)) for i, p in pls[:3]))
+        msg = msg.keyboard(*(_btn(p.name, str(i)) for i, p in pls[:3]))
         pls = pls[3:]
     return msg
 
@@ -195,13 +200,14 @@ class SendHandler(abc.ABC, Generic[P]):
         self.target = target
 
     async def _edit(self) -> None:
+        last = self.last_receipt
         if (
             config.enable_button
             and self.last_msg is not None
-            and self.last_receipt is not None
-            and self.last_receipt.editable
+            and last is not None
+            and last.editable
         ):
-            await self.last_receipt.edit(self.last_msg.exclude(Keyboard))
+            await last.edit(self.last_msg.exclude(Keyboard))
 
     async def _send(self, message: UniMessage) -> None:
         if not config.enable_button:
