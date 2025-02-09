@@ -155,9 +155,10 @@ class Player:
     async def send(
         self,
         message: str | UniMessage,
+        *,
         stop_btn_label: str | None = None,
         select_players: "PlayerSet | None" = None,
-        skip_handler: bool = False,  # noqa: FBT001, FBT002
+        skip_handler: bool = False,
     ) -> Receipt:
         if isinstance(message, str):
             message = UniMessage.text(message)
