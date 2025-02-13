@@ -1,5 +1,4 @@
 @ECHO OFF
-isort .
-black .
-pyright .
+ruff format .
 ruff check .
+basedpyright .
