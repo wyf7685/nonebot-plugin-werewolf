@@ -13,12 +13,7 @@ from nonebot_plugin_alconna.uniseg.message import Receipt
 from nonebot_plugin_uninfo import Interface, SceneType
 
 from .config import GameBehavior, PresetData
-from .constant import (
-    GAME_STATUS_CONV,
-    REPORT_TEXT,
-    ROLE_EMOJI,
-    ROLE_NAME_CONV,
-)
+from .constant import GAME_STATUS_CONV, REPORT_TEXT, ROLE_EMOJI, ROLE_NAME_CONV
 from .exception import GameFinished
 from .models import GameState, GameStatus, KillInfo, KillReason, Role, RoleGroup
 from .player_set import PlayerSet
