@@ -2,6 +2,7 @@ import abc
 import functools
 import itertools
 from collections import defaultdict
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar
 
 import anyio
@@ -97,7 +98,7 @@ class InputStore:
             task.set(msg)
 
     @classmethod
-    def cleanup(cls, players: list[str], group_id: str) -> None:
+    def cleanup(cls, players: Iterable[str], group_id: str) -> None:
         for p, g in itertools.product(players, (group_id, None)):
             key = cls._key(p, g)
             if key in cls.locks:
@@ -181,10 +182,9 @@ def add_players_button(msg: str | UniMessage, players: "PlayerSet") -> UniMessag
     if isinstance(msg, str):
         msg = UniMessage.text(msg)
 
-    pls = list(enumerate(players, 1))
-    while pls:
-        msg = msg.keyboard(*(_btn(p.name, str(i)) for i, p in pls[:3]))
-        pls = pls[3:]
+    it = enumerate(players, 1)
+    while line := tuple(itertools.islice(it, 3)):
+        msg.keyboard(*(_btn(p.name, str(i)) for i, p in line))
     return msg
 
 
