@@ -12,8 +12,10 @@ if TYPE_CHECKING:
     from ..player_set import PlayerSet
 
 
-@Player.register_role(Role.IDIOT, RoleGroup.GOODGUY)
 class Idiot(Player):
+    role = Role.IDIOT
+    role_group = RoleGroup.GOODGUY
+
     voted: bool = False
 
     @override

@@ -2,12 +2,13 @@ from typing_extensions import override
 
 from ..models import Role, RoleGroup
 from .can_shoot import CanShoot
-from .player import Player
 from .werewolf import Werewolf
 
 
-@Player.register_role(Role.WOLFKING, RoleGroup.WEREWOLF)
 class WolfKing(CanShoot, Werewolf):
+    role = Role.WOLFKING
+    role_group = RoleGroup.WEREWOLF
+
     @override
     async def notify_role(self) -> None:
         await super().notify_role()

@@ -6,8 +6,10 @@ from ..models import GameStatus, KillReason, Role, RoleGroup
 from .player import Player
 
 
-@Player.register_role(Role.JESTER, RoleGroup.OTHERS)
 class Jester(Player):
+    role = Role.JESTER
+    role_group = RoleGroup.OTHERS
+
     @override
     async def notify_role(self) -> None:
         await super().notify_role()

@@ -1,7 +1,7 @@
 import functools
 import weakref
-from collections.abc import Callable
-from typing import TYPE_CHECKING, ClassVar, Final, TypeVar, final
+from typing import TYPE_CHECKING, ClassVar, Final, final
+from typing_extensions import override
 
 import anyio
 import nonebot
@@ -27,8 +27,6 @@ if TYPE_CHECKING:
     from ..player_set import PlayerSet
 
 
-_P = TypeVar("_P", bound=type["Player"])
-
 logger = nonebot.logger.opt(colors=True)
 
 
@@ -44,7 +42,7 @@ class _SendHandler(SendHandler[str | None]):
 
 
 class Player:
-    __player_class: ClassVar[dict[Role, type["Player"]]] = {}
+    _player_class: ClassVar[dict[Role, type["Player"]]] = {}
     role: ClassVar[Role]
     role_group: ClassVar[RoleGroup]
 
@@ -69,23 +67,19 @@ class Player:
         self._send_handler = _SendHandler()
         self._send_handler.update(self.__user, bot)
 
-    @classmethod
-    def register_role(cls, role: Role, role_group: RoleGroup, /) -> Callable[[_P], _P]:
-        def decorator(c: _P, /) -> _P:
-            c.role = role
-            c.role_group = role_group
-            cls.__player_class[role] = c
-            return c
-
-        return decorator
+    @final
+    @override
+    def __init_subclass__(cls) -> None:
+        if hasattr(cls, "role") and hasattr(cls, "role_group"):
+            cls._player_class[cls.role] = cls
 
     @final
     @classmethod
     def new(cls, role: Role, bot: Bot, game: "Game", user_id: str) -> "Player":
-        if role not in cls.__player_class:
+        if role not in cls._player_class:
             raise ValueError(f"Unexpected role: {role!r}")
 
-        return cls.__player_class[role](bot, game, user_id)
+        return cls._player_class[role](bot, game, user_id)
 
     def __repr__(self) -> str:
         return f"<Player {self.role_name}: user={self.user_id!r} alive={self.alive}>"
@@ -134,12 +128,10 @@ class Player:
     @final
     @property
     def colored_name(self) -> str:
-        name = escape_tag(self.user_id)
+        name = f"<b><e>{escape_tag(self.user_id)}</e></b>"
 
-        if self._member is None or (nick := self._member_nick) is None:
-            name = f"<b><e>{name}</e></b>"
-        else:
-            name = f"<y>{nick}</y>(<b><e>{name}</e></b>)"
+        if (nick := self._member_nick) is not None:
+            name = f"<y>{nick}</y>({name})"
 
         if self._member is not None and self._member.user.avatar is not None:
             name = link(name, self._member.user.avatar)

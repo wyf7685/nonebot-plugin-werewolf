@@ -476,7 +476,7 @@ class Game:
             msg.at(p.user_id).text(f": {p.role_name}\n")
         await self.send(msg)
 
-        report: list[str] = ["📌玩家死亡报告:"]
+        report = ["📌玩家死亡报告:"]
         for name, info in self.killed_players:
             emoji, action = REPORT_TEXT[info.reason]
             report.append(f"{emoji} {name} 被 {', '.join(info.killers)} {action}")
@@ -505,10 +505,9 @@ class Game:
         get_running_games().add(self)
 
         try:
-            async with anyio.create_task_group() as tg:
-                self._task_group = tg
-                tg.start_soon(self.run_daemon)
-                tg.start_soon(dead_channel.run)
+            async with anyio.create_task_group() as self._task_group:
+                self._task_group.start_soon(self.run_daemon)
+                self._task_group.start_soon(dead_channel.run)
         except anyio.get_cancelled_exc_class():
             logger.warning(f"{self.colored_name} 的狼人杀游戏进程被取消")
         except Exception as err:
@@ -518,7 +517,7 @@ class Game:
             self._finished = None
             self._task_group = None
             get_running_games().discard(self)
-            InputStore.cleanup(list(self._player_map), self.group_id)
+            InputStore.cleanup(self._player_map.keys(), self.group_id)
 
     def terminate(self) -> None:
         if self._task_group is not None:

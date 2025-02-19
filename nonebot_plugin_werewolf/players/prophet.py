@@ -5,8 +5,10 @@ from ..models import Role, RoleGroup
 from .player import Player
 
 
-@Player.register_role(Role.PROPHET, RoleGroup.GOODGUY)
 class Prophet(Player):
+    role = Role.PROPHET
+    role_group = RoleGroup.GOODGUY
+
     @override
     async def _interact(self) -> None:
         players = self.game.players.alive().exclude(self)

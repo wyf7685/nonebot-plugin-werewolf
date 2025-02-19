@@ -5,8 +5,10 @@ from ..models import GameState, Role, RoleGroup
 from .player import Player
 
 
-@Player.register_role(Role.GUARD, RoleGroup.GOODGUY)
 class Guard(Player):
+    role = Role.GUARD
+    role_group = RoleGroup.GOODGUY
+
     @override
     async def _check_selected(self, player: Player) -> Player | None:
         if self.game.state.state == GameState.State.NIGHT and player is self.selected:

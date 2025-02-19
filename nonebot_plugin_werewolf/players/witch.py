@@ -11,8 +11,10 @@ from .player import Player
 logger = nonebot.logger.opt(colors=True)
 
 
-@Player.register_role(Role.WITCH, RoleGroup.GOODGUY)
 class Witch(Player):
+    role = Role.WITCH
+    role_group = RoleGroup.GOODGUY
+
     antidote: bool = True
     poison: bool = True
 

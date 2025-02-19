@@ -18,8 +18,10 @@ if TYPE_CHECKING:
 logger = nonebot.logger.opt(colors=True)
 
 
-@Player.register_role(Role.WEREWOLF, RoleGroup.WEREWOLF)
 class Werewolf(Player):
+    role = Role.WEREWOLF
+    role_group = RoleGroup.WEREWOLF
+
     stream: ObjectStream[str | UniMessage]
 
     @property
