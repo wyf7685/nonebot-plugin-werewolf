@@ -404,7 +404,7 @@ class Game:
 
         # 仅有一名玩家票数最高
         voted = vs.pop()
-        if not await voted.kill(KillReason.VOTE, *vote_result[voted]):
+        if await voted.kill(KillReason.VOTE, *vote_result[voted]) is None:
             # 投票放逐失败 (例: 白痴)
             return
 

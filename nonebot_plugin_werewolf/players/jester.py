@@ -1,8 +1,7 @@
-from typing import TYPE_CHECKING
 from typing_extensions import override
 
 from ..exception import GameFinished
-from ..models import GameStatus, KillReason, Role, RoleGroup
+from ..models import GameStatus, KillInfo, KillReason, Role, RoleGroup
 from .player import Player
 
 
@@ -16,11 +15,9 @@ class Jester(Player):
         await self.send("⚙️你的胜利条件: 被投票放逐")
 
     @override
-    async def kill(self, reason: KillReason, *killers: Player) -> bool:
-        await super().kill(reason, *killers)
-        if reason == KillReason.VOTE:
-            if TYPE_CHECKING:
-                assert self.kill_info is not None
-            self.game.killed_players.append((self.name, self.kill_info))
+    async def kill(self, reason: KillReason, *killers: Player) -> KillInfo | None:
+        kill_info = await super().kill(reason, *killers)
+        if kill_info is not None and reason == KillReason.VOTE:
+            self.game.killed_players.append((self.name, kill_info))
             raise GameFinished(GameStatus.JESTER)
-        return True
+        return kill_info

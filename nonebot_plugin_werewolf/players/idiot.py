@@ -5,7 +5,7 @@ from typing_extensions import override
 
 from nonebot_plugin_alconna.uniseg import UniMessage
 
-from ..models import KillReason, Role, RoleGroup
+from ..models import KillInfo, KillReason, Role, RoleGroup
 from .player import Player
 
 if TYPE_CHECKING:
@@ -26,7 +26,7 @@ class Idiot(Player):
         )
 
     @override
-    async def kill(self, reason: KillReason, *killers: Player) -> bool:
+    async def kill(self, reason: KillReason, *killers: Player) -> KillInfo | None:
         if reason == KillReason.VOTE and not self.voted:
             self.voted = True
             await self.game.send(
@@ -35,7 +35,8 @@ class Idiot(Player):
                 .text(" 的身份是白痴\n")
                 .text("免疫本次投票放逐，且接下来无法参与投票"),
             )
-            return False
+            return None
+
         return await super().kill(reason, *killers)
 
     @override

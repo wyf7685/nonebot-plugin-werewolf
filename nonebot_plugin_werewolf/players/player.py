@@ -219,11 +219,11 @@ class Player:
     async def notify_role(self) -> None:
         await self.send(f"⚙️你的身份: {ROLE_EMOJI[self.role]}{self.role_name}")
 
-    async def kill(self, reason: KillReason, *killers: "Player") -> bool:
+    async def kill(self, reason: KillReason, *killers: "Player") -> KillInfo | None:
         if self.alive:
             self.alive = False
             self.kill_info = KillInfo(reason=reason, killers=[p.name for p in killers])
-        return True
+        return self.kill_info
 
     async def post_kill(self) -> None:
         self.killed.set()
