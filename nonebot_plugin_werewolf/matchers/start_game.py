@@ -328,5 +328,5 @@ async def handle_start(
         await UniMessage.text("⚠️游戏准备超时，已自动结束").finish()
 
     dump_players(target, players)
-    game = Game(bot, target, set(players), interface)
+    game = await Game.new(bot, target, set(players), interface)
     await game.start()

@@ -2,7 +2,8 @@ import contextlib
 import functools
 import secrets
 from collections import defaultdict
-from typing import NoReturn
+from typing import NoReturn, final
+from typing_extensions import Self
 
 import anyio
 import nonebot
@@ -33,9 +34,13 @@ def get_running_games() -> set["Game"]:
     return running_games
 
 
-def init_players(bot: Bot, game: "Game", players: set[str]) -> PlayerSet:
-    # group.colored_name not available yet
-    logger.debug(f"初始化 <c>{game.group_id}</c> 的玩家职业")
+async def init_players(
+    bot: Bot,
+    game: "Game",
+    players: set[str],
+    interface: Interface,
+) -> PlayerSet:
+    logger.debug(f"初始化 {game.colored_name} 的玩家职业")
 
     preset_data = PresetData.get()
     if (preset := preset_data.role_preset.get(len(players))) is None:
@@ -58,11 +63,11 @@ def init_players(bot: Bot, game: "Game", players: set[str]) -> PlayerSet:
     def _select_role() -> Role:
         return roles.pop(secrets.randbelow(len(roles)))
 
-    player_set = PlayerSet(
-        Player.new(_select_role(), bot, game, user_id) for user_id in players
-    )
-    logger.debug(f"职业分配完成: <e>{escape_tag(str(player_set))}</e>")
+    player_set = PlayerSet()
+    for user_id in players:
+        player_set.add(await Player.new(_select_role(), bot, game, user_id, interface))
 
+    logger.debug(f"职业分配完成: <e>{escape_tag(str(player_set))}</e>")
     return player_set
 
 
@@ -148,36 +153,40 @@ class Game:
     bot: Bot
     group: Target
     players: PlayerSet
-    interface: Interface
     state: GameState
     killed_players: list[tuple[str, KillInfo]]
 
-    def __init__(
-        self,
-        bot: Bot,
-        group: Target,
-        players: set[str],
-        interface: Interface,
-    ) -> None:
+    def __init__(self, bot: Bot, group: Target) -> None:
         self.bot = bot
         self.group = group
-        self.players = init_players(bot, self, players)
-        self.interface = interface
         self.state = GameState(0)
         self.killed_players = []
-        self._player_map = {p.user_id: p for p in self.players}
+        self._player_map = {}
         self._scene = None
         self._finished = None
         self._task_group = None
         self._send_handler = _SendHandler()
-        self._send_handler.update(group)
+        self._send_handler.update(group, bot)
 
-    async def _fetch_group_scene(self) -> None:
-        scene = await self.interface.get_scene(SceneType.GROUP, self.group_id)
-        if scene is None:
-            scene = await self.interface.get_scene(SceneType.GUILD, self.group_id)
+    @final
+    @classmethod
+    async def new(
+        cls,
+        bot: Bot,
+        group: Target,
+        players: set[str],
+        interface: Interface,
+    ) -> Self:
+        self = cls(bot, group)
 
-        self._scene = scene
+        self._scene = await interface.get_scene(SceneType.GROUP, self.group_id)
+        if self._scene is None:
+            self._scene = await interface.get_scene(SceneType.GUILD, self.group_id)
+
+        self.players = await init_players(bot, self, players, interface)
+        self._player_map |= {p.user_id: p for p in self.players}
+
+        return self
 
     @functools.cached_property
     def group_id(self) -> str:
@@ -499,7 +508,6 @@ class Game:
                 self._finished.set()
 
     async def start(self) -> None:
-        await self._fetch_group_scene()
         self._finished = anyio.Event()
         dead_channel = DeadChannel(self.players, self._finished)
         get_running_games().add(self)

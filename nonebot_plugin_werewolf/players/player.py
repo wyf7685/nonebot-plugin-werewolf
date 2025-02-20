@@ -8,7 +8,7 @@ import nonebot
 from nonebot.adapters import Bot
 from nonebot.utils import escape_tag
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
-from nonebot_plugin_uninfo import SceneType
+from nonebot_plugin_uninfo import Interface, SceneType
 
 from ..config import GameBehavior
 from ..constant import ROLE_EMOJI, ROLE_NAME_CONV, STOP_COMMAND, stop_command_prompt
@@ -57,8 +57,10 @@ class Player:
         self.__user = Target(
             user_id,
             private=True,
-            self_id=bot.self_id,
-            adapter=bot.adapter.get_name(),
+            self_id=game.group.self_id,
+            scope=game.group.scope,
+            adapter=game.group.adapter,
+            extra=game.group.extra,
         )
         self.__game_ref = weakref.ref(game)
         self.bot = bot
@@ -75,11 +77,20 @@ class Player:
 
     @final
     @classmethod
-    def new(cls, role: Role, bot: Bot, game: "Game", user_id: str) -> "Player":
+    async def new(
+        cls,
+        role: Role,
+        bot: Bot,
+        game: "Game",
+        user_id: str,
+        interface: Interface,
+    ) -> "Player":
         if role not in cls._player_class:
             raise ValueError(f"Unexpected role: {role!r}")
 
-        return cls._player_class[role](bot, game, user_id)
+        self = cls._player_class[role](bot, game, user_id)
+        await self._fetch_member(interface)
+        return self
 
     def __repr__(self) -> str:
         return f"<Player {self.role_name}: user={self.user_id!r} alive={self.alive}>"
@@ -98,14 +109,14 @@ class Player:
     def role_name(self) -> str:
         return ROLE_NAME_CONV[self.role]
 
-    async def _fetch_member(self) -> None:
-        member = await self.game.interface.get_member(
+    async def _fetch_member(self, interface: Interface) -> None:
+        member = await interface.get_member(
             SceneType.GROUP,
             self.game.group.id,
             self.user_id,
         )
         if member is None:
-            member = await self.game.interface.get_member(
+            member = await interface.get_member(
                 SceneType.GUILD,
                 self.game.group.id,
                 self.user_id,
@@ -206,7 +217,6 @@ class Player:
         await self._after_interact()
 
     async def notify_role(self) -> None:
-        await self._fetch_member()
         await self.send(f"⚙️你的身份: {ROLE_EMOJI[self.role]}{self.role_name}")
 
     async def kill(self, reason: KillReason, *killers: "Player") -> bool:
