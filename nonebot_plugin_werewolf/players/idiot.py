@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 from typing_extensions import override
 
@@ -40,7 +38,7 @@ class Idiot(Player):
         return await super().kill(reason, *killers)
 
     @override
-    async def vote(self, players: PlayerSet) -> Player | None:
+    async def vote(self, players: "PlayerSet") -> Player | None:
         if self.voted:
             await self.send("ℹ️你已经发动过白痴身份的技能，无法参与本次投票")
             return None

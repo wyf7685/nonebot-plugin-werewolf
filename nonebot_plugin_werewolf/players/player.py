@@ -43,8 +43,10 @@ class _SendHandler(SendHandler[str | None]):
 
 class Player:
     _player_class: ClassVar[dict[Role, type["Player"]]] = {}
+
     role: ClassVar[Role]
     role_group: ClassVar[RoleGroup]
+    _has_interact: ClassVar[bool]
 
     bot: Final[Bot]
     alive: bool = True
@@ -53,15 +55,8 @@ class Player:
     selected: "Player | None" = None
 
     @final
-    def __init__(self, bot: Bot, game: "Game", user_id: str) -> None:
-        self.__user = Target(
-            user_id,
-            private=True,
-            self_id=game.group.self_id,
-            scope=game.group.scope,
-            adapter=game.group.adapter,
-            extra=game.group.extra,
-        )
+    def __init__(self, bot: Bot, game: "Game", user: Target) -> None:
+        self.__user = user
         self.__game_ref = weakref.ref(game)
         self.bot = bot
         self.killed = anyio.Event()
@@ -72,8 +67,13 @@ class Player:
     @final
     @override
     def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
         if hasattr(cls, "role") and hasattr(cls, "role_group"):
             cls._player_class[cls.role] = cls
+        cls._has_interact = any(
+            getattr(getattr(cls, name), "__override__", False)
+            for name in ("_interact", "_before_interact", "_after_interact")
+        )
 
     @final
     @classmethod
@@ -88,7 +88,15 @@ class Player:
         if role not in cls._player_class:
             raise ValueError(f"Unexpected role: {role!r}")
 
-        self = cls._player_class[role](bot, game, user_id)
+        user = Target(
+            user_id,
+            private=True,
+            self_id=game.group.self_id,
+            scope=game.group.scope,
+            adapter=game.group.adapter,
+            extra=game.group.extra,
+        )
+        self = cls._player_class[role](bot, game, user)
         await self._fetch_member(interface)
         return self
 
