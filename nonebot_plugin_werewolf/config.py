@@ -56,6 +56,7 @@ class GameBehavior(ConfigFile):
     show_roles_list_on_start: bool = False
     speak_in_turn: bool = False
     dead_channel_rate_limit: int = 8  # per minute
+    werewolf_multi_select: bool = False
 
     class _Timeout(BaseModel):
         prepare: int = Field(default=5 * 60, ge=5 * 60)

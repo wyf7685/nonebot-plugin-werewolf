@@ -44,7 +44,7 @@ alc = Alconna(
         help_text="设置游戏开始时是否显示职业列表",
     ),
     Subcommand(
-        "speak_order",
+        "speak_in_turn",
         Args["enabled#是否启用", bool],
         alias={"发言顺序"},
         help_text="设置是否按顺序发言",
@@ -54,6 +54,12 @@ alc = Alconna(
         Args["limit#每分钟限制次数", int],
         alias={"死亡聊天"},
         help_text="设置死亡玩家发言频率限制",
+    ),
+    Subcommand(
+        "werewolf_multi_select",
+        Args["enabled#是否启用", bool],
+        alias={"狼人多选"},
+        help_text="设置狼人多选时是否从已选玩家中随机选择目标, 为否时将视为空刀",
     ),
     Subcommand(
         "timeout",
@@ -122,7 +128,7 @@ async def set_show_roles(behavior: Behavior, enabled: bool) -> None:
     await finish(f"已{'启用' if enabled else '禁用'}游戏开始时显示职业列表")
 
 
-@edit_behavior.assign("speak_order")
+@edit_behavior.assign("speak_in_turn")
 async def set_speak_order(behavior: Behavior, enabled: bool) -> None:
     behavior.speak_in_turn = enabled
     await finish(f"已{'启用' if enabled else '禁用'}按顺序发言")
@@ -134,6 +140,12 @@ async def set_dead_chat(behavior: Behavior, limit: int) -> None:
         await finish("限制次数必须大于零")
     behavior.dead_channel_rate_limit = limit
     await finish(f"已设置死亡玩家发言限制为 {limit} 次/分钟")
+
+
+@edit_behavior.assign("werewolf_multi_select")
+async def set_werewolf_multi_select(behavior: Behavior, enabled: bool) -> None:
+    behavior.werewolf_multi_select = enabled
+    await finish(f"已{'启用' if enabled else '禁用'}狼人多选")
 
 
 @edit_behavior.assign("timeout.prepare")

@@ -9,7 +9,7 @@ from nonebot_plugin_alconna.uniseg import UniMessage
 from ..config import GameBehavior
 from ..constant import STOP_COMMAND, stop_command_prompt
 from ..models import Role, RoleGroup
-from ..utils import ObjectStream, check_index
+from ..utils import ObjectStream, as_player_set, check_index
 from .player import Player
 
 if TYPE_CHECKING:
@@ -38,6 +38,11 @@ class Werewolf(Player):
                 "🐺你的队友:\n"
                 + "\n".join(f"  {p.role_name}: {p.name}" for p in partners)
             )
+
+    @override
+    async def _before_interact(self) -> None:
+        self.game.state.werewolf_start()
+        return await super()._before_interact()
 
     async def _handle_interact(self, players: "PlayerSet") -> None:
         self.selected = None
@@ -109,17 +114,31 @@ class Werewolf(Player):
         finally:
             del self.stream
 
+    async def _finalize_interact(self) -> None:
+        w = self.game.players.alive().select(RoleGroup.WEREWOLF)
+        match w.player_selected().shuffled:
+            case []:
+                await w.broadcast("⚠️狼人未选择目标，此晚空刀")
+            case [killed]:
+                self.game.state.killed = killed
+                await w.broadcast(f"🔪今晚选择的目标为: {killed.name}")
+            case [killed, *_] if GameBehavior.get().werewolf_multi_select:
+                self.game.state.killed = killed
+                await w.broadcast(
+                    "⚠️狼人阵营意见未统一，随机选择目标\n\n"
+                    f"🔪今晚选择的目标为: {killed.name}"
+                )
+            case players:
+                await w.broadcast(
+                    f"⚠️狼人阵营意见未统一，此晚空刀\n\n"
+                    f"📝选择的玩家:\n{as_player_set(*players).show()}"
+                )
+
     @override
     async def _after_interact(self) -> None:
-        state = self.game.state
-        if not state.werewolf_finished.is_set():
-            state.werewolf_finished.set()
-            w = self.game.players.alive().select(RoleGroup.WEREWOLF)
-            if (s := w.player_selected()).size == 1:
-                state.killed = s.pop()
-                await w.broadcast(f"🔪今晚选择的目标为: {state.killed.name}")
-            else:
-                await w.broadcast("⚠️狼人阵营意见未统一，此晚空刀")
+        self.game.state.werewolf_end()
+        if self.game.state.werewolf_finished.is_set():
+            await self._finalize_interact()
 
         if not self.game.players.alive().select(Role.WITCH):
             await anyio.sleep(5 + secrets.randbelow(15))

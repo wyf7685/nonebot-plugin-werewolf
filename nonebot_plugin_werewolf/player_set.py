@@ -1,4 +1,5 @@
 import functools
+import random
 
 import anyio
 from nonebot_plugin_alconna.uniseg import UniMessage
@@ -48,6 +49,12 @@ class PlayerSet(set[Player]):
     @functools.cached_property
     def sorted(self) -> list[Player]:
         return sorted(self, key=lambda p: p.user_id)
+
+    @property
+    def shuffled(self) -> list[Player]:
+        players = self.sorted
+        random.shuffle(players)
+        return players
 
     async def vote(self) -> dict[Player, list[Player]]:
         players = self.alive()

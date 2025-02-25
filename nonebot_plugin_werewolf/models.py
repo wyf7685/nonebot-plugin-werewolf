@@ -57,6 +57,8 @@ class GameState:
     """当前天数记录, 不会被 `reset()` 重置"""
     state: State = State.NIGHT
     """当前游戏状态, 不会被 `reset()` 重置"""
+    _werewolf_interact_count: int = 0
+    """内部属性, 记录当晚狼人交互状态"""
     werewolf_finished: anyio.Event = dataclasses.field(default_factory=anyio.Event)
     """狼人交互是否结束"""
     killed: "Player | None" = None
@@ -72,11 +74,20 @@ class GameState:
 
     def reset(self) -> None:
         self.werewolf_finished = anyio.Event()
+        self._werewolf_interact_count = 0
         self.killed = None
         self.shoot = None
         self.antidote = set()
         self.poison = set()
         self.protected = set()
+
+    def werewolf_start(self) -> None:
+        self._werewolf_interact_count += 1
+
+    def werewolf_end(self) -> None:
+        self._werewolf_interact_count -= 1
+        if self._werewolf_interact_count == 0:
+            self.werewolf_finished.set()
 
 
 @dataclasses.dataclass
