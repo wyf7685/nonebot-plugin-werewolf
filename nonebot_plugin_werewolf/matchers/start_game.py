@@ -118,6 +118,21 @@ class PrepareGame:
         self.shoud_start_game = False
         get_starting_games()[self.group] = self.players
 
+        async def same_group(target: MsgTarget) -> bool:
+            return self.group.verify(target)
+
+        @waiter.waiter(
+            waits=[],
+            keep_session=False,
+            rule=Rule(same_group) & rule_not_in_game,
+        )
+        def wait(event: Event, msg: UniMsg, session: Uninfo) -> tuple[Event, str, str]:
+            text = msg.extract_plain_text().strip()
+            name = extract_session_member_nick(session) or event.get_user_id()
+            return (event, text, re.sub(r"[\u2066-\u2069]", "", name))
+
+        self._waiter = wait
+
     async def run(self) -> None:
         try:
             async with anyio.create_task_group() as tg:
@@ -137,20 +152,7 @@ class PrepareGame:
         self.task_group.cancel_scope.cancel()
 
     async def _receive(self) -> None:
-        async def same_group(target: MsgTarget) -> bool:
-            return self.group.verify(target)
-
-        @waiter.waiter(
-            waits=[],
-            keep_session=False,
-            rule=Rule(same_group) & rule_not_in_game,
-        )
-        def wait(event: Event, msg: UniMsg, session: Uninfo) -> tuple[Event, str, str]:
-            text = msg.extract_plain_text().strip()
-            name = extract_session_member_nick(session) or event.get_user_id()
-            return (event, text, re.sub(r"[\u2066-\u2069]", "", name))
-
-        async for event, text, name in wait(default=(None, "", "")):
+        async for event, text, name in self._waiter(default=(None, "", "")):
             if event is not None:
                 await self.stream.send((event, text, name))
 
