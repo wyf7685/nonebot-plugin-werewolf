@@ -3,10 +3,8 @@ from typing import TYPE_CHECKING
 from typing_extensions import override
 
 import anyio
-import nonebot
 from nonebot_plugin_alconna.uniseg import UniMessage
 
-from ..config import GameBehavior
 from ..constant import STOP_COMMAND, stop_command_prompt
 from ..models import Role, RoleGroup
 from ..utils import ObjectStream, as_player_set, check_index
@@ -14,8 +12,6 @@ from .player import Player
 
 if TYPE_CHECKING:
     from ..player_set import PlayerSet
-
-logger = nonebot.logger.opt(colors=True)
 
 
 class Werewolf(Player):
@@ -27,7 +23,7 @@ class Werewolf(Player):
     @property
     @override
     def interact_timeout(self) -> float:
-        return GameBehavior.get().timeout.werewolf
+        return self.game.behavior.timeout.werewolf
 
     @override
     async def notify_role(self) -> None:
@@ -122,7 +118,7 @@ class Werewolf(Player):
             case [killed]:
                 self.game.state.killed = killed
                 await w.broadcast(f"🔪今晚选择的目标为: {killed.name}")
-            case [killed, *_] if GameBehavior.get().werewolf_multi_select:
+            case [killed, *_] if self.game.behavior.werewolf_multi_select:
                 self.game.state.killed = killed
                 await w.broadcast(
                     "⚠️狼人阵营意见未统一，随机选择目标\n\n"

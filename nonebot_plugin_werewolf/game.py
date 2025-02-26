@@ -161,7 +161,7 @@ class Game:
         self.group = group
         self.state = GameState(0)
         self.killed_players = []
-        self._player_map = {}
+        self._player_map: dict[str, Player] = {}
         self._scene = None
         self._finished = None
         self._task_group = None
@@ -241,6 +241,10 @@ class Game:
         if not w.size:
             raise GameFinished(GameStatus.GOODGUY)
 
+    @property
+    def behavior(self) -> GameBehavior:
+        return GameBehavior.get()
+
     async def notify_player_role(self) -> None:
         msg = UniMessage()
         for p in sorted(self.players, key=lambda p: p.user_id):
@@ -253,7 +257,7 @@ class Game:
             .text(f"职业分配: 狼人x{w}, 神职x{p}, 平民x{c}")
         )
 
-        if GameBehavior.get().show_roles_list_on_start:
+        if self.behavior.show_roles_list_on_start:
             role_cnt: dict[Role, int] = defaultdict(lambda: 0)
             for role in sorted((p.role for p in self.players), key=lambda r: r.value):
                 role_cnt[role] += 1
@@ -273,7 +277,7 @@ class Game:
         timeout_secs: float | None = None,
     ) -> None:
         if timeout_secs is None:
-            timeout_secs = GameBehavior.get().timeout.speak
+            timeout_secs = self.behavior.timeout.speak
         with anyio.move_on_after(timeout_secs):
             async with anyio.create_task_group() as tg:
                 for p in players:
@@ -289,18 +293,18 @@ class Game:
             await player.post_kill()
             if player.kill_info is None:
                 continue
-
             self.killed_players.append((player.name, player.kill_info))
-            shooter = self.state.shoot
+
+            shooter = self.state.shooter
             if shooter is not None and (shoot := shooter.selected) is not None:
                 await self.send(
                     UniMessage.text("🔫玩家 ")
                     .at(shoot.user_id)
                     .text(f" 被{shooter.name}射杀, 请发表遗言\n")
-                    .text(GameBehavior.get().timeout.speak_timeout_prompt)
+                    .text(self.behavior.timeout.speak_timeout_prompt)
                 )
                 await self.wait_stop(shoot)
-                self.state.shoot = shooter.selected = None
+                self.state.shooter = shooter.selected = None
                 await self.post_kill(shoot)
 
     async def run_night(self, players: PlayerSet) -> Player | None:
@@ -333,10 +337,9 @@ class Game:
         return killed
 
     async def run_discussion(self) -> None:
-        behavior = GameBehavior.get()
-        timeout = behavior.timeout
+        timeout = self.behavior.timeout
 
-        if not behavior.speak_in_turn:
+        if not self.behavior.speak_in_turn:
             speak_timeout = timeout.group_speak
             await self.send(
                 f"💬接下来开始自由讨论\n{timeout.group_speak_timeout_prompt}",
@@ -344,7 +347,7 @@ class Game:
             )
             await self.wait_stop(*self.players.alive(), timeout_secs=speak_timeout)
         else:
-            await self.send("💬接下来开始自由讨论")
+            await self.send("💬接下来开始轮流发言")
             speak_timeout = timeout.speak
             for player in self.players.alive().sorted:
                 await self.send(
@@ -413,7 +416,7 @@ class Game:
             UniMessage.text("🔨玩家 ")
             .at(voted.user_id)
             .text(" 被投票放逐, 请发表遗言\n")
-            .text(GameBehavior.get().timeout.speak_timeout_prompt),
+            .text(self.behavior.timeout.speak_timeout_prompt),
             stop_btn_label="结束发言",
         )
         await self.wait_stop(voted)
@@ -454,7 +457,7 @@ class Game:
                     UniMessage.text("⚙️当前为第一天\n请被狼人杀死的 ")
                     .at(killed.user_id)
                     .text(" 发表遗言\n")
-                    .text(GameBehavior.get().timeout.speak_timeout_prompt),
+                    .text(self.behavior.timeout.speak_timeout_prompt),
                     stop_btn_label="结束发言",
                 )
                 await self.wait_stop(killed)

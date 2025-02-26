@@ -63,7 +63,7 @@ class GameState:
     """狼人交互是否结束"""
     killed: "Player | None" = None
     """当晚狼人击杀目标, `None` 则为空刀"""
-    shoot: "Player | None" = None
+    shooter: "Player | None" = None
     """当前执行射杀操作的玩家"""
     antidote: set["Player"] = dataclasses.field(default_factory=set)
     """当晚女巫使用解药的目标"""
@@ -76,7 +76,7 @@ class GameState:
         self.werewolf_finished = anyio.Event()
         self._werewolf_interact_count = 0
         self.killed = None
-        self.shoot = None
+        self.shooter = None
         self.antidote = set()
         self.poison = set()
         self.protected = set()

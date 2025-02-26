@@ -20,11 +20,11 @@ class CanShoot(Player):
             .text(" 死了\n请在私聊决定射杀目标...")
         )
 
-        self.game.state.shoot = None
+        self.game.state.shooter = None
         shoot = await self.shoot()
         msg = UniMessage.text("玩家 ").at(self.user_id).text(" ")
         if shoot is not None:
-            self.game.state.shoot = self
+            self.game.state.shooter = self
             await self.game.send("🔫" + msg.text("射杀了玩家 ").at(shoot.user_id))
             await shoot.kill(KillReason.SHOOT, self)
             self.selected = shoot

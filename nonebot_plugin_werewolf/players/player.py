@@ -10,7 +10,6 @@ from nonebot.utils import escape_tag
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 from nonebot_plugin_uninfo import Interface, SceneType
 
-from ..config import GameBehavior
 from ..constant import ROLE_EMOJI, ROLE_NAME_CONV, STOP_COMMAND, stop_command_prompt
 from ..models import KillInfo, KillReason, Role, RoleGroup
 from ..utils import (
@@ -194,7 +193,7 @@ class Player:
 
     @property
     def interact_timeout(self) -> float:
-        return GameBehavior.get().timeout.interact
+        return self.game.behavior.timeout.interact
 
     async def _before_interact(self) -> None:
         return
@@ -248,7 +247,7 @@ class Player:
         )
 
         try:
-            with anyio.fail_after(GameBehavior.get().timeout.vote):
+            with anyio.fail_after(self.game.behavior.timeout.vote):
                 selected = await self._select_player(
                     players,
                     on_stop="⚠️你选择了弃票",
