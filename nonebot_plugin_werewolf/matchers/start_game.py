@@ -1,7 +1,9 @@
 import json
 import re
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
+from typing import ClassVar
+from typing_extensions import Self
 
 import anyio
 import nonebot
@@ -32,9 +34,6 @@ from ..game import Game, get_running_games, get_starting_games
 from ..utils import ObjectStream, SendHandler, extract_session_member_nick
 from .depends import rule_not_in_game
 from .poke import poke_enabled
-
-if TYPE_CHECKING:
-    from collections.abc import Awaitable, Callable
 
 start_game = on_alconna(
     Alconna(
@@ -109,22 +108,14 @@ class PrepareGame:
                 tg.start_soon(self._edit)
                 tg.start_soon(self._send, msg)
 
-    def __init__(self, event: Event, players: dict[str, str]) -> None:
-        self.event = event
-        self.admin_id = event.get_user_id()
-        self.group = UniMessage.get_target(event)
+    def __init__(self, admin_id: str, target: Target, players: dict[str, str]) -> None:
+        self.admin_id = admin_id
+        self.group = target
         self.stream = ObjectStream[tuple[Event, str, str]](16)
         self.players = players
         self.send_handler = self._SendHandler()
         self.logger = nonebot.logger.opt(colors=True)
         self.shoud_start_game = False
-        self._msg_handler: dict[str, Callable[[], Awaitable[bool | None]]] = {
-            "开始游戏": self._handle_start,
-            "结束游戏": self._handle_end,
-            "加入游戏": self._handle_join,
-            "退出游戏": self._handle_quit,
-            "当前玩家": self._handle_list,
-        }
         get_starting_games()[self.group] = self.players
 
     async def run(self) -> None:
@@ -150,7 +141,7 @@ class PrepareGame:
             return self.group.verify(target)
 
         @waiter.waiter(
-            waits=[self.event.get_type()],
+            waits=[],
             keep_session=False,
             rule=Rule(same_group) & rule_not_in_game,
         )
@@ -240,6 +231,14 @@ class PrepareGame:
         )
         await self._send("✨当前玩家:\n" + "\n".join(lines))
 
+    _handlers: ClassVar[dict[str, Callable[[Self], Awaitable[bool | None]]]] = {
+        "开始游戏": _handle_start,
+        "结束游戏": _handle_end,
+        "加入游戏": _handle_join,
+        "退出游戏": _handle_quit,
+        "当前玩家": _handle_list,
+    }
+
     async def _handle(self) -> None:
         bot = current_bot.get()
         superuser = SuperUser()
@@ -263,8 +262,8 @@ class PrepareGame:
                 self.logger.debug(f"更新玩家显示名称: {self.current.colored}")
                 self.players[user_id] = name
 
-            handler = self._msg_handler.get(text)
-            if handler is not None and await handler():
+            handler = self._handlers.get(text)
+            if handler is not None and await handler(self):
                 return
 
 
@@ -310,20 +309,19 @@ async def handle_restart(target: MsgTarget, state: T_State) -> None:
 @start_game.handle()
 async def handle_start(
     bot: Bot,
-    event: Event,
     target: MsgTarget,
     session: Uninfo,
     interface: QryItrface,
     state: T_State,
 ) -> None:
     players: dict[str, str] = state.get("players", {})
-    admin_id = event.get_user_id()
+    admin_id = session.user.id
     admin_name = extract_session_member_nick(session) or admin_id
     players[admin_id] = admin_name
 
     try:
         with anyio.fail_after(GameBehavior.get().timeout.prepare):
-            await PrepareGame(event, players).run()
+            await PrepareGame(admin_id, target, players).run()
     except TimeoutError:
         await UniMessage.text("⚠️游戏准备超时，已自动结束").finish()
 

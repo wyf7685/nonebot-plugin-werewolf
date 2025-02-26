@@ -50,7 +50,7 @@ with contextlib.suppress(ImportError):
         return (
             (event.target_id == event.self_id)
             and not user_in_game(bot.self_id, user_id, group_id)
-            and any(target.verify(group) for group in get_starting_games())
+            and target in get_starting_games()
         )
 
     @on_notice(rule=_rule_poke_join).handle()
@@ -60,7 +60,7 @@ with contextlib.suppress(ImportError):
         target: MsgTarget,
     ) -> None:
         user_id = event.get_user_id()
-        players = next(p for g, p in get_starting_games().items() if target.verify(g))
+        players = get_starting_games()[target]
 
         if event.group_id is None or user_id in players:
             return
