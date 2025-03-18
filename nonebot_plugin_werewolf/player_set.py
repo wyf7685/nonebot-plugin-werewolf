@@ -52,7 +52,7 @@ class PlayerSet(set[Player]):
 
     @property
     def shuffled(self) -> list[Player]:
-        players = self.sorted
+        players = self.sorted.copy()
         random.shuffle(players)
         return players
 
