@@ -1,13 +1,14 @@
 from typing_extensions import override
 
 from ..models import Role, RoleGroup
-from .can_shoot import CanShoot
+from .shooter import ShooterKillProvider
 from .werewolf import Werewolf
 
 
-class WolfKing(CanShoot, Werewolf):
+class WolfKing(Werewolf):
     role = Role.WOLFKING
     role_group = RoleGroup.WEREWOLF
+    kill_provider = ShooterKillProvider
 
     @override
     async def notify_role(self) -> None:

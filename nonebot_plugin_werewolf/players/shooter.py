@@ -4,14 +4,14 @@ from nonebot_plugin_alconna.uniseg import UniMessage
 
 from ..constant import stop_command_prompt
 from ..models import KillReason
-from .player import Player
+from .player import KillProvider, Player
 
 
-class CanShoot(Player):
+class ShooterKillProvider(KillProvider["Player"]):
     @override
     async def post_kill(self) -> None:
         if self.kill_info and self.kill_info.reason == KillReason.POISON:
-            await self.send("⚠️你昨晚被女巫毒杀，无法使用技能")
+            await self.p.send("⚠️你昨晚被女巫毒杀，无法使用技能")
             return await super().post_kill()
 
         await self.game.send(
@@ -24,9 +24,9 @@ class CanShoot(Player):
         shoot = await self.shoot()
         msg = UniMessage.text("玩家 ").at(self.user_id).text(" ")
         if shoot is not None:
-            self.game.state.shooter = self
+            self.game.state.shooter = self.p
             await self.game.send("🔫" + msg.text("射杀了玩家 ").at(shoot.user_id))
-            await shoot.kill(KillReason.SHOOT, self)
+            await shoot.kill(KillReason.SHOOT, self.p)
             self.selected = shoot
         else:
             await self.game.send("ℹ️" + msg.text("选择了取消技能"))
@@ -34,8 +34,8 @@ class CanShoot(Player):
         return await super().post_kill()
 
     async def shoot(self) -> Player | None:
-        players = self.game.players.alive().exclude(self)
-        await self.send(
+        players = self.game.players.alive().exclude(self.p)
+        await self.p.send(
             "💫请选择需要射杀的玩家:\n"
             f"{players.show()}\n\n"
             "🔫发送编号选择玩家\n"
@@ -44,11 +44,11 @@ class CanShoot(Player):
             select_players=players,
         )
 
-        if selected := await self._select_player(
+        if selected := await self.p.select_player(
             players,
             on_stop="ℹ️已取消技能，回合结束",
             stop_btn_label="取消技能",
         ):
-            await self.send(f"🎯选择射杀的玩家: {selected.name}")
+            await self.p.send(f"🎯选择射杀的玩家: {selected.name}")
 
         return selected

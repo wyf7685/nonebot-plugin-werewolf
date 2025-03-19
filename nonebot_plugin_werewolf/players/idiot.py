@@ -4,24 +4,14 @@ from typing_extensions import override
 from nonebot_plugin_alconna.uniseg import UniMessage
 
 from ..models import KillInfo, KillReason, Role, RoleGroup
-from .player import Player
+from .player import KillProvider, Player
 
 if TYPE_CHECKING:
     from ..player_set import PlayerSet
 
 
-class Idiot(Player):
-    role = Role.IDIOT
-    role_group = RoleGroup.GOODGUY
-
-    voted: bool = False
-
-    @override
-    async def notify_role(self) -> None:
-        await super().notify_role()
-        await self.send(
-            "作为白痴，你可以在首次被投票放逐时免疫放逐，但在之后的投票中无法继续投票"
-        )
+class IdiotKillProvider(KillProvider["Idiot"]):
+    voted = KillProvider.proxy(bool)
 
     @override
     async def kill(self, reason: KillReason, *killers: Player) -> KillInfo | None:
@@ -36,6 +26,21 @@ class Idiot(Player):
             return None
 
         return await super().kill(reason, *killers)
+
+
+class Idiot(Player):
+    role = Role.IDIOT
+    role_group = RoleGroup.GOODGUY
+    kill_provider = IdiotKillProvider
+
+    voted: bool = False
+
+    @override
+    async def notify_role(self) -> None:
+        await super().notify_role()
+        await self.send(
+            "作为白痴，你可以在首次被投票放逐时免疫放逐，但在之后的投票中无法继续投票"
+        )
 
     @override
     async def vote(self, players: "PlayerSet") -> Player | None:

@@ -1,8 +1,9 @@
 from ..models import Role, RoleGroup
-from .can_shoot import CanShoot
 from .player import Player
+from .shooter import ShooterKillProvider
 
 
-class Hunter(CanShoot, Player):
+class Hunter(Player):
     role = Role.HUNTER
     role_group = RoleGroup.GOODGUY
+    kill_provider = ShooterKillProvider

@@ -1,7 +1,7 @@
 import functools
 import weakref
-from typing import TYPE_CHECKING, ClassVar, Final, final
-from typing_extensions import override
+from typing import TYPE_CHECKING, ClassVar, Final, Generic, Protocol, TypeVar, final
+from typing_extensions import Self, override
 
 import anyio
 import nonebot
@@ -40,12 +40,70 @@ class _SendHandler(SendHandler[str | None]):
         return msg
 
 
+_P = TypeVar("_P", bound="Player")
+_P_Contra = TypeVar("_P_Contra", bound="Player", contravariant=True)
+_T = TypeVar("_T")
+
+
+class ActionProvider(Generic[_P]):
+    p: _P
+
+    def __init__(self, player: _P) -> None:
+        self.p = player
+
+    class proxy(Generic[_T]):  # noqa: N801
+        def __init__(self, _t: type[_T] | None = None) -> None:
+            super().__init__()
+
+        def __set_name__(self, owner: type["ActionProvider"], name: str) -> None:
+            self.__name = name
+
+        def __get__(self, obj: "ActionProvider", objtype: type) -> _T:
+            return getattr(obj.p, self.__name)
+
+        def __set__(self, obj: "ActionProvider", value: _T) -> None:
+            setattr(obj.p, self.__name, value)
+
+    name = proxy[str]()
+    user_id = proxy[str]()
+    game = proxy["Game"]()
+    selected = proxy["Player | None"]()
+
+
+class InteractProvider(ActionProvider[_P], Generic[_P]):
+    async def before(self) -> None: ...
+    async def interact(self) -> None: ...
+    async def after(self) -> None: ...
+
+
+class KillProvider(ActionProvider[_P], Generic[_P]):
+    alive = ActionProvider.proxy(bool)
+    kill_info = ActionProvider.proxy[KillInfo | None]()
+
+    async def kill(self, reason: KillReason, *killers: "Player") -> KillInfo | None:
+        if self.alive:
+            self.alive = False
+            self.kill_info = KillInfo(reason=reason, killers=[p.name for p in killers])
+        return self.kill_info
+
+    async def post_kill(self) -> None: ...
+
+
+class _InteractProviderGetter(Protocol, Generic[_P_Contra]):
+    def __call__(self, player: _P_Contra, /) -> InteractProvider | None: ...
+
+
+class _KillProviderGetter(Protocol, Generic[_P_Contra]):
+    def __call__(self, player: _P_Contra) -> KillProvider: ...
+
+
 class Player:
     _player_class: ClassVar[dict[Role, type["Player"]]] = {}
 
     role: ClassVar[Role]
     role_group: ClassVar[RoleGroup]
-    _has_interact: ClassVar[bool]
+    interact_provider: ClassVar[_InteractProviderGetter[Self]] = lambda *_: None
+    kill_provider: ClassVar[_KillProviderGetter[Self]] = KillProvider
 
     bot: Final[Bot]
     alive: bool = True
@@ -69,10 +127,6 @@ class Player:
         super().__init_subclass__()
         if hasattr(cls, "role") and hasattr(cls, "role_group"):
             cls._player_class[cls.role] = cls
-        cls._has_interact = any(
-            getattr(getattr(cls, name), "__override__", False)
-            for name in ("_interact", "_before_interact", "_after_interact")
-        )
 
     @final
     @classmethod
@@ -195,44 +249,36 @@ class Player:
     def interact_timeout(self) -> float:
         return self.game.behavior.timeout.interact
 
-    async def _before_interact(self) -> None:
-        return
-
-    async def _interact(self) -> None:
-        return
-
-    async def _after_interact(self) -> None:
-        return
-
+    @final
     async def interact(self) -> None:
-        if not getattr(self._interact, "__override__", False):
+        if (provider := self.interact_provider(self)) is None:
             await self.send("ℹ️请等待其他玩家结束交互...")
             return
 
-        await self._before_interact()
+        await provider.before()
 
         timeout = self.interact_timeout
         await self.send(f"✏️{self.role_name}交互开始，限时 {timeout / 60:.2f} 分钟")
 
         try:
             with anyio.fail_after(timeout):
-                await self._interact()
+                await provider.interact()
         except TimeoutError:
             logger.debug(f"{self.role_name}交互超时 (<y>{timeout}</y>s)")
             await self.send(f"⚠️{self.role_name}交互超时")
 
-        await self._after_interact()
+        await provider.after()
 
     async def notify_role(self) -> None:
         await self.send(f"⚙️你的身份: {ROLE_EMOJI[self.role]}{self.role_name}")
 
+    @final
     async def kill(self, reason: KillReason, *killers: "Player") -> KillInfo | None:
-        if self.alive:
-            self.alive = False
-            self.kill_info = KillInfo(reason=reason, killers=[p.name for p in killers])
-        return self.kill_info
+        return await self.kill_provider(self).kill(reason, *killers)
 
+    @final
     async def post_kill(self) -> None:
+        await self.kill_provider(self).post_kill()
         self.killed.set()
 
     async def vote(self, players: "PlayerSet") -> "Player | None":
@@ -248,7 +294,7 @@ class Player:
 
         try:
             with anyio.fail_after(self.game.behavior.timeout.vote):
-                selected = await self._select_player(
+                selected = await self.select_player(
                     players,
                     on_stop="⚠️你选择了弃票",
                     on_index_error="⚠️输入错误: 请发送编号选择玩家",
@@ -264,7 +310,7 @@ class Player:
     async def _check_selected(self, player: "Player") -> "Player | None":
         return player
 
-    async def _select_player(
+    async def select_player(
         self,
         players: "PlayerSet",
         *,
