@@ -4,8 +4,8 @@ from nonebot_plugin_alconna.uniseg import UniMessage
 
 from ..constant import stop_command_prompt
 from ..models import Role, RoleGroup
+from ..player import InteractProvider, Player
 from ..utils import as_player_set
-from .player import InteractProvider, Player
 
 
 class WitchInteractProvider(InteractProvider["Witch"]):

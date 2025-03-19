@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 import anyio
 
 if TYPE_CHECKING:
-    from .players import Player
+    from .player import Player
 
 
 class Role(int, Enum):

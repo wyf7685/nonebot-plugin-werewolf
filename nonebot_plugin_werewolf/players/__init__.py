@@ -3,7 +3,6 @@ from .guard import Guard as Guard
 from .hunter import Hunter as Hunter
 from .idiot import Idiot as Idiot
 from .jester import Jester as Jester
-from .player import Player as Player
 from .prophet import Prophet as Prophet
 from .werewolf import Werewolf as Werewolf
 from .witch import Witch as Witch

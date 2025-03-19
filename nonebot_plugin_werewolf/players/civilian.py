@@ -1,5 +1,5 @@
 from ..models import Role, RoleGroup
-from .player import Player
+from ..player import Player
 
 
 class Civilian(Player):

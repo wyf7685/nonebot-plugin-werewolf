@@ -10,9 +10,9 @@ from nonebot.utils import escape_tag
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 from nonebot_plugin_uninfo import Interface, SceneType
 
-from ..constant import ROLE_EMOJI, ROLE_NAME_CONV, STOP_COMMAND, stop_command_prompt
-from ..models import KillInfo, KillReason, Role, RoleGroup
-from ..utils import (
+from .constant import ROLE_EMOJI, ROLE_NAME_CONV, STOP_COMMAND, stop_command_prompt
+from .models import KillInfo, KillReason, Role, RoleGroup
+from .utils import (
     InputStore,
     SendHandler,
     add_players_button,
@@ -22,8 +22,8 @@ from ..utils import (
 )
 
 if TYPE_CHECKING:
-    from ..game import Game
-    from ..player_set import PlayerSet
+    from .game import Game
+    from .player_set import PlayerSet
 
 
 logger = nonebot.logger.opt(colors=True)
@@ -156,20 +156,24 @@ class Player:
     def __repr__(self) -> str:
         return f"<Player {self.role_name}: user={self.user_id!r} alive={self.alive}>"
 
+    @final
     @property
     def game(self) -> "Game":
         if game := self.__game_ref():
             return game
         raise ValueError("Game not exist")
 
+    @final
     @functools.cached_property
     def user_id(self) -> str:
         return self.__user.id
 
+    @final
     @functools.cached_property
     def role_name(self) -> str:
         return ROLE_NAME_CONV[self.role]
 
+    @final
     async def _fetch_member(self, interface: Interface) -> None:
         member = await interface.get_member(
             SceneType.GROUP,
@@ -310,6 +314,7 @@ class Player:
     async def _check_selected(self, player: "Player") -> "Player | None":
         return player
 
+    @final
     async def select_player(
         self,
         players: "PlayerSet",

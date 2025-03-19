@@ -17,8 +17,8 @@ from .config import GameBehavior, PresetData
 from .constant import GAME_STATUS_CONV, REPORT_TEXT, ROLE_EMOJI, ROLE_NAME_CONV
 from .exception import GameFinished
 from .models import GameState, GameStatus, KillInfo, KillReason, Role, RoleGroup
+from .player import Player
 from .player_set import PlayerSet
-from .players import Player
 from .utils import InputStore, ObjectStream, SendHandler, add_stop_button, link
 
 logger = nonebot.logger.opt(colors=True)
@@ -503,8 +503,7 @@ class Game:
             await self.handle_game_finish(result.status)
             logger.info(f"{self.colored_name} 的狼人杀游戏进程正常退出")
         except Exception as err:
-            msg = f"{self.colored_name} 的狼人杀游戏进程出现未知错误: {err!r}"
-            logger.exception(msg)
+            logger.exception(f"{self.colored_name} 的狼人杀游戏进程出现未知错误")
             await self.send(f"❌狼人杀游戏进程出现未知错误: {err!r}")
         finally:
             if self._finished is not None:

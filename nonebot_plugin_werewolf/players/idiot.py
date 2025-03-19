@@ -4,7 +4,7 @@ from typing_extensions import override
 from nonebot_plugin_alconna.uniseg import UniMessage
 
 from ..models import KillInfo, KillReason, Role, RoleGroup
-from .player import KillProvider, Player
+from ..player import KillProvider, Player
 
 if TYPE_CHECKING:
     from ..player_set import PlayerSet

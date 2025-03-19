@@ -4,7 +4,7 @@ from nonebot_plugin_alconna.uniseg import UniMessage
 
 from ..constant import stop_command_prompt
 from ..models import KillReason
-from .player import KillProvider, Player
+from ..player import KillProvider, Player
 
 
 class ShooterKillProvider(KillProvider["Player"]):

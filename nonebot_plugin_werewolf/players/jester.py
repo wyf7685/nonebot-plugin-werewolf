@@ -2,7 +2,7 @@ from typing_extensions import override
 
 from ..exception import GameFinished
 from ..models import GameStatus, KillInfo, KillReason, Role, RoleGroup
-from .player import KillProvider, Player
+from ..player import KillProvider, Player
 
 
 class JesterKillProvider(KillProvider["Jester"]):

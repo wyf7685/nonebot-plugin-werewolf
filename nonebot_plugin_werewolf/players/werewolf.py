@@ -7,8 +7,8 @@ from nonebot_plugin_alconna.uniseg import UniMessage
 
 from ..constant import STOP_COMMAND, stop_command_prompt
 from ..models import Role, RoleGroup
+from ..player import InteractProvider, Player
 from ..utils import ObjectStream, as_player_set, check_index
-from .player import InteractProvider, Player
 
 if TYPE_CHECKING:
     from ..player_set import PlayerSet

@@ -2,7 +2,7 @@ from typing_extensions import override
 
 from ..constant import stop_command_prompt
 from ..models import GameState, Role, RoleGroup
-from .player import InteractProvider, Player
+from ..player import InteractProvider, Player
 
 
 class GuardInteractProvider(InteractProvider["Guard"]):

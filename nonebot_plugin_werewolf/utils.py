@@ -23,8 +23,8 @@ from .config import config
 from .constant import STOP_COMMAND, stop_command_prompt
 
 if TYPE_CHECKING:
+    from .player import Player
     from .player_set import PlayerSet
-    from .players import Player
 
 T = TypeVar("T")
 P = ParamSpec("P")

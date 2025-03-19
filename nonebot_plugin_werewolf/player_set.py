@@ -5,7 +5,7 @@ import anyio
 from nonebot_plugin_alconna.uniseg import UniMessage
 
 from .models import Role, RoleGroup
-from .players import Player
+from .player import Player
 
 
 class PlayerSet(set[Player]):
