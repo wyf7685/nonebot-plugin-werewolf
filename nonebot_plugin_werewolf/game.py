@@ -140,7 +140,7 @@ class DeadChannel:
             # 推送消息
             await self.stream.send((player, msg))
 
-    async def run(self) -> NoReturn:
+    async def run(self) -> None:
         async with anyio.create_task_group() as tg:
             self._task_group = tg
             tg.start_soon(self._wait_finished)

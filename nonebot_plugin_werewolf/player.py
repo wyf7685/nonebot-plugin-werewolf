@@ -1,6 +1,6 @@
 import functools
 import weakref
-from typing import TYPE_CHECKING, ClassVar, Final, Generic, Protocol, TypeVar, final
+from typing import TYPE_CHECKING, ClassVar, Final, Generic, TypeVar, final
 from typing_extensions import Self, override
 
 import anyio
@@ -41,32 +41,36 @@ class _SendHandler(SendHandler[str | None]):
 
 
 _P = TypeVar("_P", bound="Player")
-_P_Contra = TypeVar("_P_Contra", bound="Player", contravariant=True)
 _T = TypeVar("_T")
 
 
 class ActionProvider(Generic[_P]):
     p: _P
 
-    def __init__(self, player: _P) -> None:
+    @final
+    def __init__(self, player: _P, /) -> None:
         self.p = player
 
     class proxy(Generic[_T]):  # noqa: N801
-        def __init__(self, _t: type[_T] | None = None) -> None:
-            super().__init__()
+        def __init__(
+            self, _: type[_T] | None = None, /, *, readonly: bool = False
+        ) -> None:
+            self.readonly = readonly
 
         def __set_name__(self, owner: type["ActionProvider"], name: str) -> None:
-            self.__name = name
+            self.name = name
 
         def __get__(self, obj: "ActionProvider", objtype: type) -> _T:
-            return getattr(obj.p, self.__name)
+            return getattr(obj.p, self.name)
 
         def __set__(self, obj: "ActionProvider", value: _T) -> None:
-            setattr(obj.p, self.__name, value)
+            if self.readonly:
+                raise AttributeError(f"readonly attribute {self.name}")
+            setattr(obj.p, self.name, value)
 
-    name = proxy[str]()
-    user_id = proxy[str]()
-    game = proxy["Game"]()
+    name = proxy[str](readonly=True)
+    user_id = proxy[str](readonly=True)
+    game = proxy["Game"](readonly=True)
     selected = proxy["Player | None"]()
 
 
@@ -77,7 +81,7 @@ class InteractProvider(ActionProvider[_P], Generic[_P]):
 
 
 class KillProvider(ActionProvider[_P], Generic[_P]):
-    alive = ActionProvider.proxy(bool)
+    alive = ActionProvider.proxy[bool]()
     kill_info = ActionProvider.proxy[KillInfo | None]()
 
     async def kill(self, reason: KillReason, *killers: "Player") -> KillInfo | None:
@@ -89,21 +93,13 @@ class KillProvider(ActionProvider[_P], Generic[_P]):
     async def post_kill(self) -> None: ...
 
 
-class _InteractProviderGetter(Protocol, Generic[_P_Contra]):
-    def __call__(self, player: _P_Contra, /) -> InteractProvider | None: ...
-
-
-class _KillProviderGetter(Protocol, Generic[_P_Contra]):
-    def __call__(self, player: _P_Contra) -> KillProvider: ...
-
-
 class Player:
     _player_class: ClassVar[dict[Role, type["Player"]]] = {}
 
     role: ClassVar[Role]
     role_group: ClassVar[RoleGroup]
-    interact_provider: ClassVar[_InteractProviderGetter[Self]] = lambda *_: None
-    kill_provider: ClassVar[_KillProviderGetter[Self]] = KillProvider
+    interact_provider: ClassVar[type[InteractProvider[Self]] | None]
+    kill_provider: ClassVar[type[KillProvider[Self]]]
 
     bot: Final[Bot]
     alive: bool = True
@@ -127,6 +123,10 @@ class Player:
         super().__init_subclass__()
         if hasattr(cls, "role") and hasattr(cls, "role_group"):
             cls._player_class[cls.role] = cls
+        if not hasattr(cls, "interact_provider"):
+            cls.interact_provider = None
+        if not hasattr(cls, "kill_provider"):
+            cls.kill_provider = KillProvider
 
     @final
     @classmethod
@@ -255,9 +255,11 @@ class Player:
 
     @final
     async def interact(self) -> None:
-        if (provider := self.interact_provider(self)) is None:
+        if self.interact_provider is None:
             await self.send("ℹ️请等待其他玩家结束交互...")
             return
+
+        provider = self.interact_provider(self)
 
         await provider.before()
 
