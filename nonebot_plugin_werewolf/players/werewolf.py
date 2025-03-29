@@ -7,7 +7,7 @@ from nonebot_plugin_alconna.uniseg import UniMessage
 
 from ..constant import STOP_COMMAND, stop_command_prompt
 from ..models import Role, RoleGroup
-from ..player import InteractProvider, Player
+from ..player import InteractProvider, NotifyProvider, Player
 from ..utils import ObjectStream, as_player_set, check_index
 
 if TYPE_CHECKING:
@@ -113,30 +113,35 @@ class WerewolfInteractProvider(InteractProvider["Werewolf"]):
 
     @override
     async def after(self) -> None:
-        self.game.state.werewolf_end()
-        if self.game.state.werewolf_finished.is_set():
+        if self.game.state.werewolf_end():
             await self.finalize()
 
         if not self.game.players.alive().select(Role.WITCH):
             await anyio.sleep(5 + secrets.randbelow(15))
 
 
+class WerewolfNotifyProvider(NotifyProvider["Werewolf"]):
+    @override
+    def message(self, message: UniMessage) -> UniMessage:
+        if (
+            partners := self.game.players.alive()
+            .select(RoleGroup.WEREWOLF)
+            .exclude(self.p)
+        ):
+            message = message.text(
+                "\n🐺你的队友:\n\n"
+                + "".join(f"  {p.role_name}: {p.name}\n" for p in partners)
+            )
+        return message
+
+
 class Werewolf(Player):
     role = Role.WEREWOLF
     role_group = RoleGroup.WEREWOLF
     interact_provider = WerewolfInteractProvider
+    notify_provider = WerewolfNotifyProvider
 
     @property
     @override
     def interact_timeout(self) -> float:
         return self.game.behavior.timeout.werewolf
-
-    @override
-    async def notify_role(self) -> None:
-        await super().notify_role()
-        partners = self.game.players.alive().select(RoleGroup.WEREWOLF).exclude(self)
-        if partners:
-            await self.send(
-                "🐺你的队友:\n"
-                + "\n".join(f"  {p.role_name}: {p.name}" for p in partners)
-            )

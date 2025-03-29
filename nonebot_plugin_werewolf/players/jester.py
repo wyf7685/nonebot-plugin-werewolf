@@ -1,8 +1,10 @@
 from typing_extensions import override
 
+from nonebot_plugin_alconna import UniMessage
+
 from ..exception import GameFinished
 from ..models import GameStatus, KillInfo, KillReason, Role, RoleGroup
-from ..player import KillProvider, Player
+from ..player import KillProvider, NotifyProvider, Player
 
 
 class JesterKillProvider(KillProvider["Jester"]):
@@ -14,12 +16,14 @@ class JesterKillProvider(KillProvider["Jester"]):
         return kill_info
 
 
+class JesterNotifyProvider(NotifyProvider["Jester"]):
+    @override
+    def message(self, message: UniMessage) -> UniMessage:
+        return message.text("⚙️你的胜利条件: 被投票放逐")
+
+
 class Jester(Player):
     role = Role.JESTER
     role_group = RoleGroup.OTHERS
     kill_provider = JesterKillProvider
-
-    @override
-    async def notify_role(self) -> None:
-        await super().notify_role()
-        await self.send("⚙️你的胜利条件: 被投票放逐")
+    notify_provider = JesterNotifyProvider

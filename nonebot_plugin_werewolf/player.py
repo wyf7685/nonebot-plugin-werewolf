@@ -29,17 +29,6 @@ if TYPE_CHECKING:
 logger = nonebot.logger.opt(colors=True)
 
 
-class _SendHandler(SendHandler[str | None]):
-    def solve_msg(
-        self,
-        msg: UniMessage,
-        stop_btn_label: str | None = None,
-    ) -> UniMessage:
-        if stop_btn_label is not None:
-            msg = add_stop_button(msg, stop_btn_label)
-        return msg
-
-
 _P = TypeVar("_P", bound="Player")
 _T = TypeVar("_T")
 
@@ -93,6 +82,30 @@ class KillProvider(ActionProvider[_P], Generic[_P]):
     async def post_kill(self) -> None: ...
 
 
+class NotifyProvider(ActionProvider[_P], Generic[_P]):
+    role = ActionProvider.proxy[Role]()
+    role_group = ActionProvider.proxy[RoleGroup]()
+    role_name = ActionProvider.proxy[str]()
+
+    def message(self, message: UniMessage) -> UniMessage:
+        return message
+
+    async def notify(self) -> None:
+        msg = UniMessage.text(f"⚙️你的身份: {ROLE_EMOJI[self.role]}{self.role_name}\n")
+        await self.p.send(self.message(msg))
+
+
+class _SendHandler(SendHandler[str | None]):
+    def solve_msg(
+        self,
+        msg: UniMessage,
+        stop_btn_label: str | None = None,
+    ) -> UniMessage:
+        if stop_btn_label is not None:
+            msg = add_stop_button(msg, stop_btn_label)
+        return msg
+
+
 class Player:
     _player_class: ClassVar[dict[Role, type["Player"]]] = {}
 
@@ -100,6 +113,7 @@ class Player:
     role_group: ClassVar[RoleGroup]
     interact_provider: ClassVar[type[InteractProvider[Self]] | None]
     kill_provider: ClassVar[type[KillProvider[Self]]]
+    notify_provider: ClassVar[type[NotifyProvider[Self]]]
 
     bot: Final[Bot]
     alive: bool = True
@@ -127,6 +141,8 @@ class Player:
             cls.interact_provider = None
         if not hasattr(cls, "kill_provider"):
             cls.kill_provider = KillProvider
+        if not hasattr(cls, "notify_provider"):
+            cls.notify_provider = NotifyProvider
 
     @final
     @classmethod
@@ -177,13 +193,13 @@ class Player:
     async def _fetch_member(self, interface: Interface) -> None:
         member = await interface.get_member(
             SceneType.GROUP,
-            self.game.group.id,
+            self.game.group_id,
             self.user_id,
         )
         if member is None:
             member = await interface.get_member(
                 SceneType.GUILD,
-                self.game.group.id,
+                self.game.group_id,
                 self.user_id,
             )
 
@@ -276,7 +292,7 @@ class Player:
         await provider.after()
 
     async def notify_role(self) -> None:
-        await self.send(f"⚙️你的身份: {ROLE_EMOJI[self.role]}{self.role_name}")
+        await self.notify_provider(self).notify()
 
     @final
     async def kill(self, reason: KillReason, *killers: "Player") -> KillInfo | None:

@@ -84,10 +84,11 @@ class GameState:
     def werewolf_start(self) -> None:
         self._werewolf_interact_count += 1
 
-    def werewolf_end(self) -> None:
+    def werewolf_end(self) -> bool:
         self._werewolf_interact_count -= 1
         if self._werewolf_interact_count == 0:
             self.werewolf_finished.set()
+        return self.werewolf_finished.is_set()
 
 
 @dataclasses.dataclass
