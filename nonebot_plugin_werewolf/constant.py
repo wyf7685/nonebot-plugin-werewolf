@@ -1,4 +1,5 @@
 import functools
+from typing import TYPE_CHECKING
 
 import nonebot
 
@@ -10,11 +11,15 @@ COMMAND_START = next(
 )
 
 
-@functools.cache
 def stop_command_prompt() -> str:
     from .config import config  # circular import
 
     return COMMAND_START + config.get_stop_command()[0]
+
+
+if not TYPE_CHECKING:
+    stop_command_prompt = functools.cache(stop_command_prompt)
+del TYPE_CHECKING
 
 
 ROLE_NAME_CONV: dict[Role | RoleGroup, str] = {

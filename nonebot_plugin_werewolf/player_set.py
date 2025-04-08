@@ -1,5 +1,7 @@
 import functools
 import random
+from collections.abc import Iterable
+from typing_extensions import Self
 
 import anyio
 from nonebot_plugin_alconna.uniseg import UniMessage
@@ -9,31 +11,37 @@ from .player import Player
 
 
 class PlayerSet(set[Player]):
+    __slots__ = ("__dict__",)  # for cached_property `sorted`
+
     @property
     def size(self) -> int:
         return len(self)
 
-    def alive(self) -> "PlayerSet":
-        return PlayerSet(p for p in self if p.alive)
+    @classmethod
+    def from_(cls, iterable: Iterable[Player], /) -> Self:
+        return cls(iterable)
 
-    def dead(self) -> "PlayerSet":
-        return PlayerSet(p for p in self if not p.alive)
+    def alive(self) -> Self:
+        return self.from_(p for p in self if p.alive)
 
-    def killed(self) -> "PlayerSet":
-        return PlayerSet(p for p in self if p.killed.is_set())
+    def dead(self) -> Self:
+        return self.from_(p for p in self if not p.alive)
 
-    def include(self, *types: Player | Role | RoleGroup) -> "PlayerSet":
-        return PlayerSet(
+    def killed(self) -> Self:
+        return self.from_(p for p in self if p.killed.is_set())
+
+    def include(self, *types: Player | Role | RoleGroup) -> Self:
+        return self.from_(
             player
             for player in self
             if (player in types or player.role in types or player.role_group in types)
         )
 
-    def select(self, *types: Player | Role | RoleGroup) -> "PlayerSet":
+    def select(self, *types: Player | Role | RoleGroup) -> Self:
         return self.include(*types)
 
-    def exclude(self, *types: Player | Role | RoleGroup) -> "PlayerSet":
-        return PlayerSet(
+    def exclude(self, *types: Player | Role | RoleGroup) -> Self:
+        return self.from_(
             player
             for player in self
             if (
@@ -43,8 +51,8 @@ class PlayerSet(set[Player]):
             )
         )
 
-    def player_selected(self) -> "PlayerSet":
-        return PlayerSet(p.selected for p in self.alive() if p.selected is not None)
+    def player_selected(self) -> Self:
+        return self.from_(p.selected for p in self.alive() if (p.selected is not None))
 
     @functools.cached_property
     def sorted(self) -> list[Player]:
@@ -63,7 +71,7 @@ class PlayerSet(set[Player]):
         async def _vote(player: Player) -> None:
             vote = await player.vote(players)
             if vote is not None:
-                result[vote] = [*result.get(vote, []), player]
+                result.setdefault(vote, []).append(player)
 
         async with anyio.create_task_group() as tg:
             for p in players:
@@ -75,16 +83,17 @@ class PlayerSet(set[Player]):
         if not self:
             return
 
+        send = functools.partial(
+            Player.send,
+            message=message,
+            stop_btn_label=None,
+            select_players=None,
+            skip_handler=True,
+        )
+
         async with anyio.create_task_group() as tg:
             for p in self:
-                func = functools.partial(
-                    p.send,
-                    message=message,
-                    stop_btn_label=None,
-                    select_players=None,
-                    skip_handler=True,
-                )
-                tg.start_soon(func)
+                tg.start_soon(send, p)
 
     def show(self) -> str:
         return "\n".join(f"{i}. {p.name}" for i, p in enumerate(self.sorted, 1))

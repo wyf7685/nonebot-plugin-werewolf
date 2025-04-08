@@ -1,5 +1,6 @@
 import functools
 import weakref
+from types import EllipsisType
 from typing import TYPE_CHECKING, ClassVar, Final, Generic, TypeVar, final
 from typing_extensions import Self, override
 
@@ -337,11 +338,11 @@ class Player:
         self,
         players: "PlayerSet",
         *,
-        on_stop: str | None = None,
+        on_stop: str | EllipsisType | None = ...,
         on_index_error: str | None = None,
         stop_btn_label: str | None = None,
     ) -> "Player | None":
-        on_stop = on_stop or "ℹ️你选择了取消，回合结束"
+        on_stop = on_stop if on_stop is not None else "ℹ️你选择了取消，回合结束"
         on_index_error = (
             on_index_error or f"⚠️输入错误: 请发送玩家编号或 “{stop_command_prompt()}”"
         )
@@ -350,11 +351,10 @@ class Player:
         while selected is None:
             text = await self.receive_text()
             if text == STOP_COMMAND:
-                if on_stop is not None:
+                if on_stop is not ...:
                     await self.send(on_stop)
                 return None
-            index = check_index(text, len(players))
-            if index is None:
+            if (index := check_index(text, players.size)) is None:
                 await self.send(
                     on_index_error,
                     stop_btn_label=stop_btn_label,
