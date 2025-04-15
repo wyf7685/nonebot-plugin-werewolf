@@ -351,7 +351,9 @@ class Game:
             speak_timeout = timeout.speak
             for player in self.players.alive().sorted:
                 await self.send(
-                    f"💬轮到你发言\n{timeout.speak_timeout_prompt}",
+                    UniMessage.text("💬")
+                    .at(player.user_id)
+                    .text(f"\n轮到你发言\n{timeout.speak_timeout_prompt}"),
                     stop_btn_label="结束发言",
                 )
                 await self.wait_stop(player, timeout_secs=speak_timeout)
