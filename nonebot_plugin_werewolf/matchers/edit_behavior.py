@@ -145,7 +145,10 @@ async def set_dead_chat(behavior: Behavior, limit: int) -> None:
 @edit_behavior.assign("werewolf_multi_select")
 async def set_werewolf_multi_select(behavior: Behavior, enabled: bool) -> None:
     behavior.werewolf_multi_select = enabled
-    await finish(f"已{'启用' if enabled else '禁用'}狼人多选")
+    await finish(
+        f"已{'启用' if enabled else '禁用'}狼人多选\n"
+        "注: 狼人意见未统一时随机选择已选玩家"
+    )
 
 
 @edit_behavior.assign("timeout.prepare")
@@ -205,13 +208,14 @@ async def handle_default(behavior: Behavior) -> None:
         f"游戏开始发送职业列表: {'是' if behavior.show_roles_list_on_start else '否'}",
         f"白天讨论按顺序发言: {'是' if behavior.speak_in_turn else '否'}",
         f"死亡玩家发言转发限制: {behavior.dead_channel_rate_limit} 次/分钟",
+        f"狼人多选(意见未统一时随机选择已选玩家): {'是' if behavior.werewolf_multi_select else '否'}",  # noqa: E501
         "",
         "超时时间设置:",
         f"准备阶段: {timeout.prepare} 秒",
         f"个人发言: {timeout.speak} 秒",
         f"集体发言: {timeout.group_speak} 秒",
-        f"交互阶段: {timeout.interact} 秒",
         f"投票阶段: {timeout.vote} 秒",
+        f"交互阶段: {timeout.interact} 秒",
         f"狼人交互: {timeout.werewolf} 秒",
     ]
     await finish("\n".join(lines))
