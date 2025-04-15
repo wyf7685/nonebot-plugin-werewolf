@@ -1,7 +1,7 @@
 import contextlib
 import functools
 import secrets
-from collections import defaultdict
+from collections import Counter
 from typing import NoReturn, final
 from typing_extensions import Self
 
@@ -258,12 +258,9 @@ class Game:
         )
 
         if self.behavior.show_roles_list_on_start:
-            role_cnt: dict[Role, int] = defaultdict(lambda: 0)
-            for role in sorted((p.role for p in self.players), key=lambda r: r.value):
-                role_cnt[role] += 1
-
             msg.text("\n\n📚职业列表:\n")
-            for role, cnt in role_cnt.items():
+            counter = Counter(p.role for p in self.players)
+            for role, cnt in sorted(counter.items(), key=lambda x: x[0].value):
                 msg.text(f"- {ROLE_EMOJI[role]}{ROLE_NAME_CONV[role]}x{cnt}\n")
 
         async with anyio.create_task_group() as tg:
