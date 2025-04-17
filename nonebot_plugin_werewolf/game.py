@@ -162,9 +162,9 @@ class Game:
         self.state = GameState(0)
         self.killed_players = []
         self._player_map: dict[str, Player] = {}
+        self._shuffled: list[Player] = []
         self._scene = None
-        self._finished = None
-        self._task_group = None
+        self._finished = self._task_group = None
         self._send_handler = _SendHandler(group, bot)
 
     @final
@@ -184,6 +184,7 @@ class Game:
 
         self.players = await init_players(bot, self, players, interface)
         self._player_map |= {p.user_id: p for p in self.players}
+        self._shuffled = self.players.shuffled
 
         return self
 
@@ -336,23 +337,24 @@ class Game:
         timeout = self.behavior.timeout
 
         if not self.behavior.speak_in_turn:
-            speak_timeout = timeout.group_speak
             await self.send(
                 f"💬接下来开始自由讨论\n{timeout.group_speak_timeout_prompt}",
                 stop_btn_label="结束发言",
             )
-            await self.wait_stop(*self.players.alive(), timeout_secs=speak_timeout)
+            await self.wait_stop(
+                *self.players.alive(),
+                timeout_secs=timeout.group_speak,
+            )
         else:
             await self.send("💬接下来开始轮流发言")
-            speak_timeout = timeout.speak
-            for player in self.players.alive().sorted:
+            for player in filter(lambda p: p.alive, self._shuffled):
                 await self.send(
                     UniMessage.text("💬")
                     .at(player.user_id)
                     .text(f"\n轮到你发言\n{timeout.speak_timeout_prompt}"),
                     stop_btn_label="结束发言",
                 )
-                await self.wait_stop(player, timeout_secs=speak_timeout)
+                await self.wait_stop(player, timeout_secs=timeout.speak)
             await self.send("💬所有玩家发言结束")
 
     async def run_vote(self) -> None:
