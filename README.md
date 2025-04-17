@@ -19,7 +19,8 @@ _✨ 简单的狼人杀插件 ✨_
 [![pre-commit](https://results.pre-commit.ci/badge/github/wyf7685/nonebot-plugin-werewolf/master.svg)](https://results.pre-commit.ci/latest/github/wyf7685/nonebot-plugin-werewolf/master)
 [![lint](https://github.com/wyf7685/nonebot-plugin-werewolf/actions/workflows/lint.yml/badge.svg?branch=master&event=push)](https://github.com/wyf7685/nonebot-plugin-werewolf/actions/workflows/lint.yml)
 
-<!-- https://github.com/lgc2333/nonebot-registry-badge -->
+<!-- ref: https://github.com/lgc2333/nonebot-registry-badge -->
+
 [![NoneBot Registry](https://img.shields.io/endpoint?url=https%3A%2F%2Fnbbdg.lgc2333.top%2Fplugin%2Fnonebot-plugin-werewolf)](https://registry.nonebot.dev/plugin/nonebot-plugin-werewolf:nonebot_plugin_werewolf)
 [![Supported Adapters](https://img.shields.io/endpoint?url=https%3A%2F%2Fnbbdg.lgc2333.top%2Fplugin-adapters%2Fnonebot-plugin-werewolf)](https://registry.nonebot.dev/plugin/nonebot-plugin-werewolf:nonebot_plugin_werewolf)
 
@@ -33,7 +34,7 @@ _✨ 简单的狼人杀插件 ✨_
 
 > [!note]
 >
-> 请确保 NoneBot2 使用的 Python 解释器版本 >=3.10
+> 请确保 [NoneBot2](https://nonebot.dev/) 使用的 Python 解释器版本 >=3.10
 
 <details open>
 <summary>使用 nb-cli 安装</summary>
@@ -45,12 +46,14 @@ _✨ 简单的狼人杀插件 ✨_
 
 <details>
 <summary>使用包管理器安装</summary>
+<!-- 会用包管理器的用户真的需要这节吗 -->
+
 在 nonebot2 项目的插件目录下, 打开命令行, 根据你使用的包管理器, 输入相应的安装命令
 
-<details>
-<summary>pip</summary>
+<details open>
+<summary>uv</summary>
 
-    pip install nonebot-plugin-werewolf
+    uv add nonebot-plugin-werewolf
 
 </details>
 <details>
@@ -71,6 +74,12 @@ _✨ 简单的狼人杀插件 ✨_
     conda install nonebot-plugin-werewolf
 
 </details>
+<details>
+<summary>pip</summary>
+
+    pip install nonebot-plugin-werewolf
+
+</details>
 
 打开 nonebot2 项目根目录下的 `pyproject.toml` 文件, 在 `[tool.nonebot]` 部分追加写入
 
@@ -82,11 +91,11 @@ _✨ 简单的狼人杀插件 ✨_
 
 在 nonebot2 项目的 `.env` 文件中添加如下配置:
 
-|          配置项           | 必填  | 默认值  |             说明             |
-| :-----------------------: | :---: | :-----: | :--------------------------: |
-|  `werewolf__enable_poke`  |  否   | `True`  |  是否使用戳一戳简化操作流程  |
-| `werewolf__enable_button` |  否   | `False` |     是否在交互中添加按钮     |
-| `werewolf__stop_command`  |  否   | `stop`  | 修改游戏进程中的 `stop` 命令 |
+|          配置项           | 必填 | 默认值  |       类型        |             说明             |
+| :-----------------------: | :--: | :-----: | :---------------: | :--------------------------: |
+|  `werewolf__enable_poke`  |  否  | `True`  |      `bool`       |  是否使用戳一戳简化操作流程  |
+| `werewolf__enable_button` |  否  | `False` |      `bool`       |     是否在交互中添加按钮     |
+| `werewolf__stop_command`  |  否  | `stop`  | `str \| set[str]` | 修改游戏进程中的 `stop` 命令 |
 
 `werewolf__enable_poke` 仅在 `OneBot V11` 适配器 / `Satori/chronocat` 下生效
 
@@ -115,28 +124,29 @@ _✨ 简单的狼人杀插件 ✨_
 
 ### 指令表
 
-|        指令         |        权限         | 需要@ | 范围  |                   说明                    |
-| :-----------------: | :-----------------: | :---: | :---: | :---------------------------------------: |
-| `werewolf`/`狼人杀` |        群员         |  是   | 群聊  |          发起游戏 (进入准备阶段)          |
-|     `开始游戏`      |     游戏发起者      |  否   | 群聊  |      _[准备阶段]_ 游戏发起者开始游戏      |
-|     `结束游戏`      | 游戏发起者/超级用户 |  否   | 群聊  | _[准备阶段]_ 游戏发起者/超级用户 结束游戏 |
-|     `当前玩家`      |        群员         |  否   | 群聊  |    _[准备阶段]_ 列出参与游戏的玩家列表    |
-|     `加入游戏`      |        群员         |  否   | 群聊  |         _[准备阶段]_ 玩家加入游戏         |
-|     `退出游戏`      |        群员         |  否   | 群聊  |         _[准备阶段]_ 玩家退出游戏         |
-|     `中止游戏`      |      超级用户       |  是   | 群聊  |      _[游戏内]_ 超级用户强制中止游戏      |
-|    `狼人杀预设`     |      超级用户       |  否   | 任意  |      _[游戏外]_ 超级用户编辑游戏预设      |
-|    `狼人杀配置`     |      超级用户       |  否   | 任意  |      _[游戏外]_ 超级用户编辑游戏配置      |
+|        指令         |        权限         | 需要@ | 范围 |                   说明                    |
+| :-----------------: | :-----------------: | :---: | :--: | :---------------------------------------: |
+| `werewolf`/`狼人杀` |        群员         |  是   | 群聊 |          发起游戏 (进入准备阶段)          |
+|     `开始游戏`      |     游戏发起者      |  否   | 群聊 |      _[准备阶段]_ 游戏发起者开始游戏      |
+|     `结束游戏`      | 游戏发起者/超级用户 |  否   | 群聊 | _[准备阶段]_ 游戏发起者/超级用户 结束游戏 |
+|     `当前玩家`      |        群员         |  否   | 群聊 |    _[准备阶段]_ 列出参与游戏的玩家列表    |
+|     `加入游戏`      |        群员         |  否   | 群聊 |         _[准备阶段]_ 玩家加入游戏         |
+|     `退出游戏`      |        群员         |  否   | 群聊 |         _[准备阶段]_ 玩家退出游戏         |
+|     `中止游戏`      |      超级用户       |  是   | 群聊 |      _[游戏内]_ 超级用户强制中止游戏      |
+|    `狼人杀预设`     |      超级用户       |  否   | 任意 |      _[游戏外]_ 超级用户编辑游戏预设      |
+|    `狼人杀配置`     |      超级用户       |  否   | 任意 |      _[游戏外]_ 超级用户编辑游戏配置      |
 
- - 发起游戏时添加 `restart`/`重开`, 可加载上一次游戏的玩家列表, 快速发起游戏。例: `werewolf restart`/`狼人杀 重开`
+- `超级用户` 为 nonebot2 配置项中的 `SUPERUSERS`, 配置说明参考 [官方文档](https://nonebot.dev/docs/2.4.1/appendices/config#superusers)
 
- - `狼人杀预设` 命令用法可通过 `狼人杀预设 --help` 获取，或参考 [游戏内容](#游戏内容) 部分的介绍
+- 发起游戏时添加 `restart`/`重开`, 可加载上一次游戏的玩家列表, 快速发起游戏。例: `werewolf restart`/`狼人杀 重开`
 
- - `狼人杀配置` 命令用法可通过 `狼人杀预设 --help` 获取
+- `狼人杀预设` 命令用法可通过 `狼人杀预设 --help` 获取，或参考 [游戏内容](#游戏内容) 部分的介绍
 
- - 对于 `OneBot V11` 适配器和 `Satori` 适配器的 `chronocat`, 启用配置项 `werewolf__enable_poke` 后, 可以使用戳一戳代替 _准备阶段_ 的 `加入游戏` 操作 和 游戏内的 `stop` 命令
+- `狼人杀配置` 命令用法可通过 `狼人杀预设 --help` 获取
 
- - _其他交互参考游戏内提示_
+- 对于 `OneBot V11` 适配器和 `Satori` 适配器的 `chronocat`, 启用配置项 `werewolf__enable_poke` 后, 可以使用戳一戳代替 _准备阶段_ 的 `加入游戏` 操作 和 游戏内的 `stop` 命令
 
+- _其他交互参考游戏内提示_
 
 ### 游戏内容
 
@@ -163,9 +173,9 @@ _✨ 简单的狼人杀插件 ✨_
 <details>
 <summary>示例</summary>
 
- - 命令: `狼人杀预设 职业 6 1 3 2`
+- 命令: `狼人杀预设 职业 6 1 3 2`
 
- - 上述命令指定当总人数为 6 时，狼人、神职、平民的数量分别为 1、3、2
+- 上述命令指定当总人数为 6 时，狼人、神职、平民的数量分别为 1、3、2
 
 </details>
 <br/>
@@ -182,19 +192,19 @@ _✨ 简单的狼人杀插件 ✨_
 
 #### 命令 `狼人杀预设 狼人`
 
- - 命令: `狼人杀预设 狼人 狼 狼王 狼 狼`
+- 命令: `狼人杀预设 狼人 狼 狼王 狼 狼`
 
- - 上述命令指定狼人的职业优先级为 `狼人`, `狼王`, `狼人`, `狼人`
+- 上述命令指定狼人的职业优先级为 `狼人`, `狼王`, `狼人`, `狼人`
 
 #### 命令 `狼人杀预设 神职`
 
- - 命令: `狼人杀预设 神职 预言家 女巫 猎人 守卫 白痴`
+- 命令: `狼人杀预设 神职 预言家 女巫 猎人 守卫 白痴`
 
- - 上述命令指定狼人的职业优先级为 `预言家`, `女巫`, `猎人`, `守卫`, `白痴`
+- 上述命令指定神职的职业优先级为 `预言家`, `女巫`, `猎人`, `守卫`, `白痴`
 
 > [!note]
 >
-> 以上两条命令均支持交互式输入
+> 以上两条命令均支持交互式输入 ~~waiter 真好用~~
 >
 > 例：向机器人发送命令 `狼人杀预设 狼人`，在接下来的一条消息中发送 `狼人 狼王 狼人 狼人`
 >
@@ -203,7 +213,7 @@ _✨ 简单的狼人杀插件 ✨_
 </details>
 <br/>
 
-对于 `小丑` 职业，当预设中的平民数量大于或等于 2 时，将有 *一定概率* 将其中一个平民替换为小丑。
+对于 `小丑` 职业，当预设中的平民数量大于或等于 2 时，将有 _一定概率_ 将其中一个平民替换为小丑。
 
 小丑属于第三方阵营，胜利条件为在投票阶段被票出，在预言家查验及游戏进程判断时视作平民。
 
@@ -211,7 +221,12 @@ _✨ 简单的狼人杀插件 ✨_
 
 ### 已知问题
 
+<details>
+    <summary>已知问题</summary>
+
 - 截止 chronocat v0.2.19, 调用 [`guild.member.get`](https://github.com/chrononeko/chronocat/blob/8558ad9ff4319395d86abbfda22136939bf66780/packages/engine-chronocat-api/src/api/guild/member/get.ts) / [`user.get`](https://github.com/chrononeko/chronocat/blob/8558ad9ff4319395d86abbfda22136939bf66780/packages/engine-chronocat-api/src/api/user/get.ts) 均无法获取用户名，这将导致在交互过程中的玩家名显示为用户 ID
+
+</details>
 
 ## 📝 更新日志
 
@@ -223,13 +238,13 @@ _✨ 简单的狼人杀插件 ✨_
 - 2025.04.17 v1.1.10
 
   - 添加狼人多选目标配置项显示
-  - 在游戏开始时打乱并固定轮流发言模式的发言顺序
+  - 在游戏开始时打乱并固定轮流发言模式的发言顺序 (#20)
 
 - 2025.04.15 v1.1.9
 
   - 添加游戏行为配置 `werewolf_multi_select`
   - 重构玩家类
-  - 添加轮流发言模式缺失的 at 消息段
+  - 添加轮流发言模式缺失的 at 消息段 (#19)
 
 - 2025.02.13 v1.1.8
 
@@ -239,7 +254,7 @@ _✨ 简单的狼人杀插件 ✨_
 
 - 2024.10.31 v1.1.7
 
-  - *Bug fix*
+  - _Bug fix_
 
 - 2024.10.31 v1.1.6
 
