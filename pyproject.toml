@@ -1,6 +1,6 @@
 [project]
 name = "nonebot-plugin-werewolf"
-version = "1.1.9"
+version = "1.1.10"
 description = "适用于 Nonebot2 的狼人杀插件"
 authors = [{ name = "wyf7685", email = "wyf7685@163.com" }]
 dependencies = [
