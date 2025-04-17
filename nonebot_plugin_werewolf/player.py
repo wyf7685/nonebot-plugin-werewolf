@@ -129,8 +129,7 @@ class Player:
         self.bot = bot
         self.killed = anyio.Event()
         self._member = None
-        self._send_handler = _SendHandler()
-        self._send_handler.update(self.__user, bot)
+        self._send_handler = _SendHandler(self.__user, bot)
 
     @final
     @override

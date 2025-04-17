@@ -165,8 +165,7 @@ class Game:
         self._scene = None
         self._finished = None
         self._task_group = None
-        self._send_handler = _SendHandler()
-        self._send_handler.update(group, bot)
+        self._send_handler = _SendHandler(group, bot)
 
     @final
     @classmethod

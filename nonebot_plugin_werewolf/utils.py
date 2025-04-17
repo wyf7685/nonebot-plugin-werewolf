@@ -190,10 +190,18 @@ def add_players_button(msg: str | UniMessage, players: "PlayerSet") -> UniMessag
 
 class SendHandler(abc.ABC, Generic[P]):
     bot: Bot
-    target: Event | Target
+    target: Event | Target | None
     reply_to: bool | None = None
     last_msg: UniMessage | None = None
     last_receipt: Receipt | None = None
+
+    def __init__(
+        self,
+        target: Event | Target | None = None,
+        bot: Bot | None = None,
+    ) -> None:
+        self.bot = bot or current_bot.get()
+        self.target = target
 
     def update(self, target: Event | Target, bot: Bot | None = None) -> None:
         self.bot = bot or current_bot.get()
@@ -210,6 +218,9 @@ class SendHandler(abc.ABC, Generic[P]):
             await last.edit(self.last_msg.exclude(Keyboard))
 
     async def _send(self, message: UniMessage) -> None:
+        if self.target is None:
+            raise RuntimeError("Target cannot be None when sending a message.")
+
         if not config.enable_button:
             message = message.exclude(Keyboard)
         receipt = await message.send(
