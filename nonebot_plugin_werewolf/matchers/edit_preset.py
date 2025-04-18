@@ -1,6 +1,6 @@
 from typing import Any, NoReturn
 
-import nonebot_plugin_waiter as waiter
+import nonebot_plugin_waiter.unimsg as waiter
 from arclet.alconna import AllParam
 from nonebot.permission import SUPERUSER
 from nonebot.typing import T_State
@@ -48,8 +48,8 @@ alc = Alconna(
         help_text="设置神职优先级",
     ),
     Subcommand(
-        "joker",
-        Args["probability?#概率", float],
+        "jester",
+        Args["probability?#概率(百分比)", float],
         alias={"小丑"},
         help_text="设置小丑概率",
     ),
@@ -82,8 +82,7 @@ async def finish(text: str) -> NoReturn:
 
 
 def display_roles(roles: list[Role]) -> str:
-    role_name = ROLE_NAME_CONV.__getitem__
-    return ", ".join(map(role_name, roles))
+    return ", ".join(map(ROLE_NAME_CONV.__getitem__, roles))
 
 
 @edit_preset.assign("role")
@@ -217,8 +216,8 @@ async def assign_priesthood(state: T_State) -> None:
     await finish("设置成功: " + display_roles(result))
 
 
-@edit_preset.assign("joker")
-async def assign_joker(probability: Match[float]) -> None:
+@edit_preset.assign("jester")
+async def assign_jester(probability: Match[float]) -> None:
     if not probability.available:
         result = await waiter.prompt_until(
             message="请发送小丑概率，范围 0-100\n发送 “取消” 取消操作",

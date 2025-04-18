@@ -15,7 +15,10 @@ def chronocat_poke_enabled() -> bool:
     return False
 
 
-with contextlib.suppress(ImportError):
+with contextlib.suppress(ImportError, RuntimeError):
+    if not config.enable_poke:
+        raise RuntimeError  # skip matcher definition
+
     from nonebot.adapters.satori import Bot
     from nonebot.adapters.satori.event import (
         MessageCreatedEvent,
@@ -46,8 +49,6 @@ with contextlib.suppress(ImportError):
 
     # 游戏内戳一戳等效 "stop" 命令
     async def _rule_poke_stop(bot: Bot, event: MessageCreatedEvent) -> bool:
-        if not config.enable_poke:
-            return False
         return extract_poke_tome(event) is not None and (
             user_in_game(bot.self_id, *extract_user_group(event))
         )
@@ -66,9 +67,6 @@ with contextlib.suppress(ImportError):
         event: PublicMessageCreatedEvent,
         target: MsgTarget,
     ) -> bool:
-        if not config.enable_poke:
-            return False
-
         return (
             (user_id := extract_poke_tome(event)) is not None
             and not user_in_game(
@@ -110,9 +108,6 @@ with contextlib.suppress(ImportError):
             await UniMessage.at(user_id).text("\n✅成功加入游戏").send(target, bot)
 
     def chronocat_poke_enabled() -> bool:
-        if not config.enable_poke:
-            return False
-
         event = current_event.get()
         return (
             isinstance(event, MessageCreatedEvent)

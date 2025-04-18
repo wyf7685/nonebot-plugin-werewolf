@@ -1,20 +1,18 @@
 import functools
 from typing import TYPE_CHECKING
 
-import nonebot
-
 from .models import GameStatus, KillReason, Role, RoleGroup
 
 STOP_COMMAND = "{{stop}}"
-COMMAND_START = next(
-    iter(sorted(nonebot.get_driver().config.command_start, key=len)), ""
-)
 
 
 def stop_command_prompt() -> str:
+    import nonebot
+
     from .config import config  # circular import
 
-    return COMMAND_START + config.get_stop_command()[0]
+    cmd_starts = sorted(nonebot.get_driver().config.command_start, key=len)
+    return next(iter(cmd_starts), "") + config.get_stop_command()[0]
 
 
 if not TYPE_CHECKING:

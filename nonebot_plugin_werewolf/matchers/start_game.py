@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 import anyio
 import nonebot
-import nonebot_plugin_waiter as waiter
+import nonebot_plugin_waiter.unimsg as waiter
 from nonebot.adapters import Bot, Event
 from nonebot.internal.matcher import current_bot
 from nonebot.permission import SuperUser
@@ -21,6 +21,7 @@ from nonebot_plugin_alconna import (
     Target,
     UniMessage,
     UniMsg,
+    get_target,
     on_alconna,
 )
 from nonebot_plugin_localstore import get_plugin_data_file
@@ -112,7 +113,7 @@ class PrepareGame:
     def __init__(self, event: Event, players: dict[str, str]) -> None:
         self.event = event
         self.admin_id = event.get_user_id()
-        self.group = UniMessage.get_target(event)
+        self.group = get_target(event)
         self.stream = ObjectStream[tuple[Event, str, str]](16)
         self.players = players
         self.send_handler = self._SendHandler()

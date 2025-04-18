@@ -1,7 +1,7 @@
 import itertools
 
 from nonebot.adapters import Bot, Event
-from nonebot_plugin_alconna import MsgTarget, UniMessage
+from nonebot_plugin_alconna import MsgTarget, get_target
 
 from ..game import Game, get_running_games
 
@@ -27,7 +27,7 @@ async def rule_in_game(bot: Bot, event: Event) -> bool:
         return False
 
     try:
-        target = UniMessage.get_target(event, bot)
+        target = get_target(event, bot)
     except NotImplementedError:
         return False
 

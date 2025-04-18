@@ -10,8 +10,8 @@ import nonebot
 from nonebot.adapters import Bot
 from nonebot.utils import escape_tag
 from nonebot_plugin_alconna import At, Target, UniMessage
-from nonebot_plugin_alconna.uniseg.message import Receipt
-from nonebot_plugin_uninfo import Interface, SceneType
+from nonebot_plugin_alconna.uniseg.receipt import Receipt
+from nonebot_plugin_uninfo import Interface, Scene, SceneType
 
 from .config import GameBehavior, PresetData
 from .constant import GAME_STATUS_CONV, REPORT_TEXT, ROLE_EMOJI, ROLE_NAME_CONV
@@ -163,7 +163,7 @@ class Game:
         self.killed_players = []
         self._player_map: dict[str, Player] = {}
         self._shuffled: list[Player] = []
-        self._scene = None
+        self._scene: Scene | None = None
         self._finished = self._task_group = None
         self._send_handler = _SendHandler(group, bot)
 

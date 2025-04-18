@@ -1,6 +1,7 @@
 import functools
 import random
 from collections.abc import Iterable
+from collections.abc import Set as AbstractSet
 from typing_extensions import Self
 
 import anyio
@@ -100,3 +101,12 @@ class PlayerSet(set[Player]):
 
     def __getitem__(self, index: int, /) -> Player:
         return self.sorted[index]
+
+    def __and__(self, other: AbstractSet[Player], /) -> Self:  # type: ignore[override]
+        return self.from_(super().__and__(other))
+
+    def __or__(self, other: AbstractSet[Player], /) -> Self:  # type: ignore[override]
+        return self.from_(super().__or__(other))
+
+    def __sub__(self, other: AbstractSet[Player], /) -> Self:  # type: ignore[override]
+        return self.from_(super().__sub__(other))

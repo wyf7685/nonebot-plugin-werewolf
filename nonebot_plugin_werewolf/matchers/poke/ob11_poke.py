@@ -15,15 +15,15 @@ def ob11_poke_enabled() -> bool:
     return False
 
 
-with contextlib.suppress(ImportError):
+with contextlib.suppress(ImportError, RuntimeError):
+    if not config.enable_poke:
+        raise RuntimeError  # skip matcher definition
+
     from nonebot.adapters.onebot.v11 import Bot
     from nonebot.adapters.onebot.v11.event import PokeNotifyEvent
 
     # 游戏内戳一戳等效 "stop" 命令
     async def _rule_poke_stop(bot: Bot, event: PokeNotifyEvent) -> bool:
-        if not config.enable_poke:
-            return False
-
         user_id = str(event.user_id)
         group_id = str(event.group_id) if event.group_id is not None else None
         return (event.target_id == event.self_id) and user_in_game(
@@ -42,7 +42,7 @@ with contextlib.suppress(ImportError):
     async def _rule_poke_join(
         bot: Bot, event: PokeNotifyEvent, target: MsgTarget
     ) -> bool:
-        if not config.enable_poke or event.group_id is None:
+        if event.group_id is None:
             return False
 
         user_id = str(event.user_id)
@@ -74,7 +74,4 @@ with contextlib.suppress(ImportError):
         await UniMessage.at(user_id).text("\n✅成功加入游戏").send(target, bot)
 
     def ob11_poke_enabled() -> bool:
-        if not config.enable_poke:
-            return False
-
         return isinstance(current_bot.get(), Bot)

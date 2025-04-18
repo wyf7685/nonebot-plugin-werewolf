@@ -4,11 +4,11 @@ version = "1.1.10"
 description = "适用于 Nonebot2 的狼人杀插件"
 authors = [{ name = "wyf7685", email = "wyf7685@163.com" }]
 dependencies = [
-    "nonebot2>=2.3.3",
-    "nonebot-plugin-alconna>=0.52.1",
+    "nonebot2>=2.4.0",
+    "nonebot-plugin-alconna>=0.57.0",
     "nonebot-plugin-localstore>=0.7.1",
-    "nonebot-plugin-uninfo>=0.4.0",
-    "nonebot-plugin-waiter>=0.7.1",
+    "nonebot-plugin-uninfo>=0.7.3",
+    "nonebot-plugin-waiter>=0.8.0",
     "anyio>=4.6.0",
 ]
 requires-python = ">=3.10"
