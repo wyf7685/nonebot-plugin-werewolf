@@ -22,12 +22,7 @@ from .player_set import PlayerSet
 from .utils import InputStore, ObjectStream, SendHandler, add_stop_button, link
 
 logger = nonebot.logger.opt(colors=True)
-starting_games: dict[Target, dict[str, str]] = {}
 running_games: set["Game"] = set()
-
-
-def get_starting_games() -> dict[Target, dict[str, str]]:
-    return starting_games
 
 
 def get_running_games() -> set["Game"]:

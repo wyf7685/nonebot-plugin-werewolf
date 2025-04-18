@@ -166,7 +166,11 @@ class ObjectStream(Generic[T]):
         await self._closed.wait()
 
 
-def _btn(label: str, text: str, /) -> Button:
+BUTTON_ACTION_CACHE: dict[str, str] = {}
+
+
+def btn(label: str, text: str, /) -> Button:
+    BUTTON_ACTION_CACHE[f"nbp-werewolf_{hash(label)}"] = text
     return Button(flag="input", label=label, text=text)
 
 
@@ -175,7 +179,7 @@ def add_stop_button(msg: str | UniMessage, label: str | None = None) -> UniMessa
         msg = UniMessage.text(msg)
 
     stop = stop_command_prompt()
-    return msg.keyboard(_btn(label or stop, stop))
+    return msg.keyboard(btn(label or stop, stop))
 
 
 def add_players_button(msg: str | UniMessage, players: "PlayerSet") -> UniMessage:
@@ -184,7 +188,7 @@ def add_players_button(msg: str | UniMessage, players: "PlayerSet") -> UniMessag
 
     it = enumerate(players, 1)
     while line := tuple(itertools.islice(it, 3)):
-        msg.keyboard(*(_btn(p.name, str(i)) for i, p in line))
+        msg.keyboard(*(btn(p.name, str(i)) for i, p in line))
     return msg
 
 
@@ -207,6 +211,26 @@ class SendHandler(abc.ABC, Generic[P]):
         self.bot = bot or current_bot.get()
         self.target = target
 
+    @functools.cached_property
+    def _is_dc(self) -> bool:
+        try:
+            from nonebot.adapters.discord import Bot
+        except ImportError:
+            return False
+
+        return isinstance(self.bot, Bot)
+
+    def _fix_btn(self, msg: UniMessage) -> UniMessage:
+        if self._is_dc:
+            for kbd in msg[Keyboard]:
+                for btn in kbd.children:
+                    btn.flag = "action"
+                    btn.style = "primary"
+                    btn.id = f"nbp-werewolf_{hash(btn.label)}"
+                    btn.text = None
+
+        return msg
+
     async def _edit(self) -> None:
         last = self.last_receipt
         if (
@@ -223,6 +247,9 @@ class SendHandler(abc.ABC, Generic[P]):
 
         if not config.enable_button:
             message = message.exclude(Keyboard)
+        else:
+            message = self._fix_btn(message)
+
         receipt = await message.send(
             target=self.target,
             bot=self.bot,
