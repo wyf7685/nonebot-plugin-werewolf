@@ -91,18 +91,20 @@ _✨ 简单的狼人杀插件 ✨_
 
 在 nonebot2 项目的 `.env` 文件中添加如下配置:
 
-|          配置项           | 必填 | 默认值  |           类型            |              说明              |
-| :-----------------------: | :--: | :-----: | :-----------------------: | :----------------------------: |
-|  `werewolf__enable_poke`  |  否  | `True`  |          `bool`           |   是否使用戳一戳简化操作流程   |
-| `werewolf__enable_button` |  否  | `False` |          `bool`           |      是否在交互中添加按钮      |
-| `werewolf__stop_command`  |  否  | `stop`  |     `str \| set[str]`     |  修改游戏进程中的 `stop` 命令  |
-|  `werewolf__require_at`   |  否  | `True`  | `bool \| RequireAtConfig` | 部分命令是否需要 at 机器人触发 |
+|            配置项            | 必填 | 默认值  |           类型            |              说明              |
+| :--------------------------: | :--: | :-----: | :-----------------------: | :----------------------------: |
+|   `werewolf__enable_poke`    |  否  | `True`  |          `bool`           |   是否使用戳一戳简化操作流程   |
+|  `werewolf__enable_button`   |  否  | `False` |          `bool`           |      是否在交互中添加按钮      |
+|   `werewolf__stop_command`   |  否  | `stop`  |     `str \| set[str]`     |  修改游戏进程中的 `stop` 命令  |
+|    `werewolf__require_at`    |  否  | `True`  | `bool \| RequireAtConfig` | 部分命令是否需要 at 机器人触发 |
+| `werewolf__matcher_priority` |  否  |    -    |  `MatcherPriorityConfig`  | 配置插件 matcher 注册的优先级  |
 
 `werewolf__enable_poke` 仅在 `OneBot V11` 适配器 / `Satori/chronocat` 下生效
 
 `werewolf__enable_button` 仅在 `Telegram` 适配器下通过测试，不保证在其他适配器的可用性。如有疑问欢迎提出。
 
-<detail><summary> werewolf__require_at 示例 </summary>
+<details>
+<summary> werewolf__require_at 示例 </summary>
 
 ```ini
 # 所有命令均需 at 触发
@@ -114,7 +116,13 @@ werewolf__require_at=false
 # 狼人杀命令需要 at, 中止游戏命令不需要 at
 werewolf__require_at='{"start": true, "terminate": false}'
 ```
-</detail>
+</details>
+<br/>
+
+`werewolf__matcher_priority` 的 matcher 优先级参考 [官方文档](https://nonebot.dev/docs/advanced/matcher#%E5%93%8D%E5%BA%94%E4%BC%98%E5%85%88%E7%BA%A7)
+  - 一般情况下不需要修改此配置, 插件的默认优先级可以参考 [这里](./nonebot_plugin_werewolf/config.py) 的 `MatcherPriorityConfig`
+  - 如果遇到与其他插件的命令冲突, 可考虑修改此处的优先级配置
+  - 配置应填入 JSON 对象, 可用键: `start` `terminate` `preset` `behavior` `in_game` `stop`
 
 ## 🎉 使用
 
@@ -151,7 +159,7 @@ werewolf__require_at='{"start": true, "terminate": false}'
 |    `狼人杀预设`     |      超级用户       |  否   | 任意 |      _[游戏外]_ 超级用户编辑游戏预设      |
 |    `狼人杀配置`     |      超级用户       |  否   | 任意 |      _[游戏外]_ 超级用户编辑游戏配置      |
 
-- `超级用户` 为 nonebot2 配置项中的 `SUPERUSERS`, 配置说明参考 [官方文档](https://nonebot.dev/docs/2.4.1/appendices/config#superusers)
+- `超级用户` 为 nonebot2 配置项中的 `SUPERUSERS`, 配置说明参考 [官方文档](https://nonebot.dev/docs/appendices/config#superusers)
 
 - 发起游戏时添加 `restart`/`重开`, 可加载上一次游戏的玩家列表, 快速发起游戏。例: `werewolf restart`/`狼人杀 重开`
 

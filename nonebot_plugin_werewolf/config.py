@@ -88,11 +88,21 @@ class RequireAtConfig(BaseModel):
     terminate: bool = True
 
 
+class MatcherPriorityConfig(BaseModel):
+    start: int = 1
+    terminate: int = 1
+    preset: int = 1
+    behavior: int = 1
+    in_game: int = 10
+    stop: int = 10
+
+
 class PluginConfig(BaseModel):
     enable_poke: bool = True
     enable_button: bool = False
     stop_command: str | set[str] = "stop"
     require_at: bool | RequireAtConfig = True
+    matcher_priority: MatcherPriorityConfig = MatcherPriorityConfig()
 
     def get_stop_command(self) -> list[str]:
         return (

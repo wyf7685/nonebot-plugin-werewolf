@@ -14,7 +14,7 @@ from nonebot_plugin_alconna import (
     on_alconna,
 )
 
-from ..config import PresetData
+from ..config import PresetData, config
 from ..constant import ROLE_NAME_CONV
 from ..models import Role
 
@@ -73,7 +73,7 @@ alc = Alconna(
 edit_preset = on_alconna(
     alc,
     permission=SUPERUSER,
-    use_cmd_start=True,
+    priority=config.matcher_priority.preset,
 )
 
 

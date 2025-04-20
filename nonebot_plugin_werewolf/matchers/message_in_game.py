@@ -7,7 +7,10 @@ from ..constant import STOP_COMMAND
 from ..utils import InputStore
 from .depends import rule_in_game
 
-message_in_game = on_message(rule=rule_in_game, priority=10)
+message_in_game = on_message(
+    rule=rule_in_game,
+    priority=config.matcher_priority.in_game,
+)
 
 
 @message_in_game.handle()
@@ -24,6 +27,7 @@ stopcmd = on_alconna(
     block=True,
     use_cmd_start=True,
     aliases=set(aliases) if (aliases := config.get_stop_command()[1:]) else None,
+    priority=config.matcher_priority.stop,
 )
 
 
