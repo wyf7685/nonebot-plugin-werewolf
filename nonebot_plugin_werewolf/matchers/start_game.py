@@ -27,7 +27,7 @@ from nonebot_plugin_alconna import (
 from nonebot_plugin_localstore import get_plugin_data_file
 from nonebot_plugin_uninfo import QryItrface, Uninfo
 
-from ..config import GameBehavior, PresetData
+from ..config import GameBehavior, PresetData, config
 from ..constant import stop_command_prompt
 from ..game import Game, get_running_games, get_starting_games
 from ..utils import ObjectStream, SendHandler, extract_session_member_nick
@@ -42,7 +42,9 @@ start_game = on_alconna(
         "werewolf",
         Option("restart|-r|--restart|重开", dest="restart"),
     ),
-    rule=to_me() & rule_not_in_game,
+    rule=to_me() & rule_not_in_game
+    if config.get_require_at("start")
+    else rule_not_in_game,
     aliases={"狼人杀"},
     use_cmd_start=True,
 )

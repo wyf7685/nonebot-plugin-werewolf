@@ -91,15 +91,30 @@ _✨ 简单的狼人杀插件 ✨_
 
 在 nonebot2 项目的 `.env` 文件中添加如下配置:
 
-|          配置项           | 必填 | 默认值  |       类型        |             说明             |
-| :-----------------------: | :--: | :-----: | :---------------: | :--------------------------: |
-|  `werewolf__enable_poke`  |  否  | `True`  |      `bool`       |  是否使用戳一戳简化操作流程  |
-| `werewolf__enable_button` |  否  | `False` |      `bool`       |     是否在交互中添加按钮     |
-| `werewolf__stop_command`  |  否  | `stop`  | `str \| set[str]` | 修改游戏进程中的 `stop` 命令 |
+|          配置项           | 必填 | 默认值  |           类型            |              说明              |
+| :-----------------------: | :--: | :-----: | :-----------------------: | :----------------------------: |
+|  `werewolf__enable_poke`  |  否  | `True`  |          `bool`           |   是否使用戳一戳简化操作流程   |
+| `werewolf__enable_button` |  否  | `False` |          `bool`           |      是否在交互中添加按钮      |
+| `werewolf__stop_command`  |  否  | `stop`  |     `str \| set[str]`     |  修改游戏进程中的 `stop` 命令  |
+|  `werewolf__require_at`   |  否  | `True`  | `bool \| RequireAtConfig` | 部分命令是否需要 at 机器人触发 |
 
 `werewolf__enable_poke` 仅在 `OneBot V11` 适配器 / `Satori/chronocat` 下生效
 
 `werewolf__enable_button` 仅在 `Telegram` 适配器下通过测试，不保证在其他适配器的可用性。如有疑问欢迎提出。
+
+<detail><summary> werewolf__require_at 示例 </summary>
+
+```ini
+# 所有命令均需 at 触发
+werewolf__require_at=true
+
+# 所有命令均不需 at 触发
+werewolf__require_at=false
+
+# 狼人杀命令需要 at, 中止游戏命令不需要 at
+werewolf__require_at='{"start": true, "terminate": false}'
+```
+</detail>
 
 ## 🎉 使用
 

@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from typing import Any, ClassVar, Final
+from typing import Any, ClassVar, Final, Literal
 from typing_extensions import Self
 
 import nonebot
@@ -83,10 +83,16 @@ class GameBehavior(ConfigFile):
     timeout: Final[_Timeout] = _Timeout()
 
 
+class RequireAtConfig(BaseModel):
+    start: bool = True
+    terminate: bool = True
+
+
 class PluginConfig(BaseModel):
     enable_poke: bool = True
     enable_button: bool = False
     stop_command: str | set[str] = "stop"
+    require_at: bool | RequireAtConfig = True
 
     def get_stop_command(self) -> list[str]:
         return (
@@ -94,6 +100,11 @@ class PluginConfig(BaseModel):
             if isinstance(self.stop_command, str)
             else sorted(self.stop_command, key=len)
         )
+
+    def get_require_at(self, cmd: Literal["start", "terminate"]) -> bool:
+        if isinstance(self.require_at, bool):
+            return self.require_at
+        return getattr(self.require_at, cmd)
 
 
 class Config(BaseModel):
