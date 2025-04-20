@@ -258,6 +258,11 @@ werewolf__require_at='{"start": true, "terminate": false}'
 
 <!-- CHANGELOG -->
 
+- 2025.04.20 v1.1.11
+
+  - 添加配置项 `werewolf__require_at`, 用于配置命令是否需要 at 机器人触发
+  - 添加配置项 `werewolf__matcher_priority`, 用于配置插件 matcher 注册优先级
+
 - 2025.04.17 v1.1.10
 
   - 添加狼人多选目标配置项显示
