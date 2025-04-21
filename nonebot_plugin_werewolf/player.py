@@ -11,7 +11,7 @@ from nonebot.utils import escape_tag
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 from nonebot_plugin_uninfo import Interface, SceneType
 
-from .constant import ROLE_EMOJI, ROLE_NAME_CONV, STOP_COMMAND, stop_command_prompt
+from .constant import STOP_COMMAND, stop_command_prompt
 from .models import KillInfo, KillReason, Role, RoleGroup
 from .utils import (
     InputStore,
@@ -92,7 +92,7 @@ class NotifyProvider(ActionProvider[_P], Generic[_P]):
         return message
 
     async def notify(self) -> None:
-        msg = UniMessage.text(f"⚙️你的身份: {ROLE_EMOJI[self.role]}{self.role_name}\n")
+        msg = UniMessage.text(f"⚙️你的身份: {self.role.emoji}{self.role_name}\n")
         await self.p.send(self.message(msg))
 
 
@@ -187,7 +187,7 @@ class Player:
     @final
     @functools.cached_property
     def role_name(self) -> str:
-        return ROLE_NAME_CONV[self.role]
+        return self.role.display
 
     @final
     async def _fetch_member(self, interface: Interface) -> None:

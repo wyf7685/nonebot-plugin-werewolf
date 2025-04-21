@@ -14,7 +14,7 @@ from nonebot_plugin_alconna.uniseg.receipt import Receipt
 from nonebot_plugin_uninfo import Interface, Scene, SceneType
 
 from .config import GameBehavior, PresetData
-from .constant import GAME_STATUS_CONV, REPORT_TEXT, ROLE_EMOJI, ROLE_NAME_CONV
+from .constant import GAME_STATUS_CONV, REPORT_TEXT
 from .exception import GameFinished
 from .models import GameState, GameStatus, KillInfo, KillReason, Role, RoleGroup
 from .player import Player
@@ -261,7 +261,7 @@ class Game:
             msg.text("\n\n📚职业列表:\n")
             counter = Counter(p.role for p in self.players)
             for role, cnt in sorted(counter.items(), key=lambda x: x[0].value):
-                msg.text(f"- {ROLE_EMOJI[role]}{ROLE_NAME_CONV[role]}x{cnt}\n")
+                msg.text(f"- {role.emoji}{role.display}x{cnt}\n")
 
         async with anyio.create_task_group() as tg:
             tg.start_soon(self.send, msg)
