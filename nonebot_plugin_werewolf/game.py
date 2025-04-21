@@ -1,4 +1,3 @@
-import contextlib
 import functools
 import secrets
 from collections import Counter
@@ -15,22 +14,18 @@ from nonebot_plugin_uninfo import Interface, Scene, SceneType
 
 from .config import GameBehavior, PresetData
 from .constant import GAME_STATUS_CONV, REPORT_TEXT
+from .dead_channel import DeadChannel
 from .exception import GameFinished
 from .models import GameState, GameStatus, KillInfo, KillReason, Role, RoleGroup
 from .player import Player
 from .player_set import PlayerSet
-from .utils import InputStore, ObjectStream, SendHandler, add_stop_button, link
+from .utils import InputStore, SendHandler, add_stop_button, link
 
 logger = nonebot.logger.opt(colors=True)
-starting_games: dict[Target, dict[str, str]] = {}
-running_games: set["Game"] = set()
+running_games: dict[Target, "Game"] = {}
 
 
-def get_starting_games() -> dict[Target, dict[str, str]]:
-    return starting_games
-
-
-def get_running_games() -> set["Game"]:
+def get_running_games() -> dict[Target, "Game"]:
     return running_games
 
 
@@ -80,73 +75,6 @@ class _SendHandler(SendHandler[str | None]):
         if stop_btn_label is not None:
             msg = add_stop_button(msg, stop_btn_label)
         return msg
-
-
-class DeadChannel:
-    players: PlayerSet
-    finished: anyio.Event
-    counter: dict[str, int]
-    stream: ObjectStream[tuple[Player, UniMessage]]
-
-    def __init__(self, players: PlayerSet, finished: anyio.Event) -> None:
-        self.players = players
-        self.finished = finished
-        self.counter = {p.user_id: 0 for p in players}
-        self.stream = ObjectStream[tuple[Player, UniMessage]](16)
-
-    async def _decrease(self, user_id: str) -> None:
-        await anyio.sleep(60)
-        self.counter[user_id] -= 1
-
-    async def _wait_finished(self) -> None:
-        await self.finished.wait()
-        self._task_group.cancel_scope.cancel()
-
-    async def _broadcast(self) -> NoReturn:
-        while True:
-            player, msg = await self.stream.recv()
-            msg = f"玩家 {player.name}:\n" + msg
-            target = self.players.killed().exclude(player)
-            try:
-                await target.broadcast(msg)
-            except Exception as err:
-                with contextlib.suppress(Exception):
-                    await player.send(f"消息转发失败: {err!r}")
-
-    async def _receive(self, player: Player) -> NoReturn:
-        await player.killed.wait()
-        user_id = player.user_id
-
-        await player.send(
-            "ℹ️你已加入死者频道，请勿在群组内继续发言\n"
-            "私聊发送消息将转发至其他已死亡玩家",
-        )
-        await (
-            self.players.killed()
-            .exclude(player)
-            .broadcast(f"ℹ️玩家 {player.name} 加入了死者频道")
-        )
-
-        while True:
-            msg = await player.receive()
-            self.counter[user_id] += 1
-            self._task_group.start_soon(self._decrease, user_id)
-
-            # 发言频率限制
-            if self.counter[user_id] > GameBehavior.get().dead_channel_rate_limit:
-                await player.send("❌发言频率超过限制, 该消息被屏蔽")
-                continue
-
-            # 推送消息
-            await self.stream.send((player, msg))
-
-    async def run(self) -> None:
-        async with anyio.create_task_group() as tg:
-            self._task_group = tg
-            tg.start_soon(self._wait_finished)
-            tg.start_soon(self._broadcast)
-            for p in self.players:
-                tg.start_soon(self._receive, p)
 
 
 class Game:
@@ -512,7 +440,7 @@ class Game:
     async def start(self) -> None:
         self._finished = anyio.Event()
         dead_channel = DeadChannel(self.players, self._finished)
-        get_running_games().add(self)
+        get_running_games()[self.group] = self
 
         try:
             async with anyio.create_task_group() as self._task_group:
@@ -526,7 +454,7 @@ class Game:
         finally:
             self._finished = None
             self._task_group = None
-            get_running_games().discard(self)
+            get_running_games().pop(self.group, None)
             InputStore.cleanup(self._player_map.keys(), self.group_id)
 
     def terminate(self) -> None:

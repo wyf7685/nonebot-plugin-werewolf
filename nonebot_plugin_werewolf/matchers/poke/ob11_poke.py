@@ -6,8 +6,8 @@ from nonebot_plugin_alconna import MsgTarget, UniMessage
 
 from ...config import config
 from ...constant import STOP_COMMAND
-from ...game import get_starting_games
 from ...utils import InputStore
+from .._prepare_game import preparing_games
 from ..depends import user_in_game
 
 
@@ -50,7 +50,7 @@ with contextlib.suppress(ImportError, RuntimeError):
         return (
             (event.target_id == event.self_id)
             and not user_in_game(bot.self_id, user_id, group_id)
-            and target in get_starting_games()
+            and target in preparing_games
         )
 
     @on_notice(rule=_rule_poke_join).handle()
@@ -60,7 +60,7 @@ with contextlib.suppress(ImportError, RuntimeError):
         target: MsgTarget,
     ) -> None:
         user_id = event.get_user_id()
-        players = get_starting_games()[target]
+        players = preparing_games[target].players
 
         if event.group_id is None or user_id in players:
             return

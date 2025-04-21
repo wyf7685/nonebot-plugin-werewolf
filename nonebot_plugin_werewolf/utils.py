@@ -2,11 +2,10 @@ import abc
 import functools
 import itertools
 from collections import defaultdict
-from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar
+from collections.abc import Awaitable, Callable, Iterable
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar, cast
 
 import anyio
-import anyio.streams.memory
 from nonebot.adapters import Bot, Event
 from nonebot.internal.matcher import current_bot
 from nonebot_plugin_alconna.uniseg import (
@@ -118,42 +117,48 @@ def as_player_set(*player: "Player") -> "PlayerSet":
     return cached_player_set()(player)
 
 
+async def race(
+    *tasks: Callable[..., Awaitable[object]]
+    | tuple[Callable[..., Awaitable[object]], tuple[object, ...]],
+) -> object:
+    winner = sentinel = object()
+
+    async def racer(
+        func: Callable[..., Awaitable[object]],
+        args: tuple[object, ...],
+    ) -> object:
+        nonlocal winner
+        winner = await func(*args)
+        tg.cancel_scope.cancel()
+
+    async with anyio.create_task_group() as tg:
+        for task in tasks:
+            if callable(task):
+                task = task, ()
+            tg.start_soon(racer, *task)
+
+    if winner is sentinel:
+        raise RuntimeError("No task completed successfully.")
+    return winner
+
+
 class ObjectStream(Generic[T]):
     class Unset: ...
 
     __UNSET: ClassVar[Unset] = Unset()
 
-    _send: anyio.streams.memory.MemoryObjectSendStream[T]
-    _recv: anyio.streams.memory.MemoryObjectReceiveStream[T]
-    _closed: anyio.Event
-
     def __init__(self, max_buffer_size: float = 0) -> None:
-        self._send, self._recv = anyio.create_memory_object_stream(max_buffer_size)
+        self._send, self._recv = anyio.create_memory_object_stream[T](max_buffer_size)
         self._closed = anyio.Event()
 
     async def send(self, obj: T) -> None:
         await self._send.send(obj)
 
     async def recv(self) -> T:
-        result: Any = self.__UNSET
-
-        async def _recv() -> None:
-            nonlocal result
-            result = await self._recv.receive()
-            tg.cancel_scope.cancel()
-
-        async def _cancel() -> None:
-            await self._closed.wait()
-            tg.cancel_scope.cancel()
-
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(_recv)
-            tg.start_soon(_cancel)
-
+        result = await race(self._recv.receive, self.wait_closed)
         if result is self.__UNSET:
             raise anyio.EndOfStream
-
-        return result
+        return cast("T", result)
 
     def close(self) -> None:
         self._closed.set()
@@ -162,11 +167,12 @@ class ObjectStream(Generic[T]):
     def closed(self) -> bool:
         return self._closed.is_set()
 
-    async def wait_closed(self) -> None:
+    async def wait_closed(self) -> object:
         await self._closed.wait()
+        return self.__UNSET
 
 
-def _btn(label: str, text: str, /) -> Button:
+def btn(label: str, text: str, /) -> Button:
     return Button(flag="input", label=label, text=text)
 
 
@@ -175,7 +181,7 @@ def add_stop_button(msg: str | UniMessage, label: str | None = None) -> UniMessa
         msg = UniMessage.text(msg)
 
     stop = stop_command_prompt()
-    return msg.keyboard(_btn(label or stop, stop))
+    return msg.keyboard(btn(label or stop, stop))
 
 
 def add_players_button(msg: str | UniMessage, players: "PlayerSet") -> UniMessage:
@@ -184,7 +190,7 @@ def add_players_button(msg: str | UniMessage, players: "PlayerSet") -> UniMessag
 
     it = enumerate(players, 1)
     while line := tuple(itertools.islice(it, 3)):
-        msg.keyboard(*(_btn(p.name, str(i)) for i, p in line))
+        msg.keyboard(*(btn(p.name, str(i)) for i, p in line))
     return msg
 
 

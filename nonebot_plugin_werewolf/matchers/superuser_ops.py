@@ -17,16 +17,12 @@ terminate = on_alconna(
 
 
 async def running_game(target: MsgTarget) -> Game:
-    for game in get_running_games():
-        if target.verify(game.group):
-            return game
-    return terminate.skip()
-
-
-RunningGame = Annotated[Game, Depends(running_game)]
+    if (game := get_running_games().get(target)) is None:
+        terminate.skip()
+    return game
 
 
 @terminate.handle()
-async def _(game: RunningGame) -> None:
+async def _(game: Annotated[Game, Depends(running_game)]) -> None:
     game.terminate()
     await UniMessage.text("已中止当前群组的游戏进程").finish(reply_to=True)
