@@ -135,14 +135,18 @@ class Player:
     @override
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
-        if hasattr(cls, "role") and hasattr(cls, "role_group"):
-            cls._player_class[cls.role] = cls
-        if not hasattr(cls, "interact_provider"):
-            cls.interact_provider = None
-        if not hasattr(cls, "kill_provider"):
-            cls.kill_provider = KillProvider
-        if not hasattr(cls, "notify_provider"):
-            cls.notify_provider = NotifyProvider
+        if not (hasattr(cls, "role") and hasattr(cls, "role_group")):
+            return
+
+        assert cls.role not in cls._player_class  # noqa: S101
+        cls._player_class[cls.role] = cls
+        for k, v in {
+            "interact_provider": None,
+            "kill_provider": KillProvider,
+            "notify_provider": NotifyProvider,
+        }.items():
+            if not hasattr(cls, k):
+                setattr(cls, k, v)
 
     @final
     @classmethod
