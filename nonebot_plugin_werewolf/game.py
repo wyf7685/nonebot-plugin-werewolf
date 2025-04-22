@@ -431,6 +431,7 @@ class Game:
             await self.mainloop()
         except anyio.get_cancelled_exc_class():
             logger.warning(f"{self.colored_name} 的狼人杀游戏进程被取消")
+            raise
         except GameFinished as result:
             await self.handle_game_finish(result.status)
             logger.info(f"{self.colored_name} 的狼人杀游戏进程正常退出")
@@ -450,8 +451,6 @@ class Game:
             async with anyio.create_task_group() as self._task_group:
                 self._task_group.start_soon(self.run_daemon)
                 self._task_group.start_soon(dead_channel.run)
-        except anyio.get_cancelled_exc_class():
-            logger.warning(f"{self.colored_name} 的狼人杀游戏进程被取消")
         except Exception as err:
             msg = f"{self.colored_name} 的狼人杀守护进程出现错误: {err!r}"
             logger.opt(exception=err).error(msg)
