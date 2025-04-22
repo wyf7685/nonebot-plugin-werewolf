@@ -158,6 +158,15 @@ class SendHandler(abc.ABC, Generic[P]):
         self.bot = bot or current_bot.get()
         self.target = target
 
+    @functools.cached_property
+    def _is_dc(self) -> bool:
+        try:
+            from nonebot.adapters.discord import Bot
+        except ImportError:
+            return False
+
+        return isinstance(self.bot, Bot)
+
     async def _edit(self) -> None:
         last = self.last_receipt
         if (
@@ -165,6 +174,7 @@ class SendHandler(abc.ABC, Generic[P]):
             and self.last_msg is not None
             and last is not None
             and last.editable
+            and not self._is_dc
         ):
             await last.edit(self.last_msg.exclude(Keyboard))
 
@@ -172,7 +182,8 @@ class SendHandler(abc.ABC, Generic[P]):
         if self.target is None:
             raise RuntimeError("Target cannot be None when sending a message.")
 
-        if not config.enable_button:
+        if not config.enable_button or self._is_dc:
+            # TODO: support discord button
             message = message.exclude(Keyboard)
         receipt = await message.send(
             target=self.target,
