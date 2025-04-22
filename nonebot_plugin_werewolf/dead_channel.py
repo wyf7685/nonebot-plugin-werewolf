@@ -8,20 +8,17 @@ from nonebot_plugin_alconna import UniMessage
 from .config import GameBehavior
 from .player import Player
 from .player_set import PlayerSet
-from .utils import ObjectStream
 
 
 class DeadChannel:
     players: PlayerSet
     finished: anyio.Event
     counter: dict[str, int]
-    stream: ObjectStream[tuple[Player, UniMessage]]
 
     def __init__(self, players: PlayerSet, finished: anyio.Event) -> None:
         self.players = players
         self.finished = finished
         self.counter = {p.user_id: 0 for p in players}
-        self.stream = ObjectStream[tuple[Player, UniMessage]](16)
 
     async def _decrease(self, user_id: str) -> None:
         await anyio.sleep(60)
@@ -32,8 +29,9 @@ class DeadChannel:
         self._task_group.cancel_scope.cancel()
 
     async def _broadcast(self) -> NoReturn:
+        stream = self.stream[1]
         while True:
-            player, msg = await self.stream.recv()
+            player, msg = await stream.receive()
             msg = f"玩家 {player.name}:\n" + msg
             target = self.players.killed().exclude(player)
             try:
@@ -46,6 +44,7 @@ class DeadChannel:
         await player.killed.wait()
         await anyio.lowlevel.checkpoint()
         user_id = player.user_id
+        stream = self.stream[0]
 
         await player.send(
             "ℹ️你已加入死者频道，请勿在群组内继续发言\n"
@@ -68,10 +67,12 @@ class DeadChannel:
                 continue
 
             # 推送消息
-            await self.stream.send((player, msg))
+            await stream.send((player, msg))
 
     async def run(self) -> None:
-        async with anyio.create_task_group() as self._task_group:
+        self.stream = anyio.create_memory_object_stream[tuple[Player, UniMessage]](16)
+        send, recv = self.stream
+        async with anyio.create_task_group() as self._task_group, send, recv:
             self._task_group.start_soon(self._wait_finished)
             self._task_group.start_soon(self._broadcast)
             for p in self.players:

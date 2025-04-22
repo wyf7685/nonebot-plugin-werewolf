@@ -46,21 +46,20 @@ async def init_players(
         )
 
     w, p, c = preset
-    roles: list[Role] = []
-    roles.extend(preset_data.werewolf_priority[:w])
-    roles.extend(preset_data.priesthood_proirity[:p])
-    roles.extend([Role.CIVILIAN] * c)
+    roles = [
+        *preset_data.werewolf_priority[:w],
+        *preset_data.priesthood_proirity[:p],
+        *([Role.CIVILIAN] * c),
+    ]
 
     if c >= 2 and secrets.randbelow(100) <= preset_data.jester_probability * 100:
         roles.remove(Role.CIVILIAN)
         roles.append(Role.JESTER)
 
-    def _select_role() -> Role:
-        return roles.pop(secrets.randbelow(len(roles)))
-
     player_set = PlayerSet()
     for user_id in players:
-        player_set.add(await Player.new(_select_role(), bot, game, user_id, interface))
+        role = roles.pop(secrets.randbelow(len(roles)))
+        player_set.add(await Player.new(role, bot, game, user_id, interface))
 
     logger.debug(f"职业分配完成: <e>{escape_tag(str(player_set))}</e>")
     return player_set
@@ -232,7 +231,7 @@ class Game:
                 self.state.shooter = shooter.selected = None
                 await self.post_kill(shoot)
 
-    async def run_night(self, players: PlayerSet) -> Player | None:
+    async def run_night(self, players: PlayerSet) -> None:
         async with anyio.create_task_group() as tg:
             for p in players:
                 tg.start_soon(p.interact)
@@ -249,17 +248,18 @@ class Game:
                 *players.select(RoleGroup.WEREWOLF),
             )
         else:
-            killed = None
+            self.state.killed = None
 
         # 女巫操作目标
         for witch in self.state.poison:
-            if witch.selected is None:
-                continue
-            if witch.selected not in self.state.protected:  # 守卫未保护
+            if (
+                (selected := witch.selected) is not None  # 理论上不会是 None (
+                and selected not in self.state.protected  # 守卫保护
+                # 虽然应该没什么人会加多个女巫玩...但还是加上判断比较好
+                and selected not in self.state.antidote  # 女巫使用解药
+            ):
                 # 女巫毒杀玩家
-                await witch.selected.kill(KillReason.POISON, witch)
-
-        return killed
+                await selected.kill(KillReason.POISON, witch)
 
     async def run_discussion(self) -> None:
         timeout = self.behavior.timeout
@@ -362,8 +362,8 @@ class Game:
             await self.send("🌙天黑请闭眼...")
             players = self.players.alive()
 
-            # 夜间交互，返回狼人目标
-            killed = await self.run_night(players)
+            # 夜间交互
+            await self.run_night(players)
 
             # 公告
             self.state.day += 1
@@ -380,7 +380,11 @@ class Game:
                 await self.send(msg)
 
             # 第一晚被狼人杀死的玩家发表遗言
-            if self.state.day == 1 and killed is not None and not killed.alive:
+            if (
+                self.state.day == 1  # 仅第一晚
+                and (killed := self.state.killed) is not None  # 狼人未空刀且未保护
+                and not killed.alive  # kill 成功
+            ):
                 await self.send(
                     UniMessage.text("⚙️当前为第一天\n请被狼人杀死的 ")
                     .at(killed.user_id)
@@ -437,7 +441,7 @@ class Game:
             if self._finished is not None:
                 self._finished.set()
 
-    async def start(self) -> None:
+    async def run(self) -> None:
         self._finished = anyio.Event()
         dead_channel = DeadChannel(self.players, self._finished)
         get_running_games()[self.group] = self
@@ -456,6 +460,9 @@ class Game:
             self._task_group = None
             get_running_games().pop(self.group, None)
             InputStore.cleanup(self._player_map.keys(), self.group_id)
+
+    def start(self) -> None:
+        nonebot.get_driver().task_group.start_soon(self.run)
 
     def terminate(self) -> None:
         if self._task_group is not None:

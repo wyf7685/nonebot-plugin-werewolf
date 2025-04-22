@@ -22,8 +22,8 @@ from nonebot_plugin_alconna import (
 from nonebot_plugin_uninfo import Uninfo
 
 from ..config import PresetData
-from ..utils import ObjectStream, btn, extract_session_member_nick
 from ..utils import SendHandler as BaseSendHandler
+from ..utils import btn, extract_session_member_nick
 from .depends import rule_not_in_game
 
 if TYPE_CHECKING:
@@ -75,7 +75,7 @@ class PrepareGame:
         self.event = event
         self.admin_id = event.get_user_id()
         self.group = get_target(event)
-        self.stream = ObjectStream[tuple[Event, str, str]](16)
+        self.stream = anyio.create_memory_object_stream[tuple[Event, str, str]](16)
         self.players = players
         self.send_handler = SendHandler()
         self.logger = nonebot.logger.opt(colors=True)
@@ -92,9 +92,9 @@ class PrepareGame:
 
     async def run(self) -> None:
         try:
-            async with anyio.create_task_group() as tg:
+            send, recv = self.stream
+            async with anyio.create_task_group() as tg, send, recv:
                 self.task_group = tg
-                tg.start_soon(self._wait_cancel)
                 tg.start_soon(self._receive)
                 tg.start_soon(self._handle)
         except Exception as err:
@@ -103,10 +103,6 @@ class PrepareGame:
         del preparing_games[self.group]
         if not self.shoud_start_game:
             await Matcher.finish()
-
-    async def _wait_cancel(self) -> None:
-        await self.stream.wait_closed()
-        self.task_group.cancel_scope.cancel()
 
     async def _receive(self) -> None:
         async def same_group(target: MsgTarget) -> bool:
@@ -122,16 +118,18 @@ class PrepareGame:
             name = extract_session_member_nick(session) or event.get_user_id()
             return (event, text, re.sub(r"[\u2066-\u2069]", "", name))
 
+        send_stream = self.stream[0]
         async for event, text, name in wait(default=(None, "", "")):
             if event is not None:
-                await self.stream.send((event, text, name))
+                await send_stream.send((event, text, name))
 
     async def _handle(self) -> None:
         bot = current_bot.get()
         superuser = SuperUser()
+        recv_stream = self.stream[1]
 
-        while not self.stream.closed:
-            event, text, name = await self.stream.recv()
+        while True:
+            event, text, name = await recv_stream.receive()
             user_id = event.get_user_id()
             colored = f"<y>{escape_tag(name)}</y>(<c>{escape_tag(user_id)}</c>)"
             self.current = Current(
@@ -159,6 +157,9 @@ class PrepareGame:
     async def _send_finished(self) -> None:
         await self.send_handler.send_finished()
 
+    def _finish(self) -> None:
+        self.task_group.cancel_scope.cancel()
+
     async def _handle_start(self) -> bool:
         if not self.current.is_admin:
             await self._send("⚠️只有游戏发起者可以开始游戏")
@@ -182,7 +183,7 @@ class PrepareGame:
         else:
             await self._send("✏️游戏即将开始...")
             self.logger.info(f"游戏发起者 {self.current.colored} 开始游戏")
-            self.stream.close()
+            self._finish()
             self.shoud_start_game = True
             return True
 
@@ -193,7 +194,7 @@ class PrepareGame:
             prefix = "游戏发起者" if self.current.is_admin else "超级用户"
             self.logger.info(f"{prefix} {self.current.colored} 结束游戏")
             await self._send_finished()
-            self.stream.close()
+            self._finish()
             return True
 
         await self._send("⚠️只有游戏发起者或超级用户可以结束游戏")

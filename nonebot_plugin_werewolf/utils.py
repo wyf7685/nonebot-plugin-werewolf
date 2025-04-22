@@ -2,8 +2,8 @@ import abc
 import functools
 import itertools
 from collections import defaultdict
-from collections.abc import Awaitable, Callable, Iterable
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar, cast
+from collections.abc import Iterable
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar
 
 import anyio
 from nonebot.adapters import Bot, Event
@@ -115,61 +115,6 @@ def cached_player_set() -> type["PlayerSet"]:
 
 def as_player_set(*player: "Player") -> "PlayerSet":
     return cached_player_set()(player)
-
-
-async def race(
-    *tasks: Callable[..., Awaitable[object]]
-    | tuple[Callable[..., Awaitable[object]], tuple[object, ...]],
-) -> object:
-    winner = sentinel = object()
-
-    async def racer(
-        func: Callable[..., Awaitable[object]],
-        args: tuple[object, ...],
-    ) -> object:
-        nonlocal winner
-        winner = await func(*args)
-        tg.cancel_scope.cancel()
-
-    async with anyio.create_task_group() as tg:
-        for task in tasks:
-            if callable(task):
-                task = task, ()
-            tg.start_soon(racer, *task)
-
-    if winner is sentinel:
-        raise RuntimeError("No task completed successfully.")
-    return winner
-
-
-class ObjectStream(Generic[T]):
-    class Unset: ...
-
-    __UNSET: ClassVar[Unset] = Unset()
-
-    def __init__(self, max_buffer_size: float = 0) -> None:
-        self._send, self._recv = anyio.create_memory_object_stream[T](max_buffer_size)
-        self._closed = anyio.Event()
-
-    async def send(self, obj: T) -> None:
-        await self._send.send(obj)
-
-    async def recv(self) -> T:
-        result = await race(self._recv.receive, self.wait_closed)
-        if result is self.__UNSET:
-            raise anyio.EndOfStream
-        return cast("T", result)
-
-    def close(self) -> None:
-        self._closed.set()
-
-    @property
-    def closed(self) -> bool:
-        return self._closed.is_set()
-
-    async def wait_closed(self) -> object:
-        await self._closed.wait()
-        return self.__UNSET
 
 
 def btn(label: str, text: str, /) -> Button:
