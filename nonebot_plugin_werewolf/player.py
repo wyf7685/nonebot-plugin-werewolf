@@ -282,14 +282,12 @@ class Player:
         provider = self.interact_provider(self)
 
         await provider.before()
-
         timeout = self.interact_timeout
         await self.send(f"✏️{self.role_name}交互开始，限时 {timeout / 60:.2f} 分钟")
 
-        try:
-            with anyio.fail_after(timeout):
-                await provider.interact()
-        except TimeoutError:
+        with anyio.move_on_after(timeout) as scope:
+            await provider.interact()
+        if scope.cancelled_caught:
             logger.debug(f"{self.role_name}交互超时 (<y>{timeout}</y>s)")
             await self.send(f"⚠️{self.role_name}交互超时")
 
@@ -318,15 +316,14 @@ class Player:
             select_players=players,
         )
 
-        try:
-            with anyio.fail_after(self.game.behavior.timeout.vote):
-                selected = await self.select_player(
-                    players,
-                    on_stop="⚠️你选择了弃票",
-                    on_index_error="⚠️输入错误: 请发送编号选择玩家",
-                )
-        except TimeoutError:
-            selected = None
+        selected = None
+        with anyio.move_on_after(self.game.behavior.timeout.vote) as scope:
+            selected = await self.select_player(
+                players,
+                on_stop="⚠️你选择了弃票",
+                on_index_error="⚠️输入错误: 请发送编号选择玩家",
+            )
+        if scope.cancelled_caught:
             await self.send("⚠️投票超时，将视为弃票")
 
         if selected is not None:

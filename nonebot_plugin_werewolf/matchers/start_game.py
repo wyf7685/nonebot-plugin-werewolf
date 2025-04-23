@@ -113,10 +113,9 @@ async def handle_start(
     admin_name = extract_session_member_nick(session) or admin_id
     players[admin_id] = admin_name
 
-    try:
-        with anyio.fail_after(GameBehavior.get().timeout.prepare):
-            await PrepareGame(event, players).run()
-    except TimeoutError:
+    with anyio.move_on_after(GameBehavior.get().timeout.prepare) as scope:
+        await PrepareGame(event, players).run()
+    if scope.cancelled_caught:
         await UniMessage.text("⚠️游戏准备超时，已自动结束").finish(reply_to=True)
 
     dump_players(target, players)
