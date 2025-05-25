@@ -2,7 +2,7 @@ from typing_extensions import override
 
 from nonebot_plugin_alconna.uniseg import UniMessage
 
-from ..constant import stop_command_prompt
+from ..config import stop_command_prompt
 from ..models import Role, RoleGroup
 from ..player import InteractProvider, Player
 from ..utils import as_player_set
@@ -28,7 +28,7 @@ class WitchInteractProvider(InteractProvider["Witch"]):
             await self.p.send(msg.text("⚙️你已经用过解药了"))
             return False
 
-        msg.text(f"✏️使用解药请发送 “1”\n❌不使用解药请发送 “{stop_command_prompt()}”")
+        msg.text(f"✏️使用解药请发送 “1”\n❌不使用解药请发送 “{stop_command_prompt}”")
         await self.p.send(
             msg,
             stop_btn_label="不使用解药",
@@ -38,7 +38,7 @@ class WitchInteractProvider(InteractProvider["Witch"]):
         if not await self.p.select_player(
             as_player_set(killed),
             on_stop=f"ℹ️你选择不对 {killed.name} 使用解药",
-            on_index_error=f"⚠️输入错误: 请输入 “1” 或 “{stop_command_prompt()}”",
+            on_index_error=f"⚠️输入错误: 请输入 “1” 或 “{stop_command_prompt}”",
             stop_btn_label="不使用解药",
         ):
             return False
@@ -64,7 +64,7 @@ class WitchInteractProvider(InteractProvider["Witch"]):
             "玩家列表:\n"
             f"{players.show()}\n\n"
             "🧪发送玩家编号使用毒药\n"
-            f"❌发送 “{stop_command_prompt()}” 结束回合(不使用药水)",
+            f"❌发送 “{stop_command_prompt}” 结束回合(不使用药水)",
             stop_btn_label="结束回合",
             select_players=players,
         )

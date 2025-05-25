@@ -32,7 +32,7 @@ class DeadChannel:
         stream = self.stream[1]
         while True:
             player, msg = await stream.receive()
-            msg = f"玩家 {player.name}:\n" + msg
+            msg = UniMessage.text(f"玩家 {player.name}:\n") + msg
             target = self.players.killed().exclude(player)
             try:
                 await target.broadcast(msg)

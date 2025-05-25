@@ -11,7 +11,8 @@ from nonebot.utils import escape_tag
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 from nonebot_plugin_uninfo import Interface, SceneType
 
-from .constant import STOP_COMMAND, stop_command_prompt
+from .config import stop_command_prompt
+from .constant import STOP_COMMAND
 from .models import KillInfo, KillReason, Role, RoleGroup
 from .utils import (
     InputStore,
@@ -310,7 +311,7 @@ class Player:
             f"💫请选择需要投票的玩家:\n"
             f"{players.show()}\n\n"
             "🗳️发送编号选择玩家\n"
-            f"❌发送 “{stop_command_prompt()}” 弃票\n\n"
+            f"❌发送 “{stop_command_prompt}” 弃票\n\n"
             "限时1分钟，超时将视为弃票",
             stop_btn_label="弃票",
             select_players=players,
@@ -344,7 +345,7 @@ class Player:
     ) -> "Player | None":
         on_stop = on_stop if on_stop is not None else "ℹ️你选择了取消，回合结束"
         on_index_error = (
-            on_index_error or f"⚠️输入错误: 请发送玩家编号或 “{stop_command_prompt()}”"
+            on_index_error or f"⚠️输入错误: 请发送玩家编号或 “{stop_command_prompt}”"
         )
         selected = None
 

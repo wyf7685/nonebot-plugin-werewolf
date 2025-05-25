@@ -16,8 +16,7 @@ from nonebot_plugin_alconna import (
 from nonebot_plugin_localstore import get_plugin_data_file
 from nonebot_plugin_uninfo import QryItrface, Uninfo
 
-from ..config import GameBehavior, config
-from ..constant import stop_command_prompt
+from ..config import GameBehavior, config, stop_command_prompt
 from ..game import Game, get_running_games
 from ..utils import extract_session_member_nick
 from ._prepare_game import PrepareGame, solve_button
@@ -79,7 +78,7 @@ async def handle_notice(target: MsgTarget) -> None:
         "  玩家均加入后，游戏发起者请发送 “开始游戏”\n"
     )
     if poke_enabled():
-        msg.text(f"\n💫可使用戳一戳代替游戏交互中的 “{stop_command_prompt()}” 命令\n")
+        msg.text(f"\n💫可使用戳一戳代替游戏交互中的 “{stop_command_prompt}” 命令\n")
     msg.text("\nℹ️游戏准备阶段限时5分钟，超时将自动结束")
     await solve_button(msg).send(reply_to=True, fallback=FallbackStrategy.ignore)
 

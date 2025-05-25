@@ -18,8 +18,8 @@ from nonebot_plugin_alconna.uniseg import (
 )
 from nonebot_plugin_uninfo import Session
 
-from .config import config
-from .constant import STOP_COMMAND, stop_command_prompt
+from .config import config, stop_command_prompt
+from .constant import STOP_COMMAND
 
 if TYPE_CHECKING:
     from .player import Player
@@ -125,7 +125,7 @@ def add_stop_button(msg: str | UniMessage, label: str | None = None) -> UniMessa
     if isinstance(msg, str):
         msg = UniMessage.text(msg)
 
-    stop = stop_command_prompt()
+    stop = stop_command_prompt
     return msg.keyboard(btn(label or stop, stop))
 
 

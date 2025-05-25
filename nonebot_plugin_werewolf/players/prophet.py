@@ -1,6 +1,6 @@
 from typing_extensions import override
 
-from ..constant import stop_command_prompt
+from ..config import stop_command_prompt
 from ..models import Role, RoleGroup
 from ..player import InteractProvider, Player
 
@@ -13,7 +13,7 @@ class ProphetInteractProvider(InteractProvider["Prophet"]):
             "💫请选择需要查验身份的玩家:\n"
             f"{players.show()}\n\n"
             "🔮发送编号选择玩家\n"
-            f"❌发送 “{stop_command_prompt()}” 结束回合(不查验身份)",
+            f"❌发送 “{stop_command_prompt}” 结束回合(不查验身份)",
             stop_btn_label="结束回合",
             select_players=players,
         )

@@ -12,7 +12,6 @@ from .constant import (
     DEFAULT_PRIESTHOOD_PRIORITY,
     DEFAULT_ROLE_PRESET,
     DEFAULT_WEREWOLF_PRIORITY,
-    stop_command_prompt,
 )
 from .models import Role
 
@@ -60,13 +59,13 @@ class _Timeout(BaseModel):
 
     @property
     def speak_timeout_prompt(self) -> str:
-        return f"限时{self.speak / 60:.1f}分钟, 发送 “{stop_command_prompt()}” 结束发言"
+        return f"限时{self.speak / 60:.1f}分钟, 发送 “{stop_command_prompt}” 结束发言"
 
     @property
     def group_speak_timeout_prompt(self) -> str:
         return (
             f"限时{self.group_speak / 60:.1f}分钟, "
-            f"全员发送 “{stop_command_prompt()}” 结束发言"
+            f"全员发送 “{stop_command_prompt}” 结束发言"
         )
 
 
@@ -120,3 +119,8 @@ class Config(BaseModel):
 
 config = nonebot.get_plugin_config(Config).werewolf
 nonebot.logger.debug(f"加载插件配置: {config}")
+
+stop_command_prompt = (
+    next(iter(sorted(nonebot.get_driver().config.command_start, key=len)), "")
+    + config.get_stop_command()[0]
+)
