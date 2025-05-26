@@ -72,7 +72,7 @@ class DeadChannel:
     async def run(self) -> None:
         self.stream = anyio.create_memory_object_stream[tuple[Player, UniMessage]](16)
         send, recv = self.stream
-        async with anyio.create_task_group() as self._task_group, send, recv:
+        async with send, recv, anyio.create_task_group() as self._task_group:
             self._task_group.start_soon(self._wait_finished)
             self._task_group.start_soon(self._broadcast)
             for p in self.players:

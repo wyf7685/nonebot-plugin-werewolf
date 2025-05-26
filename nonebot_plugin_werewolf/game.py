@@ -10,7 +10,7 @@ from nonebot.adapters import Bot
 from nonebot.utils import escape_tag
 from nonebot_plugin_alconna import At, Target, UniMessage
 from nonebot_plugin_alconna.uniseg.receipt import Receipt
-from nonebot_plugin_uninfo import Interface, Scene, SceneType
+from nonebot_plugin_uninfo import Scene, SceneType, get_interface
 
 from .config import GameBehavior, PresetData
 from .constant import GAME_STATUS_CONV, REPORT_TEXT
@@ -29,12 +29,7 @@ def get_running_games() -> dict[Target, "Game"]:
     return running_games
 
 
-async def init_players(
-    bot: Bot,
-    game: "Game",
-    players: set[str],
-    interface: Interface,
-) -> PlayerSet:
+async def init_players(bot: Bot, game: "Game", players: set[str]) -> PlayerSet:
     logger.debug(f"初始化 {game.colored_name} 的玩家职业")
 
     preset_data = PresetData.get()
@@ -59,7 +54,7 @@ async def init_players(
     player_set = PlayerSet()
     for user_id in players:
         role = roles.pop(secrets.randbelow(len(roles)))
-        player_set.add(await Player.new(role, bot, game, user_id, interface))
+        player_set.add(await Player.new(role, bot, game, user_id))
 
     logger.debug(f"职业分配完成: <e>{escape_tag(str(player_set))}</e>")
     return player_set
@@ -101,15 +96,15 @@ class Game:
         bot: Bot,
         group: Target,
         players: set[str],
-        interface: Interface,
     ) -> Self:
         self = cls(bot, group)
 
-        self._scene = await interface.get_scene(SceneType.GROUP, self.group_id)
-        if self._scene is None:
-            self._scene = await interface.get_scene(SceneType.GUILD, self.group_id)
+        if interface := get_interface(bot):
+            self._scene = await interface.get_scene(SceneType.GROUP, self.group_id)
+            if self._scene is None:
+                self._scene = await interface.get_scene(SceneType.GUILD, self.group_id)
 
-        self.players = await init_players(bot, self, players, interface)
+        self.players = await init_players(bot, self, players)
         self._player_map |= {p.user_id: p for p in self.players}
         self._shuffled = self.players.shuffled
 
@@ -406,7 +401,9 @@ class Game:
 
             # 开始投票
             await self.send(
-                "🗳️讨论结束, 进入投票环节，限时1分钟\n请在私聊中进行投票交互"
+                "🗳️讨论结束, 进入投票环节, "
+                f"限时{self.behavior.timeout.vote / 60:.1f}分钟\n"
+                "请在私聊中进行投票交互"
             )
             self.state.state = GameState.State.VOTE
             await self.run_vote()

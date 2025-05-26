@@ -14,7 +14,7 @@ from nonebot_plugin_alconna import (
     on_alconna,
 )
 from nonebot_plugin_localstore import get_plugin_data_file
-from nonebot_plugin_uninfo import QryItrface, Uninfo
+from nonebot_plugin_uninfo import Uninfo
 
 from ..config import GameBehavior, config, stop_command_prompt
 from ..game import Game, get_running_games
@@ -79,7 +79,9 @@ async def handle_notice(target: MsgTarget) -> None:
     )
     if poke_enabled():
         msg.text(f"\n💫可使用戳一戳代替游戏交互中的 “{stop_command_prompt}” 命令\n")
-    msg.text("\nℹ️游戏准备阶段限时5分钟，超时将自动结束")
+
+    prepare_timeout = GameBehavior.get().timeout.prepare
+    msg.text(f"\nℹ️游戏准备阶段限时{prepare_timeout / 60:.1f}分钟，超时将自动结束")
     await solve_button(msg).send(reply_to=True, fallback=FallbackStrategy.ignore)
 
 
@@ -104,7 +106,6 @@ async def handle_start(
     event: Event,
     target: MsgTarget,
     session: Uninfo,
-    interface: QryItrface,
     state: T_State,
 ) -> None:
     players: dict[str, str] = state.get("players", {})
@@ -118,5 +119,5 @@ async def handle_start(
         await UniMessage.text("⚠️游戏准备超时，已自动结束").finish(reply_to=True)
 
     dump_players(target, players)
-    game = await Game.new(bot, target, set(players), interface)
+    game = await Game.new(bot, target, set(players))
     game.start()

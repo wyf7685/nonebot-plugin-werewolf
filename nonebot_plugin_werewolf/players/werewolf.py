@@ -86,7 +86,7 @@ class WerewolfInteractProvider(InteractProvider["Werewolf"]):
         self.stream = anyio.create_memory_object_stream[str | UniMessage](8)
         send, recv = self.stream
 
-        async with anyio.create_task_group() as tg, send, recv:
+        async with send, recv, anyio.create_task_group() as tg:
             tg.start_soon(self.handle_interact, players)
             tg.start_soon(self.handle_broadcast, partners)
 

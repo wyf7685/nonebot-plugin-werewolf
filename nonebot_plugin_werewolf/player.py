@@ -9,7 +9,7 @@ import nonebot
 from nonebot.adapters import Bot
 from nonebot.utils import escape_tag
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
-from nonebot_plugin_uninfo import Interface, SceneType
+from nonebot_plugin_uninfo import Interface, SceneType, get_interface
 
 from .config import stop_command_prompt
 from .constant import STOP_COMMAND
@@ -157,7 +157,6 @@ class Player:
         bot: Bot,
         game: "Game",
         user_id: str,
-        interface: Interface,
     ) -> "Player":
         if role not in cls._player_class:
             raise ValueError(f"Unexpected role: {role!r}")
@@ -171,7 +170,9 @@ class Player:
             extra=game.group.extra,
         )
         self = cls._player_class[role](bot, game, user)
-        await self._fetch_member(interface)
+
+        if interface := get_interface(bot):
+            await self._fetch_member(interface)
         return self
 
     def __repr__(self) -> str:
@@ -307,18 +308,19 @@ class Player:
         self.killed.set()
 
     async def vote(self, players: "PlayerSet") -> "Player | None":
+        vote_timeout = self.game.behavior.timeout.vote
         await self.send(
             f"💫请选择需要投票的玩家:\n"
             f"{players.show()}\n\n"
             "🗳️发送编号选择玩家\n"
             f"❌发送 “{stop_command_prompt}” 弃票\n\n"
-            "限时1分钟，超时将视为弃票",
+            f"限时{vote_timeout / 60:.1f}分钟，超时将视为弃票",
             stop_btn_label="弃票",
             select_players=players,
         )
 
         selected = None
-        with anyio.move_on_after(self.game.behavior.timeout.vote) as scope:
+        with anyio.move_on_after(vote_timeout) as scope:
             selected = await self.select_player(
                 players,
                 on_stop="⚠️你选择了弃票",
