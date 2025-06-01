@@ -295,6 +295,28 @@ wheels = [
 ]
 
 [[package]]
+name = "h2"
+version = "4.2.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "hpack" },
+    { name = "hyperframe" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/1b/38/d7f80fd13e6582fb8e0df8c9a653dcc02b03ca34f4d72f34869298c5baf8/h2-4.2.0.tar.gz", hash = "sha256:c8a52129695e88b1a0578d8d2cc6842bbd79128ac685463b887ee278126ad01f", size = 2150682, upload-time = "2025-02-02T07:43:51.815Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d0/9e/984486f2d0a0bd2b024bf4bc1c62688fcafa9e61991f041fb0e2def4a982/h2-4.2.0-py3-none-any.whl", hash = "sha256:479a53ad425bb29af087f3458a61d30780bc818e4ebcf01f0b536ba916462ed0", size = 60957, upload-time = "2025-02-01T11:02:26.481Z" },
+]
+
+[[package]]
+name = "hpack"
+version = "4.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/2c/48/71de9ed269fdae9c8057e5a4c0aa7402e8bb16f2c6e90b3aa53327b113f8/hpack-4.1.0.tar.gz", hash = "sha256:ec5eca154f7056aa06f196a557655c5b009b382873ac8d1e66e79e87535f1dca", size = 51276, upload-time = "2025-01-22T21:44:58.347Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/07/c6/80c95b1b2b94682a72cbdbfb85b81ae2daffa4291fbfa1b1464502ede10d/hpack-4.1.0-py3-none-any.whl", hash = "sha256:157ac792668d995c657d93111f46b4535ed114f0c9c8d672271bbec7eae1b496", size = 34357, upload-time = "2025-01-22T21:44:56.92Z" },
+]
+
+[[package]]
 name = "httpcore"
 version = "1.0.8"
 source = { registry = "https://pypi.org/simple" }
@@ -356,6 +378,20 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/b1/df/48c586a5fe32a0f01324ee087459e112ebb7224f646c0b5023f5e79e9956/httpx-0.28.1.tar.gz", hash = "sha256:75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc", size = 141406, upload-time = "2024-12-06T15:37:23.222Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/2a/39/e50c7c3a983047577ee07d2a9e53faf5a69493943ec3f6a384bdc792deb2/httpx-0.28.1-py3-none-any.whl", hash = "sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad", size = 73517, upload-time = "2024-12-06T15:37:21.509Z" },
+]
+
+[package.optional-dependencies]
+http2 = [
+    { name = "h2" },
+]
+
+[[package]]
+name = "hyperframe"
+version = "6.1.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/02/e7/94f8232d4a74cc99514c13a9f995811485a6903d48e5d952771ef6322e30/hyperframe-6.1.0.tar.gz", hash = "sha256:f630908a00854a7adeabd6382b43923a4c4cd4b821fcb527e6ab9e15382a3b08", size = 26566, upload-time = "2025-01-22T21:41:49.302Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/48/30/47d0bf6072f7252e6521f3447ccfa40b421b6824517f82854703d0f5a98b/hyperframe-6.1.0-py3-none-any.whl", hash = "sha256:b03380493a519fce58ea5af42e4a42317bf9bd425596f7a0835ffce80f1a42e5", size = 13007, upload-time = "2025-01-22T21:41:47.295Z" },
 ]
 
 [[package]]
@@ -636,7 +672,7 @@ wheels = [
 
 [[package]]
 name = "nonebot-plugin-alconna"
-version = "0.57.2"
+version = "0.58.2"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "arclet-alconna" },
@@ -647,9 +683,9 @@ dependencies = [
     { name = "nonebot2" },
     { name = "tarina" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/b6/e6/f2c052bc8ff2131ea0f53e65e6a7fd0853646c474271073f8b4274b8aecc/nonebot_plugin_alconna-0.57.2.tar.gz", hash = "sha256:fcfbd80bfe2e5a70ab644d95b8c4dd73dda6d41c3feb6deeb71dba1e44565b40", size = 146999, upload-time = "2025-04-09T09:51:17.181Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/50/f7/86790ec8d29beedc5b1fdcdedd0d64234264681ce0ed152fee64bdc56720/nonebot_plugin_alconna-0.58.2.tar.gz", hash = "sha256:6636d7cf843c4b80e59d20eb2c5256b43e3b379abdee49b3fe3d707524f6aaff", size = 152736, upload-time = "2025-06-01T10:16:34.23Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0f/a9/54cb767e7c093eb6fd93ced11163fda2f972236dab2f1e750748f71497a8/nonebot_plugin_alconna-0.57.2-py3-none-any.whl", hash = "sha256:189d558b8f7cb79329662795e3622b7fe4066962bf0431faee309fae3d1cdd58", size = 202829, upload-time = "2025-04-09T09:51:15.764Z" },
+    { url = "https://files.pythonhosted.org/packages/c8/b8/6969843f0f87316449939b211c82e86b17a6a8701bade19a6b8e5cc370bf/nonebot_plugin_alconna-0.58.2-py3-none-any.whl", hash = "sha256:bd1231e59f259faa76709f8173004b5791b14fd971b49bd9b77c55a339eec489", size = 210773, upload-time = "2025-06-01T10:16:32.694Z" },
 ]
 
 [[package]]
@@ -669,15 +705,15 @@ wheels = [
 
 [[package]]
 name = "nonebot-plugin-uninfo"
-version = "0.7.3"
+version = "0.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "importlib-metadata" },
     { name = "nonebot2" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/72/c5/4a7fad153d2a4d02f3edf47033a92af0848e4fcd0b115d908382b94bacb9/nonebot_plugin_uninfo-0.7.3.tar.gz", hash = "sha256:254922908d8b8c60ba63c7216d4d8de54ebb7e56ef91b3b360ebd810dcff4d48", size = 38260, upload-time = "2025-04-17T13:56:03.446Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/c1/5f/11ac7656d81e54d71b8f7c9f0f83d5232535bac48f1fecfd7f12114546db/nonebot_plugin_uninfo-0.8.0.tar.gz", hash = "sha256:6e596738188905750934e4893208cad533f5dd1eccf44b6ed0206d05777a9a5e", size = 40247, upload-time = "2025-05-28T06:32:50.828Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/43/bd/23bd76556e478de25778a0831a0030a296a0c9e7824ac78343437ec3aff2/nonebot_plugin_uninfo-0.7.3-py3-none-any.whl", hash = "sha256:d45e97aaaebaf6b41ec0c625859216e61700e6a2929cbe0ee659a71b470fdd08", size = 60471, upload-time = "2025-04-17T13:56:01.953Z" },
+    { url = "https://files.pythonhosted.org/packages/be/fa/22835a3713c543e83e29d3a5a237e66f44a79bb3252c037c2f2cf45e23dc/nonebot_plugin_uninfo-0.8.0-py3-none-any.whl", hash = "sha256:911492660749f45e2800b311a413eca5a9988496a2daab56733bf8a299165750", size = 64583, upload-time = "2025-05-28T06:32:49.357Z" },
 ]
 
 [[package]]
@@ -707,15 +743,12 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "fastapi" },
-    { name = "httpx" },
     { name = "nonebot-adapter-discord" },
     { name = "nonebot-adapter-onebot" },
     { name = "nonebot-adapter-satori" },
     { name = "nonebot-adapter-telegram" },
-    { name = "nonebot2", extra = ["fastapi"] },
+    { name = "nonebot2", extra = ["fastapi", "httpx", "websockets"] },
     { name = "pre-commit" },
-    { name = "websockets" },
 ]
 test = [
     { name = "nonebug" },
@@ -728,24 +761,21 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "anyio", specifier = ">=4.6.0" },
-    { name = "nonebot-plugin-alconna", specifier = ">=0.57.0" },
+    { name = "nonebot-plugin-alconna", specifier = ">=0.58.0" },
     { name = "nonebot-plugin-localstore", specifier = ">=0.7.1" },
-    { name = "nonebot-plugin-uninfo", specifier = ">=0.7.3" },
+    { name = "nonebot-plugin-uninfo", specifier = ">=0.8.0" },
     { name = "nonebot-plugin-waiter", specifier = ">=0.8.0" },
     { name = "nonebot2", specifier = ">=2.4.0" },
 ]
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "fastapi", specifier = ">=0.115.0" },
-    { name = "httpx", specifier = ">=0.27.2" },
     { name = "nonebot-adapter-discord", specifier = ">=0.1.8" },
-    { name = "nonebot-adapter-onebot", specifier = ">=2.4.4" },
-    { name = "nonebot-adapter-satori", specifier = ">=0.12.5" },
-    { name = "nonebot-adapter-telegram", specifier = ">=0.1.0b19" },
-    { name = "nonebot2", extras = ["fastapi"], specifier = ">=2.4.0" },
+    { name = "nonebot-adapter-onebot", specifier = ">=2.4.6" },
+    { name = "nonebot-adapter-satori", specifier = ">=0.13.5" },
+    { name = "nonebot-adapter-telegram", specifier = ">=0.1.0b20" },
+    { name = "nonebot2", extras = ["fastapi", "httpx", "websockets"], specifier = ">=2.4.0" },
     { name = "pre-commit", specifier = ">=4.1.0" },
-    { name = "websockets", specifier = ">=14.1" },
 ]
 test = [
     { name = "nonebug", specifier = ">=0.4.3" },
@@ -779,6 +809,12 @@ wheels = [
 fastapi = [
     { name = "fastapi" },
     { name = "uvicorn", extra = ["standard"] },
+]
+httpx = [
+    { name = "httpx", extra = ["http2"] },
+]
+websockets = [
+    { name = "websockets" },
 ]
 
 [[package]]
