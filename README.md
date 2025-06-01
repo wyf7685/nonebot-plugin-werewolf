@@ -116,7 +116,7 @@ _✨ 简单的狼人杀插件 ✨_
 
 `werewolf__enable_poke` 仅在 `OneBot V11` 适配器 / `Satori/chronocat` 下生效
 
-`werewolf__enable_button` 仅在 `Telegram` 适配器下通过测试，不保证在其他适配器的可用性。如有疑问欢迎提出。
+`werewolf__enable_button` 仅在 `Telegram` 适配器下通过测试，不保证在其他适配器的可用性，如有疑问欢迎提出。
 
 <details>
 <summary> werewolf__require_at 示例 </summary>
@@ -262,7 +262,9 @@ werewolf__require_at='{"start": true, "terminate": false}'
 <details>
     <summary>已知问题</summary>
 
-- 截止 chronocat v0.2.19, 调用 [`guild.member.get`](https://github.com/chrononeko/chronocat/blob/8558ad9ff4319395d86abbfda22136939bf66780/packages/engine-chronocat-api/src/api/guild/member/get.ts) / [`user.get`](https://github.com/chrononeko/chronocat/blob/8558ad9ff4319395d86abbfda22136939bf66780/packages/engine-chronocat-api/src/api/user/get.ts) 均无法获取用户名，这将导致在交互过程中的玩家名显示为用户 ID
+- 截止 chronocat [v0.2.19](https://github.com/chrononeko/chronocat/tree/v0.2.19), 调用 [`guild.member.get`](https://github.com/chrononeko/chronocat/blob/8558ad9ff4319395d86abbfda22136939bf66780/packages/engine-chronocat-api/src/api/guild/member/get.ts) / [`user.get`](https://github.com/chrononeko/chronocat/blob/8558ad9ff4319395d86abbfda22136939bf66780/packages/engine-chronocat-api/src/api/user/get.ts) 均无法获取用户名，这将导致在交互过程中的玩家名显示为用户 ID
+
+- v1.1.6 添加的按钮操作在 `discord` 适配器中不可用, 已在 v1.1.12 禁用 (2e31d43)
 
 </details>
 
@@ -272,6 +274,10 @@ werewolf__require_at='{"start": true, "terminate": false}'
     <summary>更新日志</summary>
 
 <!-- CHANGELOG -->
+
+- 2025.06.01 v1.1.12
+
+  - 禁用 `discord` 适配器中的按钮操作 ~~以后会写适配的...吗?~~
 
 - 2025.04.20 v1.1.11
 
