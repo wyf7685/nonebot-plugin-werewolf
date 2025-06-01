@@ -30,6 +30,21 @@ _✨ 简单的狼人杀插件 ✨_
 
 和朋友们来一场紧张刺激的狼人杀游戏
 
+<!-- ref: https://github.com/KomoriDev/Starify -->
+
+> [!IMPORTANT]
+> **收藏项目**，你将从 GitHub 上无延迟地接收所有发布通知～⭐️
+
+<img width="100%" src="https://starify.komoridevs.icu/api/starify?owner=wyf7685&repo=nonebot-plugin-werewolf" alt="starify" />
+
+<details>
+  <summary><kbd>Star History</kbd></summary>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=wyf7685/nonebot-plugin-werewolf&theme=dark&type=Date" />
+    <img width="100%" src="https://star-history.com/#wyf7685/nonebot-plugin-werewolf&Date" />
+  </picture>
+</details>
+
 ## 💿 安装
 
 > [!note]
