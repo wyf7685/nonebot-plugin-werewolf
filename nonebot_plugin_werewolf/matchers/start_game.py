@@ -104,9 +104,9 @@ async def handle_restart(target: MsgTarget, state: T_State) -> None:
 async def handle_start(
     bot: Bot,
     event: Event,
-    target: MsgTarget,
-    session: Uninfo,
     state: T_State,
+    session: Uninfo,
+    target: MsgTarget,
 ) -> None:
     players: dict[str, str] = state.get("players", {})
     admin_id = event.get_user_id()
