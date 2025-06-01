@@ -15,7 +15,7 @@ from nonebot_plugin_alconna import (
     on_alconna,
 )
 
-from ..config import GameBehavior
+from ..config import GameBehavior, config
 
 GAME_BEHAVIOR_CACHE_KEY = "GAME_BEHAVIOR_CACHE_KEY"
 
@@ -118,7 +118,7 @@ alc = Alconna(
 edit_behavior = on_alconna(
     alc,
     permission=SUPERUSER,
-    use_cmd_start=True,
+    priority=config.matcher_priority.behavior,
 )
 
 

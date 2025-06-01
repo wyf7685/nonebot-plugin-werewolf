@@ -13,10 +13,9 @@ from nonebot_plugin_alconna import (
     on_alconna,
 )
 from nonebot_plugin_localstore import get_plugin_data_file
-from nonebot_plugin_uninfo import QryItrface, Uninfo
+from nonebot_plugin_uninfo import Uninfo
 
-from ..config import GameBehavior
-from ..constant import stop_command_prompt
+from ..config import GameBehavior, config, stop_command_prompt
 from ..game import Game, get_running_games
 from ..utils import extract_session_member_nick
 from ._prepare_game import PrepareGame, SendHandler
@@ -28,9 +27,11 @@ start_game = on_alconna(
         "werewolf",
         Option("restart|-r|--restart|重开", dest="restart"),
     ),
-    rule=to_me() & rule_not_in_game,
+    rule=to_me() & rule_not_in_game
+    if config.get_require_at("start")
+    else rule_not_in_game,
     aliases={"狼人杀"},
-    use_cmd_start=True,
+    priority=config.matcher_priority.start,
 )
 player_data_file = get_plugin_data_file("players.json")
 if not player_data_file.exists():
@@ -61,7 +62,7 @@ def load_players(target: Target) -> dict[str, str] | None:
 async def handle_notice(event: Event, target: MsgTarget, state: T_State) -> None:
     if target.private:
         await UniMessage("⚠️请在群组中创建新游戏").finish(reply_to=True)
-    if any(target.verify(game.group) for game in get_running_games()):
+    if target in get_running_games():
         await (
             UniMessage.text("⚠️当前群组内有正在进行的游戏\n")
             .text("无法开始新游戏")
@@ -76,8 +77,10 @@ async def handle_notice(event: Event, target: MsgTarget, state: T_State) -> None
         "  玩家均加入后，游戏发起者请发送 “开始游戏”\n"
     )
     if poke_enabled():
-        msg.text(f"\n💫可使用戳一戳代替游戏交互中的 “{stop_command_prompt()}” 命令\n")
-    msg.text("\nℹ️游戏准备阶段限时5分钟，超时将自动结束")
+        msg.text(f"\n💫可使用戳一戳代替游戏交互中的 “{stop_command_prompt}” 命令\n")
+
+    prepare_timeout = GameBehavior.get().timeout.prepare
+    msg.text(f"\nℹ️游戏准备阶段限时{prepare_timeout / 60:.1f}分钟，超时将自动结束")
     state["send_handler"] = handler = SendHandler(event)
     await handler.send(msg)
 
@@ -101,10 +104,9 @@ async def handle_restart(target: MsgTarget, state: T_State) -> None:
 async def handle_start(
     bot: Bot,
     event: Event,
-    target: MsgTarget,
-    session: Uninfo,
-    interface: QryItrface,
     state: T_State,
+    session: Uninfo,
+    target: MsgTarget,
 ) -> None:
     players: dict[str, str] = state.get("players", {})
     handler: SendHandler = state["send_handler"]
@@ -113,12 +115,11 @@ async def handle_start(
     admin_name = extract_session_member_nick(session) or admin_id
     players[admin_id] = admin_name
 
-    try:
-        with anyio.fail_after(GameBehavior.get().timeout.prepare):
-            await PrepareGame(event, players, handler).run()
-    except TimeoutError:
-        await UniMessage.text("⚠️游戏准备超时，已自动结束").finish()
+    with anyio.move_on_after(GameBehavior.get().timeout.prepare) as scope:
+        await PrepareGame(event, players, handler).run()
+    if scope.cancelled_caught:
+        await UniMessage.text("⚠️游戏准备超时，已自动结束").finish(reply_to=True)
 
     dump_players(target, players)
-    game = await Game.new(bot, target, set(players), interface)
-    await game.start()
+    game = await Game.new(bot, target, set(players))
+    game.start()

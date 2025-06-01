@@ -6,7 +6,6 @@ from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar
 
 import anyio
-import anyio.streams.memory
 from nonebot.adapters import Bot, Event
 from nonebot.internal.matcher import current_bot
 from nonebot_plugin_alconna.uniseg import (
@@ -19,8 +18,8 @@ from nonebot_plugin_alconna.uniseg import (
 )
 from nonebot_plugin_uninfo import Session
 
-from .config import config
-from .constant import STOP_COMMAND, stop_command_prompt
+from .config import config, stop_command_prompt
+from .constant import STOP_COMMAND
 
 if TYPE_CHECKING:
     from .player import Player
@@ -118,54 +117,6 @@ def as_player_set(*player: "Player") -> "PlayerSet":
     return cached_player_set()(player)
 
 
-class ObjectStream(Generic[T]):
-    class Unset: ...
-
-    __UNSET: ClassVar[Unset] = Unset()
-
-    _send: anyio.streams.memory.MemoryObjectSendStream[T]
-    _recv: anyio.streams.memory.MemoryObjectReceiveStream[T]
-    _closed: anyio.Event
-
-    def __init__(self, max_buffer_size: float = 0) -> None:
-        self._send, self._recv = anyio.create_memory_object_stream(max_buffer_size)
-        self._closed = anyio.Event()
-
-    async def send(self, obj: T) -> None:
-        await self._send.send(obj)
-
-    async def recv(self) -> T:
-        result: Any = self.__UNSET
-
-        async def _recv() -> None:
-            nonlocal result
-            result = await self._recv.receive()
-            tg.cancel_scope.cancel()
-
-        async def _cancel() -> None:
-            await self._closed.wait()
-            tg.cancel_scope.cancel()
-
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(_recv)
-            tg.start_soon(_cancel)
-
-        if result is self.__UNSET:
-            raise anyio.EndOfStream
-
-        return result
-
-    def close(self) -> None:
-        self._closed.set()
-
-    @property
-    def closed(self) -> bool:
-        return self._closed.is_set()
-
-    async def wait_closed(self) -> None:
-        await self._closed.wait()
-
-
 BUTTON_ACTION_CACHE: dict[str, str] = {}
 
 
@@ -178,7 +129,7 @@ def add_stop_button(msg: str | UniMessage, label: str | None = None) -> UniMessa
     if isinstance(msg, str):
         msg = UniMessage.text(msg)
 
-    stop = stop_command_prompt()
+    stop = stop_command_prompt
     return msg.keyboard(btn(label or stop, stop))
 
 
@@ -238,6 +189,7 @@ class SendHandler(abc.ABC, Generic[P]):
             and self.last_msg is not None
             and last is not None
             and last.editable
+            and not self._is_dc
         ):
             await last.edit(self.last_msg.exclude(Keyboard))
 
@@ -245,7 +197,8 @@ class SendHandler(abc.ABC, Generic[P]):
         if self.target is None:
             raise RuntimeError("Target cannot be None when sending a message.")
 
-        if not config.enable_button:
+        if not config.enable_button or self._is_dc:
+            # TODO: support discord button
             message = message.exclude(Keyboard)
         else:
             message = self._fix_btn(message)

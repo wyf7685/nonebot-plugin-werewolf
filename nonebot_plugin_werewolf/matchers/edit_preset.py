@@ -14,8 +14,7 @@ from nonebot_plugin_alconna import (
     on_alconna,
 )
 
-from ..config import PresetData
-from ..constant import ROLE_NAME_CONV
+from ..config import PresetData, config
 from ..models import Role
 
 alc = Alconna(
@@ -73,7 +72,7 @@ alc = Alconna(
 edit_preset = on_alconna(
     alc,
     permission=SUPERUSER,
-    use_cmd_start=True,
+    priority=config.matcher_priority.preset,
 )
 
 
@@ -82,7 +81,7 @@ async def finish(text: str) -> NoReturn:
 
 
 def display_roles(roles: list[Role]) -> str:
-    return ", ".join(map(ROLE_NAME_CONV.__getitem__, roles))
+    return ", ".join(role.display for role in roles)
 
 
 @edit_preset.assign("role")
@@ -164,7 +163,7 @@ async def assign_werewolf(state: T_State) -> None:
 
     data.werewolf_priority = result
     data.save()
-    await finish("设置成功: " + display_roles(result))
+    await finish(f"设置成功: {display_roles(result)}")
 
 
 @edit_preset.assign("priesthood")
@@ -213,7 +212,7 @@ async def assign_priesthood(state: T_State) -> None:
 
     data.priesthood_proirity = result
     data.save()
-    await finish("设置成功: " + display_roles(result))
+    await finish(f"设置成功: {display_roles(result)}")
 
 
 @edit_preset.assign("jester")
@@ -248,15 +247,17 @@ async def reset_preset() -> None:
 
 @edit_preset.handle()
 async def handle_default() -> None:
-    lines = ["当前游戏预设:", ""]
     data = PresetData.load()
 
-    for total, (w, p, c) in data.role_preset.items():
-        lines.append(f"{total} 人: 狼人x{w}, 神职x{p}, 平民x{c}")
-    lines.append("")
-
-    lines.append("狼人优先级: " + display_roles(data.werewolf_priority))
-    lines.append("神职优先级: " + display_roles(data.priesthood_proirity))
-    lines.append(f"小丑概率: {data.jester_probability:.0%}")
+    lines = ["当前游戏预设:\n"]
+    lines.extend(
+        f"{total} 人: 狼人x{w}, 神职x{p}, 平民x{c}"
+        for total, (w, p, c) in data.role_preset.items()
+    )
+    lines.append(
+        f"\n狼人优先级: {display_roles(data.werewolf_priority)}"
+        f"\n神职优先级: {display_roles(data.priesthood_proirity)}"
+        f"\n小丑概率: {data.jester_probability:.0%}"
+    )
 
     await finish("\n".join(lines))

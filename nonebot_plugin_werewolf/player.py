@@ -9,9 +9,10 @@ import nonebot
 from nonebot.adapters import Bot
 from nonebot.utils import escape_tag
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
-from nonebot_plugin_uninfo import Interface, SceneType
+from nonebot_plugin_uninfo import Interface, SceneType, get_interface
 
-from .constant import ROLE_EMOJI, ROLE_NAME_CONV, STOP_COMMAND, stop_command_prompt
+from .config import stop_command_prompt
+from .constant import STOP_COMMAND
 from .models import KillInfo, KillReason, Role, RoleGroup
 from .utils import (
     InputStore,
@@ -92,7 +93,7 @@ class NotifyProvider(ActionProvider[_P], Generic[_P]):
         return message
 
     async def notify(self) -> None:
-        msg = UniMessage.text(f"⚙️你的身份: {ROLE_EMOJI[self.role]}{self.role_name}\n")
+        msg = UniMessage.text(f"⚙️你的身份: {self.role.emoji}{self.role_name}\n")
         await self.p.send(self.message(msg))
 
 
@@ -135,14 +136,18 @@ class Player:
     @override
     def __init_subclass__(cls) -> None:
         super().__init_subclass__()
-        if hasattr(cls, "role") and hasattr(cls, "role_group"):
-            cls._player_class[cls.role] = cls
-        if not hasattr(cls, "interact_provider"):
-            cls.interact_provider = None
-        if not hasattr(cls, "kill_provider"):
-            cls.kill_provider = KillProvider
-        if not hasattr(cls, "notify_provider"):
-            cls.notify_provider = NotifyProvider
+        if not (hasattr(cls, "role") and hasattr(cls, "role_group")):
+            return
+
+        assert cls.role not in cls._player_class  # noqa: S101
+        cls._player_class[cls.role] = cls
+        for k, v in {
+            "interact_provider": None,
+            "kill_provider": KillProvider,
+            "notify_provider": NotifyProvider,
+        }.items():
+            if not hasattr(cls, k):
+                setattr(cls, k, v)
 
     @final
     @classmethod
@@ -152,7 +157,6 @@ class Player:
         bot: Bot,
         game: "Game",
         user_id: str,
-        interface: Interface,
     ) -> "Player":
         if role not in cls._player_class:
             raise ValueError(f"Unexpected role: {role!r}")
@@ -166,7 +170,9 @@ class Player:
             extra=game.group.extra,
         )
         self = cls._player_class[role](bot, game, user)
-        await self._fetch_member(interface)
+
+        if interface := get_interface(bot):
+            await self._fetch_member(interface)
         return self
 
     def __repr__(self) -> str:
@@ -187,7 +193,7 @@ class Player:
     @final
     @functools.cached_property
     def role_name(self) -> str:
-        return ROLE_NAME_CONV[self.role]
+        return self.role.display
 
     @final
     async def _fetch_member(self, interface: Interface) -> None:
@@ -278,14 +284,12 @@ class Player:
         provider = self.interact_provider(self)
 
         await provider.before()
-
         timeout = self.interact_timeout
         await self.send(f"✏️{self.role_name}交互开始，限时 {timeout / 60:.2f} 分钟")
 
-        try:
-            with anyio.fail_after(timeout):
-                await provider.interact()
-        except TimeoutError:
+        with anyio.move_on_after(timeout) as scope:
+            await provider.interact()
+        if scope.cancelled_caught:
             logger.debug(f"{self.role_name}交互超时 (<y>{timeout}</y>s)")
             await self.send(f"⚠️{self.role_name}交互超时")
 
@@ -304,25 +308,25 @@ class Player:
         self.killed.set()
 
     async def vote(self, players: "PlayerSet") -> "Player | None":
+        vote_timeout = self.game.behavior.timeout.vote
         await self.send(
             f"💫请选择需要投票的玩家:\n"
             f"{players.show()}\n\n"
             "🗳️发送编号选择玩家\n"
-            f"❌发送 “{stop_command_prompt()}” 弃票\n\n"
-            "限时1分钟，超时将视为弃票",
+            f"❌发送 “{stop_command_prompt}” 弃票\n\n"
+            f"限时{vote_timeout / 60:.1f}分钟，超时将视为弃票",
             stop_btn_label="弃票",
             select_players=players,
         )
 
-        try:
-            with anyio.fail_after(self.game.behavior.timeout.vote):
-                selected = await self.select_player(
-                    players,
-                    on_stop="⚠️你选择了弃票",
-                    on_index_error="⚠️输入错误: 请发送编号选择玩家",
-                )
-        except TimeoutError:
-            selected = None
+        selected = None
+        with anyio.move_on_after(vote_timeout) as scope:
+            selected = await self.select_player(
+                players,
+                on_stop="⚠️你选择了弃票",
+                on_index_error="⚠️输入错误: 请发送编号选择玩家",
+            )
+        if scope.cancelled_caught:
             await self.send("⚠️投票超时，将视为弃票")
 
         if selected is not None:
@@ -343,7 +347,7 @@ class Player:
     ) -> "Player | None":
         on_stop = on_stop if on_stop is not None else "ℹ️你选择了取消，回合结束"
         on_index_error = (
-            on_index_error or f"⚠️输入错误: 请发送玩家编号或 “{stop_command_prompt()}”"
+            on_index_error or f"⚠️输入错误: 请发送玩家编号或 “{stop_command_prompt}”"
         )
         selected = None
 

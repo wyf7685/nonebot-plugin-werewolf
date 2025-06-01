@@ -1,23 +1,6 @@
-import functools
-from typing import TYPE_CHECKING
-
 from .models import GameStatus, KillReason, Role, RoleGroup
 
 STOP_COMMAND = "{{stop}}"
-
-
-def stop_command_prompt() -> str:
-    import nonebot
-
-    from .config import config  # circular import
-
-    cmd_starts = sorted(nonebot.get_driver().config.command_start, key=len)
-    return next(iter(cmd_starts), "") + config.get_stop_command()[0]
-
-
-if not TYPE_CHECKING:
-    stop_command_prompt = functools.cache(stop_command_prompt)
-del TYPE_CHECKING
 
 
 ROLE_NAME_CONV: dict[Role | RoleGroup, str] = {

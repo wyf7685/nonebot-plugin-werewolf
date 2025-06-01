@@ -1,4 +1,5 @@
 import dataclasses
+import functools
 from enum import Enum, auto
 from typing import TYPE_CHECKING
 
@@ -26,11 +27,29 @@ class Role(int, Enum):
     # 平民
     CIVILIAN = 0
 
+    @functools.cached_property
+    def emoji(self) -> str:
+        from .constant import ROLE_EMOJI
+
+        return ROLE_EMOJI[self]
+
+    @functools.cached_property
+    def display(self) -> str:
+        from .constant import ROLE_NAME_CONV
+
+        return ROLE_NAME_CONV[self]
+
 
 class RoleGroup(Enum):
     WEREWOLF = auto()
     GOODGUY = auto()
     OTHERS = auto()
+
+    @functools.cached_property
+    def display(self) -> str:
+        from .constant import ROLE_NAME_CONV
+
+        return ROLE_NAME_CONV[self]
 
 
 class KillReason(Enum):

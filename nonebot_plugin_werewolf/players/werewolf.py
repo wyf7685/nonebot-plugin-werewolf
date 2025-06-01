@@ -5,23 +5,23 @@ from typing_extensions import override
 import anyio
 from nonebot_plugin_alconna.uniseg import UniMessage
 
-from ..constant import STOP_COMMAND, stop_command_prompt
+from ..config import stop_command_prompt
+from ..constant import STOP_COMMAND
 from ..models import Role, RoleGroup
 from ..player import InteractProvider, NotifyProvider, Player
-from ..utils import ObjectStream, as_player_set, check_index
+from ..utils import as_player_set, check_index
 
 if TYPE_CHECKING:
     from ..player_set import PlayerSet
 
 
 class WerewolfInteractProvider(InteractProvider["Werewolf"]):
-    stream: ObjectStream[str | UniMessage]
-
     @override
     async def before(self) -> None:
         self.game.state.werewolf_start()
 
     async def handle_interact(self, players: "PlayerSet") -> None:
+        stream = self.stream[0]
         self.selected = None
 
         while True:
@@ -32,30 +32,31 @@ class WerewolfInteractProvider(InteractProvider["Werewolf"]):
                 self.selected = players[index - 1]
                 msg = f"当前选择玩家: {self.selected.name}"
                 await self.p.send(
-                    f"🎯{msg}\n发送 “{stop_command_prompt()}” 结束回合",
+                    f"🎯{msg}\n发送 “{stop_command_prompt}” 结束回合",
                     stop_btn_label="结束回合",
                     select_players=players,
                 )
-                await self.stream.send(f"📝队友 {self.p.name} {msg}")
+                await stream.send(f"📝队友 {self.p.name} {msg}")
             if text == STOP_COMMAND:
                 if self.selected is not None:
                     await self.p.send("✅你已结束当前回合")
-                    await self.stream.send(f"📝队友 {self.p.name} 结束当前回合")
-                    self.stream.close()
+                    await stream.send(f"📝队友 {self.p.name} 结束当前回合")
+                    stream.close()
                     return
                 await self.p.send(
                     "⚠️当前未选择玩家，无法结束回合",
                     select_players=players,
                 )
             else:
-                await self.stream.send(
+                await stream.send(
                     UniMessage.text(f"💬队友 {self.p.name}:\n") + input_msg
                 )
 
     async def handle_broadcast(self, partners: "PlayerSet") -> None:
-        while not self.stream.closed:
+        stream = self.stream[1]
+        while True:
             try:
-                message = await self.stream.recv()
+                message = await stream.receive()
             except anyio.EndOfStream:
                 return
 
@@ -77,19 +78,17 @@ class WerewolfInteractProvider(InteractProvider["Werewolf"]):
             msg.text("💫请选择今晚的目标:\n")
             .text(players.show())
             .text("\n\n🔪发送编号选择玩家")
-            .text(f"\n❌发送 “{stop_command_prompt()}” 结束回合")
+            .text(f"\n❌发送 “{stop_command_prompt}” 结束回合")
             .text("\n\n⚠️意见未统一将空刀"),
             select_players=players,
         )
 
-        self.stream = ObjectStream[str | UniMessage](8)
+        self.stream = anyio.create_memory_object_stream[str | UniMessage](8)
+        send, recv = self.stream
 
-        try:
-            async with anyio.create_task_group() as tg:
-                tg.start_soon(self.handle_interact, players)
-                tg.start_soon(self.handle_broadcast, partners)
-        finally:
-            del self.stream
+        async with send, recv, anyio.create_task_group() as tg:
+            tg.start_soon(self.handle_interact, players)
+            tg.start_soon(self.handle_broadcast, partners)
 
     async def finalize(self) -> None:
         w = self.game.players.alive().select(RoleGroup.WEREWOLF)

@@ -57,7 +57,7 @@ with contextlib.suppress(ImportError, RuntimeError):
 
         if p := preparing_games.get(target):
             name = extract_session_member_nick(session) or user_id
-            await p.stream.send((event, action, name))
+            await p.stream[0].send((event, action, name))
             return
 
         InputStore.put(
