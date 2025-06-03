@@ -32,6 +32,7 @@ start_game = on_alconna(
     if config.get_require_at("start")
     else rule_not_in_game,
     aliases={"狼人杀"},
+    use_cmd_start=config.use_cmd_start,
     priority=config.matcher_priority.start,
 )
 player_data_file = get_plugin_data_file("players.json")
