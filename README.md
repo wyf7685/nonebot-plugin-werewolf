@@ -279,6 +279,11 @@ werewolf__require_at='{"start": true, "terminate": false}'
 
 <!-- CHANGELOG -->
 
+- 2025.06.04 v1.1.13
+
+  - 添加配置项 `werewolf__use_cmd_start`, 用于配置插件命令前缀
+  - 调整 v1.1.11 优先级配置的默认值
+
 - 2025.06.01 v1.1.12
 
   - 禁用 `discord` 适配器中的按钮操作 ~~以后会写适配的...吗?~~
