@@ -1,10 +1,11 @@
 import json
+import warnings
 from pathlib import Path
 from typing import Any, ClassVar, Final, Literal
 from typing_extensions import Self
 
 import nonebot
-from nonebot.compat import model_dump, type_validate_json
+from nonebot.compat import model_dump, model_validator, type_validate_json
 from nonebot_plugin_localstore import get_plugin_data_file
 from pydantic import BaseModel, Field
 
@@ -90,7 +91,18 @@ class MatcherPriorityConfig(BaseModel):
     preset: int = 1
     behavior: int = 1
     in_game: int = 10
-    stop: int = 10
+    stop: int = 9
+
+    @model_validator(mode="after")
+    @classmethod
+    def _validate(cls, model: Self) -> Self:
+        if model.in_game <= model.stop:
+            model.in_game = model.stop + 1
+            warnings.warn(
+                "in_game 的优先级必须低于 stop，已自动调整为 stop + 1",
+                stacklevel=2,
+            )
+        return model
 
 
 class PluginConfig(BaseModel):
@@ -99,6 +111,7 @@ class PluginConfig(BaseModel):
     stop_command: str | set[str] = "stop"
     require_at: bool | RequireAtConfig = True
     matcher_priority: MatcherPriorityConfig = MatcherPriorityConfig()
+    use_cmd_start: bool | None = None
 
     def get_stop_command(self) -> list[str]:
         return (

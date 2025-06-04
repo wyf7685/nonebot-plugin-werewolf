@@ -25,8 +25,8 @@ stopcmd = on_alconna(
     Alconna(config.get_stop_command()[0]),
     rule=rule_in_game,
     block=True,
-    use_cmd_start=True,
     aliases=set(aliases) if (aliases := config.get_stop_command()[1:]) else None,
+    use_cmd_start=config.use_cmd_start,
     priority=config.matcher_priority.stop,
 )
 

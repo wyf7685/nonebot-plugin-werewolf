@@ -118,6 +118,7 @@ alc = Alconna(
 edit_behavior = on_alconna(
     alc,
     permission=SUPERUSER,
+    use_cmd_start=config.use_cmd_start,
     priority=config.matcher_priority.behavior,
 )
 
