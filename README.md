@@ -33,7 +33,8 @@ _✨ 简单的狼人杀插件 ✨_
 <!-- ref: https://github.com/KomoriDev/Starify -->
 
 > [!IMPORTANT]
-> **收藏项目**，你将从 GitHub 上无延迟地接收所有发布通知～⭐️
+>
+> **收藏项目**，你将从 GitHub 上无延迟地接收所有发布通知～ ⭐️
 
 <img width="100%" src="https://starify.komoridevs.icu/api/starify?owner=wyf7685&repo=nonebot-plugin-werewolf" alt="starify" />
 
@@ -106,13 +107,14 @@ _✨ 简单的狼人杀插件 ✨_
 
 在 nonebot2 项目的 `.env` 文件中添加如下配置:
 
-|            配置项            | 必填 | 默认值  |           类型            |              说明              |
-| :--------------------------: | :--: | :-----: | :-----------------------: | :----------------------------: |
-|   `werewolf__enable_poke`    |  否  | `True`  |          `bool`           |   是否使用戳一戳简化操作流程   |
-|  `werewolf__enable_button`   |  否  | `False` |          `bool`           |      是否在交互中添加按钮      |
-|   `werewolf__stop_command`   |  否  | `stop`  |     `str \| set[str]`     |  修改游戏进程中的 `stop` 命令  |
-|    `werewolf__require_at`    |  否  | `True`  | `bool \| RequireAtConfig` | 部分命令是否需要 at 机器人触发 |
-| `werewolf__matcher_priority` |  否  |    -    |  `MatcherPriorityConfig`  | 配置插件 matcher 注册的优先级  |
+|            配置项            | 必填 | 默认值  |           类型            |                     说明                      |
+| :--------------------------: | :--: | :-----: | :-----------------------: | :-------------------------------------------: |
+|   `werewolf__enable_poke`    |  否  | `True`  |          `bool`           |          是否使用戳一戳简化操作流程           |
+|  `werewolf__enable_button`   |  否  | `False` |          `bool`           |             是否在交互中添加按钮              |
+|   `werewolf__stop_command`   |  否  | `stop`  |     `str \| set[str]`     |         修改游戏进程中的 `stop` 命令          |
+|    `werewolf__require_at`    |  否  | `True`  | `bool \| RequireAtConfig` |        部分命令是否需要 at 机器人触发         |
+| `werewolf__matcher_priority` |  否  |    -    |  `MatcherPriorityConfig`  |         配置插件 matcher 注册的优先级         |
+|  `werewolf__use_cmd_start`   |  否  | `None`  |      `bool \| None`       | 是否使用配置项 `COMMAND_START` 来作为命令前缀 |
 
 `werewolf__enable_poke` 仅在 `OneBot V11` 适配器 / `Satori/chronocat` 下生效
 
@@ -139,6 +141,8 @@ werewolf__require_at='{"start": true, "terminate": false}'
 - 一般情况下不需要修改此配置, 插件的默认优先级可以参考 [这里](./nonebot_plugin_werewolf/config.py) 的 `MatcherPriorityConfig`
 - 如果遇到与其他插件的命令冲突, 可考虑修改此处的优先级配置
 - 配置应填入 JSON 对象, 可用键: `start` `terminate` `preset` `behavior` `in_game` `stop`
+
+`werewolf__use_cmd_start` 为 `None` 时，使用 alc 的 [全局配置](https://nonebot.dev/docs/next/best-practice/alconna/config#alconna_use_command_start)
 
 ## 🚀 使用
 
@@ -274,6 +278,11 @@ werewolf__require_at='{"start": true, "terminate": false}'
     <summary>更新日志</summary>
 
 <!-- CHANGELOG -->
+
+- 2025.06.04 v1.1.13
+
+  - 添加配置项 `werewolf__use_cmd_start`, 用于配置插件命令前缀
+  - 调整 v1.1.11 优先级配置的默认值
 
 - 2025.06.01 v1.1.12
 

@@ -12,6 +12,7 @@ terminate = on_alconna(
     Alconna("中止游戏"),
     rule=to_me() if config.get_require_at("terminate") else None,
     permission=SUPERUSER,
+    use_cmd_start=config.use_cmd_start,
     priority=config.matcher_priority.terminate,
 )
 
