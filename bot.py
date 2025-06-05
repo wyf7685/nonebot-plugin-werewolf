@@ -1,4 +1,5 @@
 import nonebot
+from nonebot.adapters.discord import Adapter as DiscordAdapter
 from nonebot.adapters.onebot.v11 import Adapter as OB11Adapter
 from nonebot.adapters.satori import Adapter as SatoriAdapter
 from nonebot.adapters.telegram import Adapter as TegeragmAdapter
@@ -18,6 +19,7 @@ def clean_pycache() -> None:
 
 nonebot.init()
 driver = nonebot.get_driver()
+driver.register_adapter(DiscordAdapter)
 driver.register_adapter(OB11Adapter)
 driver.register_adapter(SatoriAdapter)
 driver.register_adapter(TegeragmAdapter)

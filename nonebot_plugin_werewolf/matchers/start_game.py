@@ -6,7 +6,6 @@ from nonebot.rule import to_me
 from nonebot.typing import T_State
 from nonebot_plugin_alconna import (
     Alconna,
-    FallbackStrategy,
     MsgTarget,
     Option,
     Target,
@@ -19,7 +18,7 @@ from nonebot_plugin_uninfo import Uninfo
 from ..config import GameBehavior, config, stop_command_prompt
 from ..game import Game, get_running_games
 from ..utils import extract_session_member_nick
-from ._prepare_game import PrepareGame, solve_button
+from ._prepare_game import PrepareGame, SendHandler
 from .depends import rule_not_in_game
 from .poke import poke_enabled
 
@@ -61,7 +60,7 @@ def load_players(target: Target) -> dict[str, str] | None:
 
 
 @start_game.handle()
-async def handle_notice(target: MsgTarget) -> None:
+async def handle_notice(event: Event, target: MsgTarget, state: T_State) -> None:
     if target.private:
         await UniMessage("⚠️请在群组中创建新游戏").finish(reply_to=True)
     if target in get_running_games():
@@ -83,7 +82,8 @@ async def handle_notice(target: MsgTarget) -> None:
 
     prepare_timeout = GameBehavior.get().timeout.prepare
     msg.text(f"\nℹ️游戏准备阶段限时{prepare_timeout / 60:.1f}分钟，超时将自动结束")
-    await solve_button(msg).send(reply_to=True, fallback=FallbackStrategy.ignore)
+    state["send_handler"] = handler = SendHandler(event)
+    await handler.send(msg)
 
 
 @start_game.assign("restart")
@@ -110,12 +110,14 @@ async def handle_start(
     target: MsgTarget,
 ) -> None:
     players: dict[str, str] = state.get("players", {})
+    handler: SendHandler = state["send_handler"]
+
     admin_id = event.get_user_id()
     admin_name = extract_session_member_nick(session) or admin_id
     players[admin_id] = admin_name
 
     with anyio.move_on_after(GameBehavior.get().timeout.prepare) as scope:
-        await PrepareGame(event, players).run()
+        await PrepareGame(event, players, handler).run()
     if scope.cancelled_caught:
         await UniMessage.text("⚠️游戏准备超时，已自动结束").finish(reply_to=True)
 

@@ -117,7 +117,11 @@ def as_player_set(*player: "Player") -> "PlayerSet":
     return cached_player_set()(player)
 
 
+BUTTON_ACTION_CACHE: dict[str, str] = {}
+
+
 def btn(label: str, text: str, /) -> Button:
+    BUTTON_ACTION_CACHE[f"nbp-werewolf_{hash(label)}"] = text
     return Button(flag="input", label=label, text=text)
 
 
@@ -167,6 +171,17 @@ class SendHandler(abc.ABC, Generic[P]):
 
         return isinstance(self.bot, Bot)
 
+    def _fix_btn(self, msg: UniMessage) -> UniMessage:
+        if self._is_dc:
+            for kbd in msg[Keyboard]:
+                for btn in kbd.children:
+                    btn.flag = "action"
+                    btn.style = "primary"
+                    btn.id = f"nbp-werewolf_{hash(btn.label)}"
+                    btn.text = None
+
+        return msg
+
     async def _edit(self) -> None:
         last = self.last_receipt
         if (
@@ -185,6 +200,9 @@ class SendHandler(abc.ABC, Generic[P]):
         if not config.enable_button or self._is_dc:
             # TODO: support discord button
             message = message.exclude(Keyboard)
+        else:
+            message = self._fix_btn(message)
+
         receipt = await message.send(
             target=self.target,
             bot=self.bot,

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 import anyio
 import nonebot
 import nonebot_plugin_waiter.unimsg as waiter
-from nonebot.adapters import Event
+from nonebot.adapters import Bot, Event
 from nonebot.internal.matcher import current_bot
 from nonebot.matcher import Matcher
 from nonebot.permission import SuperUser
@@ -41,7 +41,12 @@ def solve_button(msg: UniMessage) -> UniMessage:
 
 
 class SendHandler(BaseSendHandler):
-    def __init__(self) -> None:
+    def __init__(
+        self,
+        target: Event | Target | None = None,
+        bot: Bot | None = None,
+    ) -> None:
+        super().__init__(target, bot)
         self.reply_to = True
 
     def solve_msg(self, msg: UniMessage) -> UniMessage:
@@ -90,14 +95,19 @@ class Current:
 
 
 class PrepareGame:
-    def __init__(self, event: Event, players: dict[str, str]) -> None:
+    def __init__(
+        self,
+        event: Event,
+        players: dict[str, str],
+        handler: SendHandler,
+    ) -> None:
         self.bot = current_bot.get()
         self.event = event
         self.admin_id = event.get_user_id()
         self.group = get_target(event)
         self.stream = anyio.create_memory_object_stream[tuple[Event, str, str]](16)
         self.players = players
-        self.send_handler = SendHandler()
+        self.send_handler = handler
         self.logger = nonebot.logger.opt(colors=True)
         self.shoud_start_game = False
         preparing_games[self.group] = self

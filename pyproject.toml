@@ -37,7 +37,6 @@ homepage = "https://github.com/wyf7685/nonebot-plugin-werewolf"
 repository = "https://github.com/wyf7685/nonebot-plugin-werewolf"
 bug-tracker = "https://github.com/wyf7685/nonebot-plugin-werewolf/issues"
 
-
 [tool.ruff]
 line-length = 88
 target-version = "py310"
