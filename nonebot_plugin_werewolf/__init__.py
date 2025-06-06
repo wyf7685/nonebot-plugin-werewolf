@@ -1,3 +1,5 @@
+from importlib.metadata import version
+
 from nonebot import require
 from nonebot.plugin import PluginMetadata, inherit_supported_adapters
 
@@ -10,7 +12,11 @@ from . import matchers as matchers
 from . import players as players
 from .config import Config
 
-__version__ = "1.1.13"
+try:
+    __version__ = version("nonebot-plugin-werewolf")
+except Exception:
+    __version__ = None
+
 __plugin_meta__ = PluginMetadata(
     name="狼人杀",
     description="适用于 Nonebot2 的狼人杀插件",
@@ -24,8 +30,8 @@ __plugin_meta__ = PluginMetadata(
         "nonebot_plugin_waiter",
     ),
     extra={
-        "Author": "wyf7685",
-        "Version": __version__,
-        "Bug Tracker": "https://github.com/wyf7685/nonebot-plugin-werewolf/issues",
+        "author": "wyf7685",
+        "version": __version__,
+        "bug-tracker": "https://github.com/wyf7685/nonebot-plugin-werewolf/issues",
     },
 )
