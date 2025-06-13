@@ -6,10 +6,9 @@ from typing_extensions import Self, override
 
 import anyio
 import nonebot
-from nonebot.adapters import Bot
 from nonebot.utils import escape_tag
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
-from nonebot_plugin_uninfo import Interface, SceneType, get_interface
+from nonebot_plugin_uninfo import Interface, SceneType
 
 from .config import stop_command_prompt
 from .constant import STOP_COMMAND
@@ -117,20 +116,19 @@ class Player:
     kill_provider: ClassVar[type[KillProvider[Self]]]
     notify_provider: ClassVar[type[NotifyProvider[Self]]]
 
-    bot: Final[Bot]
+    user: Final[Target]
     alive: bool = True
     killed: Final[anyio.Event]
     kill_info: KillInfo | None = None
     selected: "Player | None" = None
 
     @final
-    def __init__(self, bot: Bot, game: "Game", user: Target) -> None:
-        self.__user = user
+    def __init__(self, game: "Game", user: Target) -> None:
         self.__game_ref = weakref.ref(game)
-        self.bot = bot
+        self.user = user
         self.killed = anyio.Event()
         self._member = None
-        self._send_handler = _SendHandler(self.__user, bot)
+        self._send_handler = _SendHandler(self.user)
 
     @final
     @override
@@ -154,9 +152,9 @@ class Player:
     async def new(
         cls,
         role: Role,
-        bot: Bot,
         game: "Game",
         user_id: str,
+        interface: Interface,
     ) -> "Player":
         if role not in cls._player_class:
             raise ValueError(f"Unexpected role: {role!r}")
@@ -169,10 +167,9 @@ class Player:
             adapter=game.group.adapter,
             extra=game.group.extra,
         )
-        self = cls._player_class[role](bot, game, user)
+        self = cls._player_class[role](game, user)
 
-        if interface := get_interface(bot):
-            await self._fetch_member(interface)
+        await self._fetch_member(interface)
         return self
 
     def __repr__(self) -> str:
@@ -188,7 +185,7 @@ class Player:
     @final
     @functools.cached_property
     def user_id(self) -> str:
-        return self.__user.id
+        return self.user.id
 
     @final
     @functools.cached_property
@@ -258,7 +255,7 @@ class Player:
         if select_players:
             message = add_players_button(message, select_players)
         if skip_handler:
-            return await message.send(self.__user, self.bot)
+            return await message.send(self.user)
         return await self._send_handler.send(message, stop_btn_label)
 
     @final

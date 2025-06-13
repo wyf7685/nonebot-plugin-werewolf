@@ -58,14 +58,12 @@ class SendHandler(BaseSendHandler):
             tg.start_soon(self._send, msg)
 
 
-def create_waiter(
-    event: Event, group: Target
-) -> AsyncIterator[tuple[Event | None, str, str]]:
+def create_waiter(group: Target) -> AsyncIterator[tuple[Event | None, str, str]]:
     async def same_group(target: MsgTarget) -> bool:
         return group.verify(target)
 
     @waiter.waiter(
-        waits=[event.get_type()],
+        waits=["message"],
         keep_session=False,
         rule=Rule(same_group, rule_not_in_game),
     )
@@ -90,18 +88,14 @@ class Current:
 
 
 class PrepareGame:
-    def __init__(self, event: Event, players: dict[str, str]) -> None:
-        self.bot = current_bot.get()
-        self.event = event
-        self.admin_id = event.get_user_id()
-        self.group = get_target(event)
-        self.stream = anyio.create_memory_object_stream[tuple[Event, str, str]](16)
+    def __init__(self, admin_id: str, players: dict[str, str]) -> None:
+        self.admin_id = admin_id
+        self.group = get_target()
         self.players = players
+        self.bot = current_bot.get()
         self.send_handler = SendHandler()
         self.logger = nonebot.logger.opt(colors=True)
         self.shoud_start_game = False
-        preparing_games[self.group] = self
-
         self._handlers: dict[str, Callable[[], Awaitable[None]]] = {
             "开始游戏": self._handle_start,
             "结束游戏": self._handle_end,
@@ -110,17 +104,20 @@ class PrepareGame:
             "当前玩家": self._handle_list,
         }
 
+        preparing_games[self.group] = self
+
     async def run(self) -> None:
         try:
             async with anyio.create_task_group() as tg:
                 self.task_group = tg
-                async for event, text, name in create_waiter(self.event, self.group):
+                async for event, text, name in create_waiter(self.group):
                     if event is not None:
                         tg.start_soon(self._handle, event, text, name)
         except Exception as err:
             await UniMessage(f"狼人杀准备阶段出现未知错误: {err!r}").finish()
+        finally:
+            del preparing_games[self.group]
 
-        del preparing_games[self.group]
         if not self.shoud_start_game:
             await Matcher.finish()
 

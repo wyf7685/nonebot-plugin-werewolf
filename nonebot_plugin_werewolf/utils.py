@@ -7,7 +7,6 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar
 
 import anyio
 from nonebot.adapters import Bot, Event
-from nonebot.internal.matcher import current_bot
 from nonebot_plugin_alconna.uniseg import (
     Button,
     FallbackStrategy,
@@ -140,7 +139,7 @@ def add_players_button(msg: str | UniMessage, players: "PlayerSet") -> UniMessag
 
 
 class SendHandler(abc.ABC, Generic[P]):
-    bot: Bot
+    bot: Bot | None
     target: Event | Target | None
     reply_to: bool | None = None
     last_msg: UniMessage | None = None
@@ -151,11 +150,11 @@ class SendHandler(abc.ABC, Generic[P]):
         target: Event | Target | None = None,
         bot: Bot | None = None,
     ) -> None:
-        self.bot = bot or current_bot.get()
+        self.bot = bot
         self.target = target
 
     def update(self, target: Event | Target, bot: Bot | None = None) -> None:
-        self.bot = bot or current_bot.get()
+        self.bot = bot
         self.target = target
 
     @functools.cached_property
@@ -167,7 +166,13 @@ class SendHandler(abc.ABC, Generic[P]):
 
         return isinstance(self.bot, Bot)
 
+    async def _fetch_bot(self) -> None:
+        if self.bot is None and isinstance(self.target, Target):
+            self.bot = await self.target.select()
+
     async def _edit(self) -> None:
+        await self._fetch_bot()
+
         last = self.last_receipt
         if (
             config.enable_button
@@ -185,6 +190,8 @@ class SendHandler(abc.ABC, Generic[P]):
         if not config.enable_button or self._is_dc:
             # TODO: support discord button
             message = message.exclude(Keyboard)
+
+        await self._fetch_bot()
         receipt = await message.send(
             target=self.target,
             bot=self.bot,

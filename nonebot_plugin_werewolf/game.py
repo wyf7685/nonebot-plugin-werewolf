@@ -6,17 +6,15 @@ from typing_extensions import Self
 
 import anyio
 import nonebot
-from nonebot.adapters import Bot
 from nonebot.utils import escape_tag
 from nonebot_plugin_alconna import At, Target, UniMessage
 from nonebot_plugin_alconna.uniseg.receipt import Receipt
-from nonebot_plugin_uninfo import Scene, SceneType, get_interface
+from nonebot_plugin_uninfo import Interface, Scene, SceneType
 
 from .config import GameBehavior, PresetData
-from .constant import GAME_STATUS_CONV, REPORT_TEXT
 from .dead_channel import DeadChannel
 from .exception import GameFinished
-from .models import GameState, GameStatus, KillInfo, KillReason, Role, RoleGroup
+from .models import GameContext, GameStatus, KillInfo, KillReason, Role, RoleGroup
 from .player import Player
 from .player_set import PlayerSet
 from .utils import InputStore, SendHandler, add_stop_button, link
@@ -29,7 +27,11 @@ def get_running_games() -> dict[Target, "Game"]:
     return running_games
 
 
-async def init_players(bot: Bot, game: "Game", players: set[str]) -> PlayerSet:
+async def init_players(
+    game: "Game",
+    players: set[str],
+    interface: Interface,
+) -> PlayerSet:
     logger.debug(f"初始化 {game.colored_name} 的玩家职业")
 
     preset_data = PresetData.get()
@@ -54,7 +56,7 @@ async def init_players(bot: Bot, game: "Game", players: set[str]) -> PlayerSet:
     player_set = PlayerSet()
     for user_id in players:
         role = roles.pop(secrets.randbelow(len(roles)))
-        player_set.add(await Player.new(role, bot, game, user_id))
+        player_set.add(await Player.new(role, game, user_id, interface))
 
     logger.debug(f"职业分配完成: <e>{escape_tag(str(player_set))}</e>")
     return player_set
@@ -72,39 +74,36 @@ class _SendHandler(SendHandler[str | None]):
 
 
 class Game:
-    bot: Bot
     group: Target
     players: PlayerSet
-    state: GameState
+    context: GameContext
     killed_players: list[tuple[str, KillInfo]]
 
-    def __init__(self, bot: Bot, group: Target) -> None:
-        self.bot = bot
+    def __init__(self, group: Target) -> None:
         self.group = group
-        self.state = GameState(0)
+        self.context = GameContext(0)
         self.killed_players = []
         self._player_map: dict[str, Player] = {}
         self._shuffled: list[Player] = []
         self._scene: Scene | None = None
         self._finished = self._task_group = None
-        self._send_handler = _SendHandler(group, bot)
+        self._send_handler = _SendHandler(group)
 
     @final
     @classmethod
     async def new(
         cls,
-        bot: Bot,
         group: Target,
         players: set[str],
+        interface: Interface,
     ) -> Self:
-        self = cls(bot, group)
+        self = cls(group)
 
-        if interface := get_interface(bot):
-            self._scene = await interface.get_scene(SceneType.GROUP, self.group_id)
-            if self._scene is None:
-                self._scene = await interface.get_scene(SceneType.GUILD, self.group_id)
+        self._scene = await interface.get_scene(SceneType.GROUP, self.group_id)
+        if self._scene is None:
+            self._scene = await interface.get_scene(SceneType.GUILD, self.group_id)
 
-        self.players = await init_players(bot, self, players)
+        self.players = await init_players(self, players, interface)
         self._player_map |= {p.user_id: p for p in self.players}
         self._shuffled = self.players.shuffled
 
@@ -214,7 +213,7 @@ class Game:
                 continue
             self.killed_players.append((player.name, player.kill_info))
 
-            shooter = self.state.shooter
+            shooter = self.context.shooter
             if shooter is not None and (shoot := shooter.selected) is not None:
                 await self.send(
                     UniMessage.text("🔫玩家 ")
@@ -223,7 +222,7 @@ class Game:
                     .text(self.behavior.timeout.speak_timeout_prompt)
                 )
                 await self.wait_stop(shoot)
-                self.state.shooter = shooter.selected = None
+                self.context.shooter = shooter.selected = None
                 await self.post_kill(shoot)
 
     async def run_night(self, players: PlayerSet) -> None:
@@ -233,9 +232,9 @@ class Game:
 
         # 狼人击杀目标
         if (
-            (killed := self.state.killed) is not None  # 狼人未空刀
-            and killed not in self.state.protected  # 守卫保护
-            and killed not in self.state.antidote  # 女巫使用解药
+            (killed := self.context.killed) is not None  # 狼人未空刀
+            and killed not in self.context.protected  # 守卫保护
+            and killed not in self.context.antidote  # 女巫使用解药
         ):
             # 狼人正常击杀玩家
             await killed.kill(
@@ -243,15 +242,15 @@ class Game:
                 *players.select(RoleGroup.WEREWOLF),
             )
         else:
-            self.state.killed = None
+            self.context.killed = None
 
         # 女巫操作目标
-        for witch in self.state.poison:
+        for witch in self.context.poison:
             if (
                 (selected := witch.selected) is not None  # 理论上不会是 None (
-                and selected not in self.state.protected  # 守卫保护
+                and selected not in self.context.protected  # 守卫保护
                 # 虽然应该没什么人会加多个女巫玩...但还是加上判断比较好
-                and selected not in self.state.antidote  # 女巫使用解药
+                and selected not in self.context.antidote  # 女巫使用解药
             ):
                 # 女巫毒杀玩家
                 await selected.kill(KillReason.POISON, witch)
@@ -352,8 +351,8 @@ class Game:
         # 游戏主循环
         while True:
             # 重置游戏状态，进入下一夜
-            self.state.reset()
-            self.state.state = GameState.State.NIGHT
+            self.context.reset()
+            self.context.state = GameContext.State.NIGHT
             await self.send("🌙天黑请闭眼...")
             players = self.players.alive()
 
@@ -361,9 +360,9 @@ class Game:
             await self.run_night(players)
 
             # 公告
-            self.state.day += 1
-            self.state.state = GameState.State.DAY
-            msg = UniMessage.text(f"『第{self.state.day}天』☀️天亮了...\n")
+            self.context.day += 1
+            self.context.state = GameContext.State.DAY
+            msg = UniMessage.text(f"『第{self.context.day}天』☀️天亮了...\n")
             # 没有玩家死亡，平安夜
             if not (dead := players.dead()):
                 await self.send(msg.text("昨晚是平安夜"))
@@ -376,8 +375,8 @@ class Game:
 
             # 第一晚被狼人杀死的玩家发表遗言
             if (
-                self.state.day == 1  # 仅第一晚
-                and (killed := self.state.killed) is not None  # 狼人未空刀且未保护
+                self.context.day == 1  # 仅第一晚
+                and (killed := self.context.killed) is not None  # 狼人未空刀且未保护
                 and not killed.alive  # kill 成功
             ):
                 await self.send(
@@ -405,21 +404,21 @@ class Game:
                 f"限时{self.behavior.timeout.vote / 60:.1f}分钟\n"
                 "请在私聊中进行投票交互"
             )
-            self.state.state = GameState.State.VOTE
+            self.context.state = GameContext.State.VOTE
             await self.run_vote()
 
             # 判断游戏状态
             self.raise_for_status()
 
     async def handle_game_finish(self, status: GameStatus) -> None:
-        msg = UniMessage.text(f"🎉游戏结束，{GAME_STATUS_CONV[status]}获胜\n\n")
+        msg = UniMessage.text(f"🎉游戏结束，{status.display}获胜\n\n")
         for p in sorted(self.players, key=lambda p: (p.role.value, p.user_id)):
             msg.at(p.user_id).text(f": {p.role_name}\n")
         await self.send(msg)
 
         report = ["📌玩家死亡报告:"]
         for name, info in self.killed_players:
-            emoji, action = REPORT_TEXT[info.reason]
+            emoji, action = info.reason.display
             report.append(f"{emoji} {name} 被 {', '.join(info.killers)} {action}")
         await self.send("\n\n".join(report))
 

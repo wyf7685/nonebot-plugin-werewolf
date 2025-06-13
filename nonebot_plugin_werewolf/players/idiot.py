@@ -1,7 +1,7 @@
 from typing import TYPE_CHECKING
 from typing_extensions import override
 
-from nonebot_plugin_alconna.uniseg import UniMessage
+from nonebot_plugin_alconna import UniMessage
 
 from ..models import KillInfo, KillReason, Role, RoleGroup
 from ..player import KillProvider, NotifyProvider, Player

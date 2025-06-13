@@ -1,7 +1,7 @@
 from typing_extensions import override
 
 from ..config import stop_command_prompt
-from ..models import GameState, Role, RoleGroup
+from ..models import GameContext, Role, RoleGroup
 from ..player import InteractProvider, Player
 
 
@@ -20,7 +20,7 @@ class GuardInteractProvider(InteractProvider["Guard"]):
 
         self.selected = await self.p.select_player(players, stop_btn_label="结束回合")
         if self.selected:
-            self.game.state.protected.add(self.selected)
+            self.game.context.protected.add(self.selected)
             await self.p.send(f"✅本回合保护的玩家: {self.selected.name}")
 
 
@@ -31,7 +31,10 @@ class Guard(Player):
 
     @override
     async def _check_selected(self, player: Player) -> Player | None:
-        if self.game.state.state == GameState.State.NIGHT and player is self.selected:
+        if (
+            self.game.context.state == GameContext.State.NIGHT
+            and player is self.selected
+        ):
             await self.send("⚠️守卫不能连续两晚保护同一目标，请重新选择")
             return None
 

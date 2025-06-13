@@ -70,8 +70,7 @@ class PlayerSet(set[Player]):
         result: dict[Player, list[Player]] = {}
 
         async def _vote(player: Player) -> None:
-            vote = await player.vote(players)
-            if vote is not None:
+            if vote := await player.vote(players):
                 result.setdefault(vote, []).append(player)
 
         async with anyio.create_task_group() as tg:

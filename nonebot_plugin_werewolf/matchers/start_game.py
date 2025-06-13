@@ -1,7 +1,6 @@
 import json
 
 import anyio
-from nonebot.adapters import Bot, Event
 from nonebot.rule import to_me
 from nonebot.typing import T_State
 from nonebot_plugin_alconna import (
@@ -14,7 +13,7 @@ from nonebot_plugin_alconna import (
     on_alconna,
 )
 from nonebot_plugin_localstore import get_plugin_data_file
-from nonebot_plugin_uninfo import Uninfo
+from nonebot_plugin_uninfo import QryItrface, Uninfo
 
 from ..config import GameBehavior, config, stop_command_prompt
 from ..game import Game, get_running_games
@@ -103,22 +102,21 @@ async def handle_restart(target: MsgTarget, state: T_State) -> None:
 
 @start_game.handle()
 async def handle_start(
-    bot: Bot,
-    event: Event,
     state: T_State,
     session: Uninfo,
     target: MsgTarget,
+    interface: QryItrface,
 ) -> None:
     players: dict[str, str] = state.get("players", {})
-    admin_id = event.get_user_id()
+    admin_id = session.user.id
     admin_name = extract_session_member_nick(session) or admin_id
     players[admin_id] = admin_name
 
     with anyio.move_on_after(GameBehavior.get().timeout.prepare) as scope:
-        await PrepareGame(event, players).run()
+        await PrepareGame(admin_id, players).run()
     if scope.cancelled_caught:
         await UniMessage.text("⚠️游戏准备超时，已自动结束").finish(reply_to=True)
 
     dump_players(target, players)
-    game = await Game.new(bot, target, set(players))
+    game = await Game.new(target, set(players), interface)
     game.start()

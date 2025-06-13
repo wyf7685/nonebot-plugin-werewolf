@@ -3,7 +3,7 @@ from typing import TYPE_CHECKING
 from typing_extensions import override
 
 import anyio
-from nonebot_plugin_alconna.uniseg import UniMessage
+from nonebot_plugin_alconna import UniMessage
 
 from ..config import stop_command_prompt
 from ..constant import STOP_COMMAND
@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 class WerewolfInteractProvider(InteractProvider["Werewolf"]):
     @override
     async def before(self) -> None:
-        self.game.state.werewolf_start()
+        self.game.context.werewolf_start()
 
     async def handle_interact(self, players: "PlayerSet") -> None:
         stream = self.stream[0]
@@ -96,10 +96,10 @@ class WerewolfInteractProvider(InteractProvider["Werewolf"]):
             case []:
                 await w.broadcast("⚠️狼人未选择目标，此晚空刀")
             case [killed]:
-                self.game.state.killed = killed
+                self.game.context.killed = killed
                 await w.broadcast(f"🔪今晚选择的目标为: {killed.name}")
             case [killed, *_] if self.game.behavior.werewolf_multi_select:
-                self.game.state.killed = killed
+                self.game.context.killed = killed
                 await w.broadcast(
                     "⚠️狼人阵营意见未统一，随机选择目标\n\n"
                     f"🔪今晚选择的目标为: {killed.name}"
@@ -112,7 +112,7 @@ class WerewolfInteractProvider(InteractProvider["Werewolf"]):
 
     @override
     async def after(self) -> None:
-        if self.game.state.werewolf_end():
+        if self.game.context.werewolf_end():
             await self.finalize()
 
         if not self.game.players.alive().select(Role.WITCH):

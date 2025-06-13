@@ -58,15 +58,27 @@ class KillReason(Enum):
     SHOOT = auto()
     VOTE = auto()
 
+    @functools.cached_property
+    def display(self) -> tuple[str, str]:
+        from .constant import REPORT_TEXT
+
+        return REPORT_TEXT[self]
+
 
 class GameStatus(Enum):
     GOODGUY = auto()
     WEREWOLF = auto()
     JESTER = auto()
 
+    @functools.cached_property
+    def display(self) -> str:
+        from .constant import GAME_STATUS_CONV
+
+        return GAME_STATUS_CONV[self]
+
 
 @dataclasses.dataclass
-class GameState:
+class GameContext:
     class State(Enum):
         DAY = auto()
         VOTE = auto()

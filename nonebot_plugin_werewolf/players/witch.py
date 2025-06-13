@@ -1,6 +1,6 @@
 from typing_extensions import override
 
-from nonebot_plugin_alconna.uniseg import UniMessage
+from nonebot_plugin_alconna import UniMessage
 
 from ..config import stop_command_prompt
 from ..models import Role, RoleGroup
@@ -15,10 +15,10 @@ class WitchInteractProvider(InteractProvider["Witch"]):
     @override
     async def before(self) -> None:
         await self.p.send("ℹ️请等待狼人决定目标...")
-        await self.game.state.werewolf_finished.wait()
+        await self.game.context.werewolf_finished.wait()
 
     async def handle_killed(self) -> bool:
-        if (killed := self.game.state.killed) is None:
+        if (killed := self.game.context.killed) is None:
             await self.p.send("ℹ️今晚没有人被刀")
             return False
 
@@ -45,7 +45,7 @@ class WitchInteractProvider(InteractProvider["Witch"]):
 
         self.antidote = False
         self.selected = killed
-        self.game.state.antidote.add(killed)
+        self.game.context.antidote.add(killed)
         await self.p.send(f"✅你对 {killed.name} 使用了解药，回合结束")
         return True
 
@@ -76,7 +76,7 @@ class WitchInteractProvider(InteractProvider["Witch"]):
         ):
             self.poison = False
             self.selected = selected
-            self.game.state.poison.add(self.p)
+            self.game.context.poison.add(self.p)
             await self.p.send(
                 f"✅当前回合选择对玩家 {selected.name} 使用毒药\n回合结束"
             )
