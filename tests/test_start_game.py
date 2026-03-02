@@ -82,9 +82,11 @@ async def test_start_game_normal(app: App) -> None:
         ctx.should_call_send(
             event,
             MessageChecker(
-                lambda _, text: text.startswith("🎉成功创建游戏")
-                and "💫可使用戳一戳" in text
-                and text.endswith("超时将自动结束")
+                lambda _, text: (
+                    text.startswith("🎉成功创建游戏")
+                    and "💫可使用戳一戳" in text
+                    and text.endswith("超时将自动结束")
+                )
             ),
         )
         ctx.should_return(None)
@@ -135,8 +137,10 @@ async def test_start_game_restart_success(app: App, mocker: MockerFixture) -> No
         ctx.should_call_send(
             event,
             MessageChecker(
-                lambda msg, text: text.startswith("🎉成功加载上次游戏:\n")
-                and len(msg["at"]) == len(fake_players)
+                lambda msg, text: (
+                    text.startswith("🎉成功加载上次游戏:\n")
+                    and len(msg["at"]) == len(fake_players)
+                )
             ),
         )
         ctx.should_return(None)
