@@ -431,9 +431,9 @@ class Game:
         except GameFinished as result:
             await self.handle_game_finish(result.status)
             logger.info(f"{self.colored_name} 的狼人杀游戏进程正常退出")
-        except Exception as err:
+        except Exception as exc:
             logger.exception(f"{self.colored_name} 的狼人杀游戏进程出现未知错误")
-            await self.send(f"❌狼人杀游戏进程出现未知错误: {err!r}")
+            await self.send(f"❌狼人杀游戏进程出现未知错误: {exc!r}")
         finally:
             if self._finished is not None:
                 self._finished.set()
@@ -445,11 +445,10 @@ class Game:
 
         try:
             async with anyio.create_task_group() as self._task_group:
-                self._task_group.start_soon(self.run_daemon)
                 self._task_group.start_soon(dead_channel.run)
-        except Exception as err:
-            msg = f"{self.colored_name} 的狼人杀守护进程出现错误: {err!r}"
-            logger.opt(exception=err).error(msg)
+                await self.run_daemon()
+        except Exception:
+            logger.exception(f"{self.colored_name} 的狼人杀守护进程出现错误")
         finally:
             self._finished = None
             self._task_group = None

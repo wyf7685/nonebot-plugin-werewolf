@@ -1,8 +1,8 @@
 import contextlib
-from typing import NoReturn
 
 import anyio
 import anyio.lowlevel
+from anyio.streams.memory import MemoryObjectReceiveStream, MemoryObjectSendStream
 from nonebot_plugin_alconna import UniMessage
 
 from .config import GameBehavior
@@ -24,27 +24,25 @@ class DeadChannel:
         await anyio.sleep(60)
         self.counter[user_id] -= 1
 
-    async def _wait_finished(self) -> None:
-        await self.finished.wait()
-        self._task_group.cancel_scope.cancel()
-
-    async def _broadcast(self) -> NoReturn:
-        stream = self.stream[1]
-        while True:
-            player, msg = await stream.receive()
+    async def _broadcast(
+        self, stream: MemoryObjectReceiveStream[tuple[Player, UniMessage]]
+    ) -> None:
+        async for player, msg in stream:
             msg = UniMessage.text(f"玩家 {player.name}:\n") + msg
-            target = self.players.killed().exclude(player)
             try:
-                await target.broadcast(msg)
-            except Exception as err:
+                await self.players.killed().exclude(player).broadcast(msg)
+            except Exception as exc:
                 with contextlib.suppress(Exception):
-                    await player.send(f"消息转发失败: {err!r}")
+                    await player.send(f"消息转发失败: {exc!r}")
 
-    async def _receive(self, player: Player) -> NoReturn:
+    async def _receive(
+        self,
+        player: Player,
+        stream: MemoryObjectSendStream[tuple[Player, UniMessage]],
+    ) -> None:
         await player.killed.wait()
         await anyio.lowlevel.checkpoint()
         user_id = player.user_id
-        stream = self.stream[0]
 
         await player.send(
             "ℹ️你已加入死者频道，请勿在群组内继续发言\n"
@@ -56,24 +54,26 @@ class DeadChannel:
             .broadcast(f"ℹ️玩家 {player.name} 加入了死者频道")
         )
 
-        while True:
-            msg = await player.receive()
-            self.counter[user_id] += 1
-            self._task_group.start_soon(self._decrease, user_id)
+        async with stream:
+            while True:
+                msg = await player.receive()
+                self.counter[user_id] += 1
+                self._task_group.start_soon(self._decrease, user_id)
 
-            # 发言频率限制
-            if self.counter[user_id] > GameBehavior.get().dead_channel_rate_limit:
-                await player.send("❌发言频率超过限制, 该消息被屏蔽")
-                continue
+                # 发言频率限制
+                if self.counter[user_id] > GameBehavior.get().dead_channel_rate_limit:
+                    await player.send("❌发言频率超过限制, 该消息被屏蔽")
+                    continue
 
-            # 推送消息
-            await stream.send((player, msg))
+                # 推送消息
+                await stream.send((player, msg))
 
     async def run(self) -> None:
-        self.stream = anyio.create_memory_object_stream[tuple[Player, UniMessage]](16)
-        send, recv = self.stream
-        async with send, recv, anyio.create_task_group() as self._task_group:
-            self._task_group.start_soon(self._wait_finished)
-            self._task_group.start_soon(self._broadcast)
+        send, recv = anyio.create_memory_object_stream[tuple[Player, UniMessage]](16)
+        async with anyio.create_task_group() as self._task_group:
             for p in self.players:
-                self._task_group.start_soon(self._receive, p)
+                self._task_group.start_soon(self._receive, p, send.clone())
+            send.close()
+            self._task_group.start_soon(self._broadcast, recv)
+            await self.finished.wait()
+            self._task_group.cancel_scope.cancel()

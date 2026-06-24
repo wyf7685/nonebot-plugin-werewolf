@@ -34,29 +34,29 @@ _P = TypeVar("_P", bound="Player")
 _T = TypeVar("_T")
 
 
+class proxy(Generic[_T]):  # noqa: N801
+    def __init__(self, _: type[_T] | None = None, /, *, readonly: bool = False) -> None:
+        self.readonly = readonly
+
+    def __set_name__(self, owner: type["ActionProvider"], name: str) -> None:
+        self.name = name
+
+    def __get__(self, obj: "ActionProvider", objtype: type) -> _T:
+        return getattr(obj.p, self.name)
+
+    def __set__(self, obj: "ActionProvider", value: _T) -> None:
+        if self.readonly:
+            raise AttributeError(f"readonly attribute {self.name}")
+        setattr(obj.p, self.name, value)
+
+
 class ActionProvider(Generic[_P]):
+    proxy = proxy
     p: _P
 
     @final
     def __init__(self, player: _P, /) -> None:
         self.p = player
-
-    class proxy(Generic[_T]):  # noqa: N801
-        def __init__(
-            self, _: type[_T] | None = None, /, *, readonly: bool = False
-        ) -> None:
-            self.readonly = readonly
-
-        def __set_name__(self, owner: type["ActionProvider"], name: str) -> None:
-            self.name = name
-
-        def __get__(self, obj: "ActionProvider", objtype: type) -> _T:
-            return getattr(obj.p, self.name)
-
-        def __set__(self, obj: "ActionProvider", value: _T) -> None:
-            if self.readonly:
-                raise AttributeError(f"readonly attribute {self.name}")
-            setattr(obj.p, self.name, value)
 
     name = proxy[str](readonly=True)
     user_id = proxy[str](readonly=True)
@@ -71,8 +71,8 @@ class InteractProvider(ActionProvider[_P], Generic[_P]):
 
 
 class KillProvider(ActionProvider[_P], Generic[_P]):
-    alive = ActionProvider.proxy[bool]()
-    kill_info = ActionProvider.proxy[KillInfo | None]()
+    alive = proxy[bool]()
+    kill_info = proxy[KillInfo | None]()
 
     async def kill(self, reason: KillReason, *killers: "Player") -> KillInfo | None:
         if self.alive:
@@ -84,9 +84,9 @@ class KillProvider(ActionProvider[_P], Generic[_P]):
 
 
 class NotifyProvider(ActionProvider[_P], Generic[_P]):
-    role = ActionProvider.proxy[Role]()
-    role_group = ActionProvider.proxy[RoleGroup]()
-    role_name = ActionProvider.proxy[str]()
+    role = proxy[Role]()
+    role_group = proxy[RoleGroup]()
+    role_name = proxy[str]()
 
     def message(self, message: UniMessage) -> UniMessage:
         return message
