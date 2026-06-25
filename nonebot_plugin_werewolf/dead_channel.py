@@ -28,7 +28,6 @@ class DeadChannel:
         self, stream: MemoryObjectReceiveStream[tuple[Player, UniMessage]]
     ) -> None:
         async for player, msg in stream:
-            msg = UniMessage.text(f"玩家 {player.name}:\n") + msg
             try:
                 await self.players.killed().exclude(player).broadcast(msg)
             except Exception as exc:
@@ -48,10 +47,8 @@ class DeadChannel:
             "ℹ️你已加入死者频道，请勿在群组内继续发言\n"
             "私聊发送消息将转发至其他已死亡玩家",
         )
-        await (
-            self.players.killed()
-            .exclude(player)
-            .broadcast(f"ℹ️玩家 {player.name} 加入了死者频道")
+        await stream.send(
+            (player, UniMessage.text(f"ℹ️玩家 {player.name} 加入了死者频道"))
         )
 
         async with stream:
@@ -66,6 +63,7 @@ class DeadChannel:
                     continue
 
                 # 推送消息
+                msg = UniMessage.text(f"玩家 {player.name}:\n") + msg
                 await stream.send((player, msg))
 
     async def run(self) -> None:

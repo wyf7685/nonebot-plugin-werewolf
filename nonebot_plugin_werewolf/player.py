@@ -272,6 +272,10 @@ class Player:
     def interact_timeout(self) -> float:
         return self.game.behavior.timeout.interact
 
+    @property
+    def vote_timeout(self) -> float:
+        return self.game.behavior.timeout.vote
+
     @final
     async def interact(self) -> None:
         if self.interact_provider is None:
@@ -305,19 +309,18 @@ class Player:
         self.killed.set()
 
     async def vote(self, players: "PlayerSet") -> "Player | None":
-        vote_timeout = self.game.behavior.timeout.vote
         await self.send(
             f"💫请选择需要投票的玩家:\n"
             f"{players.show()}\n\n"
             "🗳️发送编号选择玩家\n"
             f"❌发送 “{stop_command_prompt}” 弃票\n\n"
-            f"限时{vote_timeout / 60:.1f}分钟，超时将视为弃票",
+            f"限时{self.vote_timeout / 60:.1f}分钟，超时将视为弃票",
             stop_btn_label="弃票",
             select_players=players,
         )
 
         selected = None
-        with anyio.move_on_after(vote_timeout) as scope:
+        with anyio.move_on_after(self.vote_timeout) as scope:
             selected = await self.select_player(
                 players,
                 on_stop="⚠️你选择了弃票",
