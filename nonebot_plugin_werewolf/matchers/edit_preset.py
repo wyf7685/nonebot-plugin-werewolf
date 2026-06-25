@@ -103,7 +103,7 @@ async def assign_role(
     data = PresetData.load()
     if werewolf.result > len(data.werewolf_priority):
         await finish("狼人数量超出优先级列表长度，请先设置足够多的狼人预设")
-    if priesthood.result > len(data.priesthood_proirity):
+    if priesthood.result > len(data.priesthood_priority):
         await finish("神职数量超出优先级列表长度，请先设置足够多的神职预设")
 
     data.role_preset[total.result] = preset
@@ -211,7 +211,7 @@ async def assign_priesthood(state: T_State) -> None:
     if len(result) < min_length:
         await finish(f"神职数量不足，至少需要 {min_length} 个神职")
 
-    data.priesthood_proirity = result
+    data.priesthood_priority = result
     data.save()
     await finish(f"设置成功: {display_roles(result)}")
 
@@ -257,7 +257,7 @@ async def handle_default() -> None:
     )
     lines.append(
         f"\n狼人优先级: {display_roles(data.werewolf_priority)}"
-        f"\n神职优先级: {display_roles(data.priesthood_proirity)}"
+        f"\n神职优先级: {display_roles(data.priesthood_priority)}"
         f"\n小丑概率: {data.jester_probability:.0%}"
     )
 

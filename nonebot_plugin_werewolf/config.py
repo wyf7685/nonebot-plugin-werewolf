@@ -46,7 +46,7 @@ class PresetData(ConfigFile):
 
     role_preset: dict[int, tuple[int, int, int]] = DEFAULT_ROLE_PRESET.copy()
     werewolf_priority: list[Role] = DEFAULT_WEREWOLF_PRIORITY.copy()
-    priesthood_proirity: list[Role] = DEFAULT_PRIESTHOOD_PRIORITY.copy()
+    priesthood_priority: list[Role] = DEFAULT_PRIESTHOOD_PRIORITY.copy()
     jester_probability: float = Field(default=0.0, ge=0.0, le=1.0)
 
 

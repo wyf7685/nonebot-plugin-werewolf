@@ -45,7 +45,7 @@ async def init_players(
     w, p, c = preset
     roles = [
         *preset_data.werewolf_priority[:w],
-        *preset_data.priesthood_proirity[:p],
+        *preset_data.priesthood_priority[:p],
         *([Role.CIVILIAN] * c),
     ]
 
