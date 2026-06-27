@@ -16,7 +16,7 @@ from nonebot_plugin_localstore import get_plugin_data_file
 from nonebot_plugin_uninfo import QryItrface, Uninfo
 
 from ..config import GameBehavior, config, stop_command_prompt
-from ..game import Game, get_running_games
+from ..game import Game, game_registry
 from ..utils import extract_session_member_nick
 from ._prepare_game import PrepareGame, solve_button
 from .depends import rule_not_in_game
@@ -62,8 +62,8 @@ def load_players(target: Target) -> dict[str, str] | None:
 @start_game.handle()
 async def handle_notice(target: MsgTarget) -> None:
     if target.private:
-        await UniMessage("⚠️请在群组中创建新游戏").finish(reply_to=True)
-    if target in get_running_games():
+        await UniMessage.text("⚠️请在群组中创建新游戏").finish(reply_to=True)
+    if game_registry.get(target) is not None:
         await (
             UniMessage.text("⚠️当前群组内有正在进行的游戏\n")
             .text("无法开始新游戏")

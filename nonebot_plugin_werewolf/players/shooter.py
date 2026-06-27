@@ -14,7 +14,7 @@ class ShooterKillProvider(KillProvider["Player"]):
             await self.p.send("⚠️你昨晚被女巫毒杀，无法使用技能")
             return await super().post_kill()
 
-        await self.game.send(
+        await self.game.messenger.send(
             UniMessage.text("🕵️玩家 ")
             .at(self.user_id)
             .text(" 死了\n请在私聊决定射杀目标...")
@@ -25,11 +25,13 @@ class ShooterKillProvider(KillProvider["Player"]):
         msg = UniMessage.text("玩家 ").at(self.user_id).text(" ")
         if shoot is not None:
             self.game.context.shooter = self.p
-            await self.game.send("🔫" + msg.text("射杀了玩家 ").at(shoot.user_id))
+            await self.game.messenger.send(
+                "🔫" + msg.text("射杀了玩家 ").at(shoot.user_id)
+            )
             await shoot.kill(KillReason.SHOOT, self.p)
             self.selected = shoot
         else:
-            await self.game.send("ℹ️" + msg.text("选择了取消技能"))
+            await self.game.messenger.send("ℹ️" + msg.text("选择了取消技能"))
 
         return await super().post_kill()
 

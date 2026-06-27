@@ -10,10 +10,11 @@ from nonebot.utils import escape_tag
 from nonebot_plugin_alconna.uniseg import Receipt, Target, UniMessage
 from nonebot_plugin_uninfo import Interface, SceneType
 
-from .config import stop_command_prompt
+from .config import GameBehavior, stop_command_prompt
 from .constant import STOP_COMMAND
 from .models import KillInfo, KillReason, Role, RoleGroup
 from .utils import (
+    ConfigAccess,
     InputStore,
     SendHandler,
     add_players_button,
@@ -61,6 +62,7 @@ class ActionProvider(Generic[_P]):
     name = proxy[str](readonly=True)
     user_id = proxy[str](readonly=True)
     game = proxy["Game"](readonly=True)
+    behavior = proxy[GameBehavior](readonly=True)
     selected = proxy["Player | None"]()
 
 
@@ -107,7 +109,28 @@ class _SendHandler(SendHandler[str | None]):
         return msg
 
 
-class Player:
+async def _get_user_name(
+    interface: Interface, group_id: str, user_id: str
+) -> tuple[str, str]:
+    member = await interface.get_member(SceneType.GROUP, group_id, user_id)
+    if member is None:
+        member = await interface.get_member(SceneType.GUILD, group_id, user_id)
+
+    nick = (
+        (member.nick or member.user.nick or member.user.name)
+        if member is not None
+        else None
+    )
+
+    colored = f"<b><e>{escape_tag(user_id)}</e></b>"
+    if nick:
+        colored = f"<y>{escape_tag(nick)}</y>({colored})"
+    colored = link(colored, member and member.user.avatar)
+
+    return nick or user_id, colored
+
+
+class Player(ConfigAccess):
     _player_class: ClassVar[dict[Role, type["Player"]]] = {}
 
     role: ClassVar[Role]
@@ -117,18 +140,12 @@ class Player:
     notify_provider: ClassVar[type[NotifyProvider[Self]]]
 
     user: Final[Target]
+    name: str
+    colored_name: str
     alive: bool = True
     killed: Final[anyio.Event]
     kill_info: KillInfo | None = None
     selected: "Player | None" = None
-
-    @final
-    def __init__(self, game: "Game", user: Target) -> None:
-        self.__game_ref = weakref.ref(game)
-        self.user = user
-        self.killed = anyio.Event()
-        self._member = None
-        self._send_handler = _SendHandler(self.user)
 
     @final
     @override
@@ -146,6 +163,13 @@ class Player:
         }.items():
             if not hasattr(cls, k):
                 setattr(cls, k, v)
+
+    @final
+    def __init__(self, game: "Game", user: Target) -> None:
+        self.__game_ref = weakref.ref(game)
+        self.user = user
+        self.killed = anyio.Event()
+        self._send_handler = _SendHandler(self.user)
 
     @final
     @classmethod
@@ -168,8 +192,9 @@ class Player:
             extra=game.group.extra,
         )
         self = cls._player_class[role](game, user)
-
-        await self._fetch_member(interface)
+        self.name, self.colored_name = await _get_user_name(
+            interface, game.group_id, user_id
+        )
         return self
 
     def __repr__(self) -> str:
@@ -191,47 +216,6 @@ class Player:
     @functools.cached_property
     def role_name(self) -> str:
         return self.role.display
-
-    @final
-    async def _fetch_member(self, interface: Interface) -> None:
-        member = await interface.get_member(
-            SceneType.GROUP,
-            self.game.group_id,
-            self.user_id,
-        )
-        if member is None:
-            member = await interface.get_member(
-                SceneType.GUILD,
-                self.game.group_id,
-                self.user_id,
-            )
-
-        self._member = member
-
-    @final
-    @property
-    def _member_nick(self) -> str | None:
-        return self._member and (
-            self._member.nick or self._member.user.nick or self._member.user.name
-        )
-
-    @final
-    @property
-    def name(self) -> str:
-        return self._member_nick or self.user_id
-
-    @final
-    @property
-    def colored_name(self) -> str:
-        name = f"<b><e>{escape_tag(self.user_id)}</e></b>"
-
-        if (nick := self._member_nick) is not None:
-            name = f"<y>{nick}</y>({name})"
-
-        if self._member is not None and self._member.user.avatar is not None:
-            name = link(name, self._member.user.avatar)
-
-        return name
 
     @final
     def log(self, text: str) -> None:
@@ -270,11 +254,11 @@ class Player:
 
     @property
     def interact_timeout(self) -> float:
-        return self.game.behavior.timeout.interact
+        return self.behavior.timeout.interact
 
     @property
     def vote_timeout(self) -> float:
-        return self.game.behavior.timeout.vote
+        return self.behavior.timeout.vote
 
     @final
     async def interact(self) -> None:

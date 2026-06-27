@@ -17,7 +17,7 @@ class IdiotKillProvider(KillProvider["Idiot"]):
     async def kill(self, reason: KillReason, *killers: Player) -> KillInfo | None:
         if reason == KillReason.VOTE and not self.voted:
             self.voted = True
-            await self.game.send(
+            await self.game.messenger.send(
                 UniMessage.text("⚙️玩家")
                 .at(self.user_id)
                 .text(" 的身份是白痴\n")

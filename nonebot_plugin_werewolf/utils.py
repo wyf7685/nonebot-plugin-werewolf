@@ -2,10 +2,11 @@ import abc
 import functools
 import itertools
 from collections import defaultdict
-from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, ClassVar, Generic, ParamSpec, TypeVar
+from collections.abc import Callable, Iterable
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Literal, ParamSpec, TypeVar
 
 import anyio
+import nonebot
 from nonebot.adapters import Bot, Event
 from nonebot_plugin_alconna.uniseg import (
     Button,
@@ -17,7 +18,7 @@ from nonebot_plugin_alconna.uniseg import (
 )
 from nonebot_plugin_uninfo import Session
 
-from .config import config, stop_command_prompt
+from .config import GameBehavior, PresetData, config, stop_command_prompt
 from .constant import STOP_COMMAND
 
 if TYPE_CHECKING:
@@ -227,3 +228,76 @@ class SendHandler(abc.ABC, Generic[P]):
             assert self.last_receipt is not None
 
         return self.last_receipt
+
+
+class ConfigAccess:
+    @property
+    def behavior(self) -> GameBehavior:
+        return GameBehavior.get()
+
+    @property
+    def preset(self) -> PresetData:
+        return PresetData.get()
+
+
+_ValidLogLevel = Literal[
+    "TRACE", "DEBUG", "INFO", "SUCCESS", "WARNING", "ERROR", "CRITICAL"
+]
+_valid_log_levels: set[_ValidLogLevel] = {
+    "TRACE",
+    "DEBUG",
+    "INFO",
+    "SUCCESS",
+    "WARNING",
+    "ERROR",
+    "CRITICAL",
+}
+_LogException = Exception | bool | None
+
+
+class LoggerWrapper:
+    def __init__(self, prefix: str) -> None:
+        self.logger = nonebot.logger.opt()
+        self.prefix = prefix
+
+    def log(
+        self,
+        level: _ValidLogLevel,
+        message: str,
+        exception: _LogException = None,
+    ) -> None:
+        self.logger.opt(colors=True, exception=exception).log(
+            level, f"<m>{self.prefix}</m> | {message}"
+        )
+
+    def __call__(self, message: str, exception: _LogException = None) -> None:
+        self.log("INFO", message, exception=exception)
+
+    if TYPE_CHECKING:
+
+        def trace(self, message: str, exception: _LogException = None) -> None: ...
+        def debug(self, message: str, exception: _LogException = None) -> None: ...
+        def info(self, message: str, exception: _LogException = None) -> None: ...
+        def success(self, message: str, exception: _LogException = None) -> None: ...
+        def warning(self, message: str, exception: _LogException = None) -> None: ...
+        def error(self, message: str, exception: _LogException = None) -> None: ...
+        def critical(self, message: str, exception: _LogException = None) -> None: ...
+    else:
+
+        def __getattr__(self, item: str) -> Callable[[str, Exception | None], None]:
+            level = item.upper()
+            if level not in _valid_log_levels:
+                raise AttributeError(f"Invalid log level: {item}")
+
+            def method(message: str, exception: _LogException = None) -> None:
+                self.log(level, message, exception)
+
+            setattr(self, item, method)
+            return method
+
+    def exception(self, message: str) -> None:
+        self.log("ERROR", message, exception=True)
+
+
+def logger_wrapper(prefix: str, /) -> LoggerWrapper:
+    return LoggerWrapper(prefix)

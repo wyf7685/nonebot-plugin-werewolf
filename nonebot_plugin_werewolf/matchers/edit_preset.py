@@ -1,9 +1,10 @@
-from typing import Any, NoReturn
+from collections.abc import AsyncGenerator
+from typing import Annotated, Any, NoReturn
 
 import nonebot_plugin_waiter.unimsg as waiter
 from arclet.alconna import AllParam
+from nonebot.params import Depends
 from nonebot.permission import SUPERUSER
-from nonebot.typing import T_State
 from nonebot_plugin_alconna import (
     Alconna,
     Args,
@@ -16,6 +17,22 @@ from nonebot_plugin_alconna import (
 
 from ..config import PresetData, config
 from ..models import Role
+
+
+async def _preset() -> AsyncGenerator[PresetData]:
+    preset = PresetData.get()
+    try:
+        yield preset
+    finally:
+        preset.save()
+
+
+Preset = Annotated[PresetData, Depends(_preset)]
+
+
+async def finish(text: str) -> NoReturn:
+    await UniMessage.text(text).finish(reply_to=True)
+
 
 alc = Alconna(
     "狼人杀预设",
@@ -77,16 +94,13 @@ edit_preset = on_alconna(
 )
 
 
-async def finish(text: str) -> NoReturn:
-    await UniMessage.text(text).finish(reply_to=True)
-
-
 def display_roles(roles: list[Role]) -> str:
     return ", ".join(role.display for role in roles)
 
 
 @edit_preset.assign("role")
 async def assign_role(
+    data: Preset,
     total: Match[int],
     werewolf: Match[int],
     priesthood: Match[int],
@@ -100,14 +114,12 @@ async def assign_role(
     if sum(preset) != total.result:
         await finish("总人数与职业数量不匹配")
 
-    data = PresetData.load()
     if werewolf.result > len(data.werewolf_priority):
         await finish("狼人数量超出优先级列表长度，请先设置足够多的狼人预设")
     if priesthood.result > len(data.priesthood_priority):
         await finish("神职数量超出优先级列表长度，请先设置足够多的神职预设")
 
     data.role_preset[total.result] = preset
-    data.save()
     await finish(
         f"设置成功\n{total.result} 人: "
         f"狼人x{werewolf.result}, 神职x{priesthood.result}, 平民x{civilian.result}"
@@ -115,40 +127,33 @@ async def assign_role(
 
 
 @edit_preset.assign("del")
-async def delete_role(total: Match[int]) -> None:
-    data = PresetData.load()
+async def delete_role(data: Preset, total: Match[int]) -> None:
     if total.result not in data.role_preset:
         await finish("未找到对应预设")
     del data.role_preset[total.result]
-    data.save()
     await finish("删除成功")
 
 
-@edit_preset.assign("werewolf")
-async def handle_werewolf_input_roles(roles: Match[Any], state: T_State) -> None:
+async def _input_roles(roles: Match[Any], role_type: str) -> list[str]:
     if roles.available:
-        state["roles"] = UniMessage(roles.result).extract_plain_text().split(" ")
-        return
+        return UniMessage(roles.result).extract_plain_text().split(" ")
 
     result = await waiter.prompt(
-        "请发送狼人优先级列表，以空格隔开\n发送 “取消” 取消操作"
+        f"请发送{role_type}优先级列表，以空格隔开\n发送 “取消” 取消操作"
     )
     if result is None:
         await finish("发送超时，已自动取消")
-
     text = result.extract_plain_text()
     if text == "取消":
         await finish("已取消操作")
-
-    state["roles"] = text.split(" ")
+    return text.split(" ")
 
 
 @edit_preset.assign("werewolf")
-async def assign_werewolf(state: T_State) -> None:
-    roles: list[str] = state["roles"]
+async def assign_werewolf(data: Preset, roles: Match[Any]) -> None:
     result: list[Role] = []
 
-    for role in roles:
+    for role in await _input_roles(roles, "狼人"):
         match role:
             case "狼人" | "狼":
                 result.append(Role.WEREWOLF)
@@ -157,41 +162,19 @@ async def assign_werewolf(state: T_State) -> None:
             case x:
                 await finish(f"未知职业: {x}")
 
-    data = PresetData.load()
     min_length = max(w for w, _, _ in data.role_preset.values())
     if len(result) < min_length:
         await finish(f"狼人数量不足，至少需要 {min_length} 个狼人")
 
     data.werewolf_priority = result
-    data.save()
     await finish(f"设置成功: {display_roles(result)}")
 
 
 @edit_preset.assign("priesthood")
-async def handle_priesthood_input_roles(roles: Match[Any], state: T_State) -> None:
-    if roles.available:
-        state["roles"] = UniMessage(roles.result).extract_plain_text().split(" ")
-        return
-
-    result = await waiter.prompt(
-        "请发送神职优先级列表，以空格隔开\n发送 “取消” 取消操作"
-    )
-    if result is None:
-        await finish("发送超时，已自动取消")
-
-    text = result.extract_plain_text()
-    if text == "取消":
-        await finish("已取消操作")
-
-    state["roles"] = text.split(" ")
-
-
-@edit_preset.assign("priesthood")
-async def assign_priesthood(state: T_State) -> None:
-    roles: list[str] = state["roles"]
+async def assign_priesthood(data: Preset, roles: Match[Any]) -> None:
     result: list[Role] = []
 
-    for role in roles:
+    for role in await _input_roles(roles, "神职"):
         match role:
             case "预言家" | "预言" | "预":
                 result.append(Role.PROPHET)
@@ -206,18 +189,16 @@ async def assign_priesthood(state: T_State) -> None:
             case x:
                 await finish(f"未知职业: {x}")
 
-    data = PresetData.load()
     min_length = max(p for _, p, _ in data.role_preset.values())
     if len(result) < min_length:
         await finish(f"神职数量不足，至少需要 {min_length} 个神职")
 
     data.priesthood_priority = result
-    data.save()
     await finish(f"设置成功: {display_roles(result)}")
 
 
 @edit_preset.assign("jester")
-async def assign_jester(probability: Match[float]) -> None:
+async def assign_jester(data: Preset, probability: Match[float]) -> None:
     if not probability.available:
         result = await waiter.prompt_until(
             message="请发送小丑概率，范围 0-100\n发送 “取消” 取消操作",
@@ -234,9 +215,7 @@ async def assign_jester(probability: Match[float]) -> None:
     if not 0 <= probability.result <= 100:
         await finish("输入错误，概率应在 0 到 100 之间")
 
-    data = PresetData.load()
     data.jester_probability = probability.result / 100
-    data.save()
     await finish(f"设置成功: 小丑概率 {probability.result:.1f}%")
 
 
@@ -247,9 +226,7 @@ async def reset_preset() -> None:
 
 
 @edit_preset.handle()
-async def handle_default() -> None:
-    data = PresetData.load()
-
+async def handle_default(data: Preset) -> None:
     lines = ["当前游戏预设:\n"]
     lines.extend(
         f"{total} 人: 狼人x{w}, 神职x{p}, 平民x{c}"

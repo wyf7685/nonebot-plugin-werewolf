@@ -6,9 +6,9 @@ from nonebot_plugin_alconna import MsgTarget, UniMessage
 
 from ...config import config
 from ...constant import STOP_COMMAND
+from ...game import game_registry
 from ...utils import InputStore
 from .._prepare_game import preparing_games
-from ..depends import user_in_game
 
 
 def milky_poke_enabled() -> bool:
@@ -26,9 +26,9 @@ with contextlib.suppress(ImportError, RuntimeError):
     async def _rule_poke_stop(bot: Bot, event: GroupNudgeEvent) -> bool:
         user_id = str(event.data.sender_id)
         group_id = str(event.data.group_id)
-        return (event.data.receiver_id == event.self_id) and user_in_game(
-            bot.self_id, user_id, group_id
-        )
+        return (
+            event.data.receiver_id == event.self_id
+        ) and game_registry.is_user_in_game(bot.self_id, user_id, group_id)
 
     @on_notice(rule=_rule_poke_stop).handle()
     async def handle_poke_stop(event: GroupNudgeEvent) -> None:
@@ -49,7 +49,7 @@ with contextlib.suppress(ImportError, RuntimeError):
         group_id = str(event.data.group_id)
         return (
             (event.data.receiver_id == event.self_id)
-            and not user_in_game(bot.self_id, user_id, group_id)
+            and not game_registry.is_user_in_game(bot.self_id, user_id, group_id)
             and target in preparing_games
         )
 

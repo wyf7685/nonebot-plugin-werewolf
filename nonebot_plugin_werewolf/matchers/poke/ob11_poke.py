@@ -6,9 +6,9 @@ from nonebot_plugin_alconna import MsgTarget, UniMessage
 
 from ...config import config
 from ...constant import STOP_COMMAND
+from ...game import game_registry
 from ...utils import InputStore
 from .._prepare_game import preparing_games
-from ..depends import user_in_game
 
 
 def ob11_poke_enabled() -> bool:
@@ -26,7 +26,7 @@ with contextlib.suppress(ImportError, RuntimeError):
     async def _rule_poke_stop(bot: Bot, event: PokeNotifyEvent) -> bool:
         user_id = str(event.user_id)
         group_id = str(event.group_id) if event.group_id is not None else None
-        return (event.target_id == event.self_id) and user_in_game(
+        return (event.target_id == event.self_id) and game_registry.is_user_in_game(
             bot.self_id, user_id, group_id
         )
 
@@ -49,7 +49,7 @@ with contextlib.suppress(ImportError, RuntimeError):
         group_id = str(event.group_id)
         return (
             (event.target_id == event.self_id)
-            and not user_in_game(bot.self_id, user_id, group_id)
+            and not game_registry.is_user_in_game(bot.self_id, user_id, group_id)
             and target in preparing_games
         )
 

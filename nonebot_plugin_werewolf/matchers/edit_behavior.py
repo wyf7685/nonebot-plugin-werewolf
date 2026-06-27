@@ -1,11 +1,10 @@
 # ruff: noqa: FBT001
 
+from collections.abc import AsyncGenerator
 from typing import Annotated, NoReturn
 
-from nonebot.internal.matcher import current_matcher
 from nonebot.params import Depends
 from nonebot.permission import SUPERUSER
-from nonebot.typing import T_State
 from nonebot_plugin_alconna import (
     Alconna,
     Args,
@@ -17,21 +16,19 @@ from nonebot_plugin_alconna import (
 
 from ..config import GameBehavior, config
 
-GAME_BEHAVIOR_CACHE_KEY = "GAME_BEHAVIOR_CACHE_KEY"
 
-
-def _behavior(state: T_State) -> GameBehavior:
-    if GAME_BEHAVIOR_CACHE_KEY not in state:
-        state[GAME_BEHAVIOR_CACHE_KEY] = GameBehavior.get()
-    return state[GAME_BEHAVIOR_CACHE_KEY]
+async def _behavior() -> AsyncGenerator[GameBehavior]:
+    behavior = GameBehavior.get()
+    try:
+        yield behavior
+    finally:
+        behavior.save()
 
 
 Behavior = Annotated[GameBehavior, Depends(_behavior)]
 
 
 async def finish(text: str) -> NoReturn:
-    behavior: GameBehavior = current_matcher.get().state[GAME_BEHAVIOR_CACHE_KEY]
-    behavior.save()
     await UniMessage.text(text).finish(reply_to=True)
 
 

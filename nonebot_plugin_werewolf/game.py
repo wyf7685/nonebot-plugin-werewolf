@@ -1,6 +1,9 @@
+import contextlib
 import functools
+import itertools
 import secrets
 from collections import Counter
+from collections.abc import AsyncGenerator
 from typing import NoReturn, final
 from typing_extensions import Self
 
@@ -9,17 +12,23 @@ import nonebot
 from nonebot.utils import escape_tag
 from nonebot_plugin_alconna import At, Target, UniMessage
 from nonebot_plugin_alconna.uniseg.receipt import Receipt
-from nonebot_plugin_uninfo import Interface, Scene, SceneType
+from nonebot_plugin_uninfo import Interface, SceneType
 
-from .config import GameBehavior, PresetData
 from .dead_channel import DeadChannel
 from .exception import GameFinished
 from .models import GameContext, GameStatus, KillInfo, KillReason, Role, RoleGroup
 from .player import Player
 from .player_set import PlayerSet
-from .utils import InputStore, SendHandler, add_stop_button, link
+from .utils import (
+    ConfigAccess,
+    InputStore,
+    LoggerWrapper,
+    SendHandler,
+    add_stop_button,
+    link,
+    logger_wrapper,
+)
 
-logger = nonebot.logger.opt(colors=True)
 running_games: dict[Target, "Game"] = {}
 
 
@@ -27,14 +36,55 @@ def get_running_games() -> dict[Target, "Game"]:
     return running_games
 
 
+class GameRegistry:
+    def __init__(self) -> None:
+        self._games: dict[Target, Game] = {}
+
+    @contextlib.asynccontextmanager
+    async def register(self, game: "Game") -> AsyncGenerator["Game"]:
+        self._games[game.group] = game
+        try:
+            yield game
+        finally:
+            self._games.pop(game.group, None)
+
+    def is_user_in_game(self, self_id: str, user_id: str, group_id: str | None) -> bool:
+        if group_id is None:
+            return any(
+                p.user.self_id == self_id and p.user_id == user_id
+                for p in itertools.chain.from_iterable(
+                    g.players for g in self._games.values()
+                )
+            )
+        for game in self._games.values():
+            if self_id == game.group.self_id and group_id == game.group.id:
+                return any(p.user_id == user_id for p in game.players)
+        return False
+
+    def has_running_games(self) -> bool:
+        return bool(self._games)
+
+    def __contains__(self, target: Target) -> bool:
+        return any(target.verify(group) for group in self._games)
+
+    def get(self, group: Target) -> "Game | None":
+        for g, game in self._games.items():
+            if g.verify(group):
+                return game
+        return None
+
+
+game_registry = GameRegistry()
+
+
 async def init_players(
     game: "Game",
     players: set[str],
     interface: Interface,
 ) -> PlayerSet:
-    logger.debug(f"初始化 {game.colored_name} 的玩家职业")
+    game.log.debug("初始化玩家职业")
 
-    preset_data = PresetData.get()
+    preset_data = game.preset
     if (preset := preset_data.role_preset.get(len(players))) is None:
         raise ValueError(
             f"玩家人数不符: "
@@ -58,7 +108,7 @@ async def init_players(
         role = roles.pop(secrets.randbelow(len(roles)))
         player_set.add(await Player.new(role, game, user_id, interface))
 
-    logger.debug(f"职业分配完成: <e>{escape_tag(str(player_set))}</e>")
+    game.log.debug(f"职业分配完成: <e>{escape_tag(str(player_set))}</e>")
     return player_set
 
 
@@ -73,55 +123,12 @@ class _SendHandler(SendHandler[str | None]):
         return msg
 
 
-class Game:
-    group: Target
-    players: PlayerSet
-    context: GameContext
-    killed_players: list[tuple[str, KillInfo]]
-
-    def __init__(self, group: Target) -> None:
+class GameMessenger(ConfigAccess):
+    def __init__(self, group: Target, players: PlayerSet, log: LoggerWrapper) -> None:
         self.group = group
-        self.context = GameContext(0)
-        self.killed_players = []
-        self._player_map: dict[str, Player] = {}
-        self._shuffled: list[Player] = []
-        self._scene: Scene | None = None
-        self._finished = self._task_group = None
+        self.player_map = {p.user_id: p for p in players}
+        self.log = log
         self._send_handler = _SendHandler(group)
-
-    @final
-    @classmethod
-    async def new(
-        cls,
-        group: Target,
-        players: set[str],
-        interface: Interface,
-    ) -> Self:
-        self = cls(group)
-
-        self._scene = await interface.get_scene(SceneType.GROUP, self.group_id)
-        if self._scene is None:
-            self._scene = await interface.get_scene(SceneType.GUILD, self.group_id)
-
-        self.players = await init_players(self, players, interface)
-        self._player_map |= {p.user_id: p for p in self.players}
-        self._shuffled = self.players.shuffled
-
-        return self
-
-    @functools.cached_property
-    def group_id(self) -> str:
-        return self.group.id
-
-    @property
-    def colored_name(self) -> str:
-        name = f"<b><e>{escape_tag(self.group_id)}</e></b>"
-        if self._scene and self._scene.name is not None:
-            name = f"<y>{escape_tag(self._scene.name)}</y>({name})"
-        return link(name, self._scene and self._scene.avatar)
-
-    def log(self, text: str) -> None:
-        logger.info(f"{self.colored_name} | {text}")
 
     async def send(
         self,
@@ -135,14 +142,97 @@ class Game:
         for seg in message:
             if isinstance(seg, At):
                 name = seg.target
-                if name in self._player_map:
-                    name = self._player_map[name].colored_name
+                if name in self.player_map:
+                    name = self.player_map[name].colored_name
                 text.append(f"<y>@{name}</y>")
             else:
                 text.append(escape_tag(str(seg)).replace("\n", "\\n"))
 
-        self.log("".join(text))
+        self.log.info("".join(text))
         return await self._send_handler.send(message, stop_btn_label)
+
+    async def wait_stop(
+        self,
+        *players: Player,
+        timeout_secs: float | None = None,
+    ) -> None:
+        if timeout_secs is None:
+            timeout_secs = self.behavior.timeout.speak
+        with anyio.move_on_after(timeout_secs):
+            async with anyio.create_task_group() as tg:
+                for p in players:
+                    tg.start_soon(InputStore.fetch_until_stop, p.user_id, self.group.id)
+
+    async def notify_player_role(self, players: PlayerSet) -> None:
+        msg = UniMessage()
+        for p in sorted(players, key=lambda p: p.user_id):
+            msg.at(p.user_id)
+
+        w, p, c = self.preset.role_preset[len(players)]
+        msg = (
+            msg.text("\n\n📝正在分配职业，请注意查看私聊消息\n")
+            .text(f"当前玩家数: {len(players)}\n")
+            .text(f"职业分配: 狼人x{w}, 神职x{p}, 平民x{c}")
+        )
+
+        if self.behavior.show_roles_list_on_start:
+            msg.text("\n\n📚职业列表:\n")
+            counter = Counter(p.role for p in players)
+            for role, cnt in sorted(counter.items(), key=lambda x: x[0].value):
+                msg.text(f"- {role.emoji}{role.display}x{cnt}\n")
+
+        async with anyio.create_task_group() as tg:
+            tg.start_soon(self.send, msg)
+            for p in players:
+                tg.start_soon(p.notify_role)
+
+
+class Game(ConfigAccess):
+    group: Target
+    log: LoggerWrapper
+    players: PlayerSet
+    context: GameContext
+    messenger: GameMessenger
+    killed_players: list[tuple[str, KillInfo]]
+    finished: anyio.Event
+
+    def __init__(self, group: Target) -> None:
+        self.group = group
+        self.context = GameContext(0)
+        self.killed_players = []
+        self.finished = anyio.Event()
+        self._task_group = None
+
+    @final
+    @classmethod
+    async def new(
+        cls,
+        group: Target,
+        players: set[str],
+        interface: Interface,
+    ) -> Self:
+        scene = await interface.get_scene(SceneType.GROUP, group.id)
+        if scene is None:
+            scene = await interface.get_scene(SceneType.GUILD, group.id)
+        name = f"<b><e>{escape_tag(group.id)}</e></b>"
+        if scene is not None and scene.name is not None:
+            name = f"<y>{escape_tag(scene.name)}</y>({name})"
+        log_prefix = link(name, scene.avatar if scene is not None else None)
+
+        self = cls(group)
+        self.log = logger_wrapper(log_prefix)
+        self.players = await init_players(self, players, interface)
+        self.messenger = GameMessenger(group, self.players, self.log)
+
+        return self
+
+    @functools.cached_property
+    def group_id(self) -> str:
+        return self.group.id
+
+    @functools.cached_property
+    def _shuffled(self) -> list[Player]:
+        return self.players.shuffled
 
     def raise_for_status(self) -> None:
         players = self.players.alive()
@@ -162,45 +252,6 @@ class Game:
         if not w.size:
             raise GameFinished(GameStatus.GOODGUY)
 
-    @property
-    def behavior(self) -> GameBehavior:
-        return GameBehavior.get()
-
-    async def notify_player_role(self) -> None:
-        msg = UniMessage()
-        for p in sorted(self.players, key=lambda p: p.user_id):
-            msg.at(p.user_id)
-
-        w, p, c = PresetData.get().role_preset[len(self.players)]
-        msg = (
-            msg.text("\n\n📝正在分配职业，请注意查看私聊消息\n")
-            .text(f"当前玩家数: {len(self.players)}\n")
-            .text(f"职业分配: 狼人x{w}, 神职x{p}, 平民x{c}")
-        )
-
-        if self.behavior.show_roles_list_on_start:
-            msg.text("\n\n📚职业列表:\n")
-            counter = Counter(p.role for p in self.players)
-            for role, cnt in sorted(counter.items(), key=lambda x: x[0].value):
-                msg.text(f"- {role.emoji}{role.display}x{cnt}\n")
-
-        async with anyio.create_task_group() as tg:
-            tg.start_soon(self.send, msg)
-            for p in self.players:
-                tg.start_soon(p.notify_role)
-
-    async def wait_stop(
-        self,
-        *players: Player,
-        timeout_secs: float | None = None,
-    ) -> None:
-        if timeout_secs is None:
-            timeout_secs = self.behavior.timeout.speak
-        with anyio.move_on_after(timeout_secs):
-            async with anyio.create_task_group() as tg:
-                for p in players:
-                    tg.start_soon(InputStore.fetch_until_stop, p.user_id, self.group_id)
-
     async def post_kill(self, players: Player | PlayerSet) -> None:
         if isinstance(players, Player):
             players = PlayerSet([players])
@@ -215,13 +266,13 @@ class Game:
 
             shooter = self.context.shooter
             if shooter is not None and (shoot := shooter.selected) is not None:
-                await self.send(
+                await self.messenger.send(
                     UniMessage.text("🔫玩家 ")
                     .at(shoot.user_id)
                     .text(f" 被{shooter.name}射杀, 请发表遗言\n")
                     .text(self.behavior.timeout.speak_timeout_prompt)
                 )
-                await self.wait_stop(shoot)
+                await self.messenger.wait_stop(shoot)
                 self.context.shooter = shooter.selected = None
                 await self.post_kill(shoot)
 
@@ -259,25 +310,25 @@ class Game:
         timeout = self.behavior.timeout
 
         if not self.behavior.speak_in_turn:
-            await self.send(
+            await self.messenger.send(
                 f"💬接下来开始自由讨论\n{timeout.group_speak_timeout_prompt}",
                 stop_btn_label="结束发言",
             )
-            await self.wait_stop(
+            await self.messenger.wait_stop(
                 *self.players.alive(),
                 timeout_secs=timeout.group_speak,
             )
         else:
-            await self.send("💬接下来开始轮流发言")
+            await self.messenger.send("💬接下来开始轮流发言")
             for player in filter(lambda p: p.alive, self._shuffled):
-                await self.send(
+                await self.messenger.send(
                     UniMessage.text("💬")
                     .at(player.user_id)
                     .text(f"\n轮到你发言\n{timeout.speak_timeout_prompt}"),
                     stop_btn_label="结束发言",
                 )
-                await self.wait_stop(player, timeout_secs=timeout.speak)
-            await self.send("💬所有玩家发言结束")
+                await self.messenger.wait_stop(player, timeout_secs=timeout.speak)
+            await self.messenger.send("💬所有玩家发言结束")
 
     async def run_vote(self) -> None:
         # 筛选当前存活玩家
@@ -290,7 +341,7 @@ class Game:
         # 收集到的总票数
         total_votes = sum(map(len, vote_result.values()))
 
-        logger.debug(f"投票结果: {escape_tag(str(vote_result))}")
+        self.log.debug(f"投票结果: {escape_tag(str(vote_result))}")
 
         # 投票结果公示
         msg = UniMessage.text("📊投票结果:\n")
@@ -308,24 +359,26 @@ class Game:
 
         # 全员弃票  # 不是哥们？
         if total_votes == 0:
-            await self.send(msg.text("🔨没有人被投票放逐"))
+            await self.messenger.send(msg.text("🔨没有人被投票放逐"))
             return
 
         # 弃票大于最高票
         if (len(players) - total_votes) >= max(vote_reversed.keys()):
-            await self.send(msg.text("🔨弃票数大于最高票数, 没有人被投票放逐"))
+            await self.messenger.send(
+                msg.text("🔨弃票数大于最高票数, 没有人被投票放逐")
+            )
             return
 
         # 平票
         if len(vs := vote_reversed[max(vote_reversed.keys())]) != 1:
-            await self.send(
+            await self.messenger.send(
                 msg.text("🔨玩家 ")
                 .text(", ".join(p.name for p in vs))
                 .text(" 平票, 没有人被投票放逐")
             )
             return
 
-        await self.send(msg.rstrip("\n"))
+        await self.messenger.send(msg.rstrip("\n"))
 
         # 仅有一名玩家票数最高
         voted = vs.pop()
@@ -334,26 +387,26 @@ class Game:
             return
 
         # 遗言
-        await self.send(
+        await self.messenger.send(
             UniMessage.text("🔨玩家 ")
             .at(voted.user_id)
             .text(" 被投票放逐, 请发表遗言\n")
             .text(self.behavior.timeout.speak_timeout_prompt),
             stop_btn_label="结束发言",
         )
-        await self.wait_stop(voted)
+        await self.messenger.wait_stop(voted)
         await self.post_kill(voted)
 
     async def mainloop(self) -> NoReturn:
         # 告知玩家角色信息
-        await self.notify_player_role()
+        await self.messenger.notify_player_role(self.players)
 
         # 游戏主循环
         while True:
             # 重置游戏状态，进入下一夜
             self.context.reset()
             self.context.state = GameContext.State.NIGHT
-            await self.send("🌙天黑请闭眼...")
+            await self.messenger.send("🌙天黑请闭眼...")
             players = self.players.alive()
 
             # 夜间交互
@@ -365,13 +418,13 @@ class Game:
             msg = UniMessage.text(f"『第{self.context.day}天』☀️天亮了...\n")
             # 没有玩家死亡，平安夜
             if not (dead := players.dead()):
-                await self.send(msg.text("昨晚是平安夜"))
+                await self.messenger.send(msg.text("昨晚是平安夜"))
             # 有玩家死亡，公布死者名单
             else:
                 msg.text("☠️昨晚的死者是:")
                 for p in dead.sorted:
                     msg.text("\n").at(p.user_id)
-                await self.send(msg)
+                await self.messenger.send(msg)
 
             # 第一晚被狼人杀死的玩家发表遗言
             if (
@@ -379,27 +432,29 @@ class Game:
                 and (killed := self.context.killed) is not None  # 狼人未空刀且未保护
                 and not killed.alive  # kill 成功
             ):
-                await self.send(
+                await self.messenger.send(
                     UniMessage.text("⚙️当前为第一天\n请被狼人杀死的 ")
                     .at(killed.user_id)
                     .text(" 发表遗言\n")
                     .text(self.behavior.timeout.speak_timeout_prompt),
                     stop_btn_label="结束发言",
                 )
-                await self.wait_stop(killed)
+                await self.messenger.wait_stop(killed)
             await self.post_kill(dead)
 
             # 判断游戏状态
             self.raise_for_status()
 
             # 公示存活玩家
-            await self.send(f"📝当前存活玩家: \n\n{self.players.alive().show()}")
+            await self.messenger.send(
+                f"📝当前存活玩家: \n\n{self.players.alive().show()}"
+            )
 
             # 开始自由讨论
             await self.run_discussion()
 
             # 开始投票
-            await self.send(
+            await self.messenger.send(
                 "🗳️讨论结束, 进入投票环节, "
                 f"限时{self.behavior.timeout.vote / 60:.1f}分钟\n"
                 "请在私聊中进行投票交互"
@@ -414,51 +469,49 @@ class Game:
         msg = UniMessage.text(f"🎉游戏结束，{status.display}获胜\n\n")
         for p in sorted(self.players, key=lambda p: (p.role.value, p.user_id)):
             msg.at(p.user_id).text(f": {p.role_name}\n")
-        await self.send(msg)
+        await self.messenger.send(msg)
 
         report = ["📌玩家死亡报告:"]
         for name, info in self.killed_players:
             emoji, action = info.reason.display
             report.append(f"{emoji} {name} 被 {', '.join(info.killers)} {action}")
-        await self.send("\n\n".join(report))
+        await self.messenger.send("\n\n".join(report))
 
     async def run_daemon(self) -> None:
         try:
             await self.mainloop()
         except anyio.get_cancelled_exc_class():
-            logger.warning(f"{self.colored_name} 的狼人杀游戏进程被取消")
+            self.log.warning("的狼人杀游戏进程被取消")
             raise
         except GameFinished as result:
             await self.handle_game_finish(result.status)
-            logger.info(f"{self.colored_name} 的狼人杀游戏进程正常退出")
+            self.log.info("狼人杀游戏进程正常退出")
         except Exception as exc:
-            logger.exception(f"{self.colored_name} 的狼人杀游戏进程出现未知错误")
-            await self.send(f"❌狼人杀游戏进程出现未知错误: {exc!r}")
+            self.log.exception("狼人杀游戏进程出现未知错误")
+            await self.messenger.send(f"❌狼人杀游戏进程出现未知错误: {exc!r}")
         finally:
-            if self._finished is not None:
-                self._finished.set()
+            self.finished.set()
 
     async def run(self) -> None:
-        self._finished = anyio.Event()
-        dead_channel = DeadChannel(self.players, self._finished)
-        get_running_games()[self.group] = self
+        dead_channel = DeadChannel(self.players, self.finished)
 
         try:
-            async with anyio.create_task_group() as self._task_group:
+            async with (
+                game_registry.register(self),
+                anyio.create_task_group() as self._task_group,
+            ):
                 self._task_group.start_soon(dead_channel.run)
                 await self.run_daemon()
         except Exception:
-            logger.exception(f"{self.colored_name} 的狼人杀守护进程出现错误")
+            self.log.exception("狼人杀守护进程出现错误")
         finally:
-            self._finished = None
             self._task_group = None
-            get_running_games().pop(self.group, None)
-            InputStore.cleanup(self._player_map.keys(), self.group_id)
+            InputStore.cleanup((p.user_id for p in self.players), self.group_id)
 
     def start(self) -> None:
         nonebot.get_driver().task_group.start_soon(self.run)
 
     def terminate(self) -> None:
         if self._task_group is not None:
-            logger.warning(f"中止 {self.colored_name} 的狼人杀游戏进程")
+            self.log.warning("中止狼人杀游戏进程")
             self._task_group.cancel_scope.cancel()

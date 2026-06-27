@@ -6,7 +6,7 @@ from nonebot.rule import to_me
 from nonebot_plugin_alconna import Alconna, MsgTarget, UniMessage, on_alconna
 
 from ..config import config
-from ..game import Game, get_running_games
+from ..game import Game, game_registry
 
 terminate = on_alconna(
     Alconna("中止游戏"),
@@ -18,7 +18,7 @@ terminate = on_alconna(
 
 
 async def running_game(target: MsgTarget) -> Game:
-    if (game := get_running_games().get(target)) is None:
+    if (game := game_registry.get(target)) is None:
         terminate.skip()
     return game
 

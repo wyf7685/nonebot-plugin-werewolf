@@ -6,9 +6,9 @@ from nonebot_plugin_alconna import MsgTarget, UniMessage
 
 from ...config import config
 from ...constant import STOP_COMMAND
+from ...game import game_registry
 from ...utils import InputStore
 from .._prepare_game import preparing_games
-from ..depends import user_in_game
 
 
 def chronocat_poke_enabled() -> bool:
@@ -50,7 +50,7 @@ with contextlib.suppress(ImportError, RuntimeError):
     # 游戏内戳一戳等效 "stop" 命令
     async def _rule_poke_stop(bot: Bot, event: MessageCreatedEvent) -> bool:
         return extract_poke_tome(event) is not None and (
-            user_in_game(bot.self_id, *extract_user_group(event))
+            game_registry.is_user_in_game(bot.self_id, *extract_user_group(event))
         )
 
     @on_message(rule=_rule_poke_stop).handle()
@@ -69,7 +69,7 @@ with contextlib.suppress(ImportError, RuntimeError):
     ) -> bool:
         return (
             (user_id := extract_poke_tome(event)) is not None
-            and not user_in_game(
+            and not game_registry.is_user_in_game(
                 self_id=bot.self_id,
                 user_id=user_id,
                 group_id=(event.guild and event.guild.id) or event.channel.id,

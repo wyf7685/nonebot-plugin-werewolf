@@ -190,7 +190,7 @@ class PrepareGame:
 
     async def _handle_join(self) -> None:
         if self.current.is_admin:
-            await self._send("⚠️只有游戏发起者可以开始游戏")
+            await self._send("ℹ️游戏发起者无需加入游戏")
             return
 
         if self.current.id not in self.players:

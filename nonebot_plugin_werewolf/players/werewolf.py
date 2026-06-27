@@ -100,7 +100,7 @@ class WerewolfInteractProvider(InteractProvider["Werewolf"]):
             case [killed]:
                 self.game.context.killed = killed
                 await w.broadcast(f"🔪今晚选择的目标为: {killed.name}")
-            case [killed, *_] if self.game.behavior.werewolf_multi_select:
+            case [killed, *_] if self.behavior.werewolf_multi_select:
                 self.game.context.killed = killed
                 await w.broadcast(
                     "⚠️狼人阵营意见未统一，随机选择目标\n\n"
@@ -145,4 +145,4 @@ class Werewolf(Player):
     @property
     @override
     def interact_timeout(self) -> float:
-        return self.game.behavior.timeout.werewolf
+        return self.behavior.timeout.werewolf

@@ -1,6 +1,6 @@
 # ruff: noqa: S101
 
-from typing import Any, cast
+from typing import cast
 
 import pytest
 from nonebot.adapters.onebot.v11 import Message, MessageSegment
@@ -41,27 +41,30 @@ async def test_start_game_private(app: App) -> None:
 async def test_start_game_exists(app: App) -> None:
     from nonebot_plugin_alconna import get_target
 
-    from nonebot_plugin_werewolf.game import get_running_games
+    from nonebot_plugin_werewolf.game import Game, game_registry
     from nonebot_plugin_werewolf.matchers.start_game import start_game as matcher
+    from nonebot_plugin_werewolf.player_set import PlayerSet
 
     async with app.test_matcher(matcher) as ctx:
         bot = fake_v11_bot(ctx)
         event = fake_v11_group_message_event(message=Message("werewolf"), to_me=True)
         target = get_target(event, bot)
-        running_games = get_running_games()
-        fake_game = cast("Any", lambda: ...)
-        fake_game.group = get_target(
-            fake_v11_group_message_event(message=Message()), bot
+        fake_game = cast("Game", lambda: ...)
+        fake_game.group = target
+        fake_game.players = PlayerSet()
+        game_registry._games[target] = fake_game  # noqa: SLF001
+        new_event = fake_v11_group_message_event(
+            message=Message("werewolf"), to_me=True, group_id=event.group_id
         )
-        running_games[target] = fake_game
-        ctx.receive_event(bot, event)
+        ctx.receive_event(bot, new_event)
         ctx.should_pass_rule(matcher)
         ctx.should_call_send(
-            event,
-            MessageSegment.reply(event.message_id)
+            new_event,
+            MessageSegment.reply(new_event.message_id)
             + "⚠️当前群组内有正在进行的游戏\n无法开始新游戏",
         )
         ctx.should_finished()
+    del game_registry._games[target]  # noqa: SLF001
 
 
 @pytest.mark.asyncio
